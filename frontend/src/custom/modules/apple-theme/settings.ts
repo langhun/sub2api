@@ -7,7 +7,7 @@ interface AppleThemeSettings {
 }
 
 const defaultAppleThemeSettings = (): AppleThemeSettings => ({
-  enable_apple_theme: false,
+  enable_apple_theme: true,
   default_theme_mode: 'auto',
 })
 

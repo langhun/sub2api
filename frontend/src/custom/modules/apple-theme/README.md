@@ -85,7 +85,7 @@ frontend/src/custom/modules/apple-theme/
      - 主色：#0071e3（Apple 蓝）
      - 流体：青绿色渐变
      - 卡片：白色半透明
-   
+
    - 深色模式：
      - 背景：#0C121B（深蓝黑色）
      - 主色：#2997ff（亮蓝色）
@@ -112,7 +112,7 @@ frontend/src/custom/modules/apple-theme/
   - 速度场传播
   - 衰减和扩散
   - 鼠标/触控输入响应
-  
+
 - **Display Shader**：视觉渲染
   - 噪声生成和扭曲
   - 涡旋效果
@@ -167,19 +167,22 @@ if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 使用 Vue 3 Composition API：
 
 ```typescript
-const { themeMode, themeStyle, effectiveMode, setThemeMode, setThemeStyle } = useTheme()
+const { themeMode, themeStyle, effectiveMode, setThemeMode } = useTheme()
 ```
 
 - `themeMode`: 'light' | 'dark' | 'auto'
 - `themeStyle`: 'default' | 'apple'
 - `effectiveMode`: 实际生效的模式（auto 会解析为 light 或 dark）
 
-### 本地存储
+### 配置所有权
 
-主题选择自动保存到 localStorage：
+主题风格由管理后台的公开设置统一控制：
 
-- `theme-mode`: 保存用户的模式选择
-- `theme-style`: 保存用户的风格选择
+- `enable_apple_theme`: 是否启用 Apple Theme
+- `default_theme_mode`: 没有用户偏好时的默认明暗模式
+- `theme_style`: 仅用于兼容旧版本的 `glass/classic` 设置
+
+浏览器只在 `localStorage.theme` 中保存用户选择的明暗模式，不保存主题风格。
 
 ## 兼容性
 
@@ -214,7 +217,7 @@ const { themeMode, themeStyle, effectiveMode, setThemeMode, setThemeStyle } = us
 
 ## 扩展开发
 
-### 添加新主题风格
+### 调整全局主题风格
 
 1. 在 `theme.css` 中添加新的 CSS 变量定义：
 
@@ -224,22 +227,13 @@ const { themeMode, themeStyle, effectiveMode, setThemeMode, setThemeStyle } = us
 }
 ```
 
-2. 在 `useTheme.ts` 中添加类型：
+2. 在 `useTheme.ts` 中更新服务端设置到主题样式的映射。
 
 ```typescript
 export type ThemeStyle = 'default' | 'apple' | 'your-theme'
 ```
 
-3. 在 `ThemeSwitcher.vue` 中添加选项：
-
-```typescript
-const themeStyles = [
-  // ... existing styles
-  { value: 'your-theme' as ThemeStyle, label: 'theme.styleYourTheme', icon: 'sparkles' as const },
-]
-```
-
-4. 添加国际化文本到 `locales/` 文件中
+3. 在后台设置模块中增加对应选项和持久化字段；不要添加用户侧主题风格切换入口。
 
 ### 自定义流体参数
 
@@ -314,4 +308,3 @@ npm run test:coverage
 - 支持明暗模式切换
 - 完整的国际化支持
 - 模块化设计实现
-

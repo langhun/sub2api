@@ -14,9 +14,6 @@ export default {
   },
   theme: {
     toggle: 'Toggle theme',
-    styleLabel: 'Theme Style',
-    styleDefault: 'Default',
-    styleApple: 'Apple Glass',
     modeLabel: 'Appearance',
     modeLight: 'Light',
     modeDark: 'Dark',

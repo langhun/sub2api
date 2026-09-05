@@ -7,6 +7,14 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('AppleThemeSettingsPanel', () => {
+  it('defaults the global theme to enabled and automatic mode', async () => {
+    const { appleThemeSettingsPanels } = await import('../settings')
+    expect(appleThemeSettingsPanels[0]?.createForm()).toEqual({
+      enable_apple_theme: true,
+      default_theme_mode: 'auto',
+    })
+  })
+
   it('uses the custom settings model contract and emits changes', async () => {
     const wrapper = mount(AppleThemeSettingsPanel, {
       props: {

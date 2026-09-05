@@ -2,7 +2,7 @@
 
 ## 5 种主题配色供你选择
 
-### 1. **Arctic Skyline（北极天际）🌌** 
+### 1. **Arctic Skyline（北极天际）🌌**
 **适合：** 科技产品、专业应用、SaaS平台
 
 **浅色模式：**
@@ -89,40 +89,7 @@
 
 ## 如何切换主题
 
-### 方法 1：通过界面（推荐）
-
-1. 点击导航栏右上角的**主题按钮**（太阳/月亮图标）
-2. 在下拉菜单中选择：
-   - **主题风格**：选择上面 5 种配色之一
-   - **外观模式**：浅色 / 深色 / 自动
-
-### 方法 2：通过控制台（快速测试）
-
-```javascript
-// 尝试 Arctic Skyline 深色模式
-localStorage.setItem('theme-style', 'arctic')
-localStorage.setItem('theme-mode', 'dark')
-location.reload()
-
-// 尝试 Lilac 浅色模式
-localStorage.setItem('theme-style', 'lilac')
-localStorage.setItem('theme-mode', 'light')
-location.reload()
-
-// 尝试 Ocean 深色模式
-localStorage.setItem('theme-style', 'ocean')
-localStorage.setItem('theme-mode', 'dark')
-location.reload()
-
-// 尝试 Warm 浅色模式
-localStorage.setItem('theme-style', 'warm')
-localStorage.setItem('theme-mode', 'light')
-location.reload()
-
-// 回到默认主题
-localStorage.setItem('theme-style', 'default')
-location.reload()
-```
+这些配色是设计参考，不是用户侧可选主题。正式启用的全局配色必须通过管理后台设置并由服务端公开配置下发；浏览器本地存储不能覆盖主题风格。
 
 ---
 

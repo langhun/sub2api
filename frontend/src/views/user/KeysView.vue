@@ -2998,8 +2998,8 @@ onUnmounted(() => {
 }
 
 .routing-add-select :deep(.select-trigger:focus-visible) {
-  border-color: #14b8a6;
-  box-shadow: 0 0 0 3px rgb(20 184 166 / 12%);
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 12%, transparent);
 }
 
 .routing-select-option {
@@ -3115,7 +3115,7 @@ onUnmounted(() => {
   outline: none;
 }
 
-.routing-preview-input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 10%); }
+.routing-preview-input:focus { border-color: var(--ui-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 10%, transparent); }
 
 .routing-preview-endpoint {
   flex: 0 0 132px;
@@ -3166,7 +3166,7 @@ onUnmounted(() => {
 
 .routing-custom-weights label { color: #667085; font-size: 11px; }
 .routing-number-input { display: flex; align-items: center; margin-top: 5px; border: 1px solid #dfe4ec; border-radius: 6px; background: #fff; }
-.routing-number-input:focus-within { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 10%); }
+.routing-number-input:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 10%, transparent); }
 .routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #344054; font-size: 12px; outline: none; }
 .routing-number-input b { padding-right: 8px; color: #98a2b3; font-size: 11px; font-weight: 500; }
 

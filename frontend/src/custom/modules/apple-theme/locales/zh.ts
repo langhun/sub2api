@@ -14,9 +14,6 @@ export default {
   },
   theme: {
     toggle: '切换主题',
-    styleLabel: '主题风格',
-    styleDefault: '默认',
-    styleApple: 'Apple 玻璃',
     modeLabel: '外观',
     modeLight: '浅色',
     modeDark: '深色',

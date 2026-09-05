@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	activitysettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/settings"
+	applethemesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/apple-theme/settings"
 	brandhomesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/brand-home/settings"
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
@@ -26,6 +27,7 @@ var ProviderSet = wire.NewSet(ProvideRegistry, ProvideHandlerSettingsMount)
 // Snapshot is the complete typed configuration owned by Overlay modules.
 type Snapshot struct {
 	Activity               activitysettings.Config
+	AppleTheme             applethemesettings.Config
 	BrandHome              brandhomesettings.Config
 	CodeFormat             codeformatsettings.Config
 	GameHall               gamehallsettings.Config
@@ -61,6 +63,10 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
+	appleThemeConfig, err := applethemesettings.New(r.store).Read(ctx)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	brandHomeConfig, err := brandhomesettings.New(r.store).Read(ctx)
 	if err != nil {
 		return Snapshot{}, err
@@ -85,11 +91,14 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read recharge promotion settings: %w", err)
 	}
-	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, RegistrationProtection: registrationProtectionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
+	return Snapshot{Activity: activityConfig, AppleTheme: appleThemeConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, RegistrationProtection: registrationProtectionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
 	if err := activitysettings.Validate(snapshot.Activity); err != nil {
+		return err
+	}
+	if err := applethemesettings.Validate(snapshot.AppleTheme); err != nil {
 		return err
 	}
 	if err := brandhomesettings.Validate(snapshot.BrandHome); err != nil {
@@ -153,6 +162,10 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	appleThemeValues, err := applethemesettings.Values(snapshot.AppleTheme)
+	if err != nil {
+		return nil, err
+	}
 	brandHomeValues, err := brandhomesettings.Values(snapshot.BrandHome)
 	if err != nil {
 		return nil, err
@@ -177,12 +190,13 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, registrationProtectionValues, supportTicketValues, rechargePromotionValues)
+	return mergeStringValues(activityValues, appleThemeValues, brandHomeValues, codeFormatValues, gameHallValues, registrationProtectionValues, supportTicketValues, rechargePromotionValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
 	values, err := mergePublicValues(
 		activitysettings.Public(snapshot.Activity),
+		applethemesettings.Public(snapshot.AppleTheme),
 		brandhomesettings.Public(snapshot.BrandHome),
 		gamehallsettings.Public(snapshot.GameHall),
 		rechargepromotionsettings.Public(snapshot.RechargePromotions),

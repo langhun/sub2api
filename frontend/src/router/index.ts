@@ -15,6 +15,7 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { resolveFeatureFlagKey } from '@/utils/featureFlags'
 import { customRoutes } from '@/custom/registry'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 /**
  * Route definitions with lazy loading
@@ -800,6 +801,20 @@ router.beforeEach(async (to, _from, next) => {
   if (!authInitialized) {
     authStore.checkAuth()
     authInitialized = true
+  }
+  if (isPreviewAdminMode() && !authStore.isAuthenticated) {
+    authStore.checkAuth()
+  }
+
+  // Carry the explicit visual-preview flag across admin menu navigation so
+  // each screen remains inspectable without a database-backed session.
+  if (isPreviewAdminMode() && to.path.startsWith('/admin') && to.query.preview !== 'admin') {
+    next({
+      path: to.path,
+      query: { ...to.query, preview: 'admin' },
+      hash: to.hash,
+    })
+    return
   }
 
   // Set page title

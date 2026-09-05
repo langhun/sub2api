@@ -54,7 +54,9 @@ func (r *Reader) Write(ctx context.Context, config Config) error {
 func Keys() []string { return []string{KeyDefaultHomepage} }
 
 func FromValues(values map[string]string) Config {
-	return Config{DefaultHomepage: normalize(values[KeyDefaultHomepage])}
+	return Config{
+		DefaultHomepage: normalize(values[KeyDefaultHomepage]),
+	}
 }
 
 func Values(config Config) (map[string]string, error) {

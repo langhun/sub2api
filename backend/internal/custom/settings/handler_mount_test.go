@@ -23,12 +23,17 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.NoError(t, err)
 	require.Equal(t, true, public["checkin_enabled"])
 	require.Equal(t, "default", public["default_homepage"])
+	require.Equal(t, "glass", public["theme_style"])
+	require.Equal(t, true, public["enable_apple_theme"])
+	require.Equal(t, "auto", public["default_theme_mode"])
 	require.NotContains(t, public, "checkin_min_balance")
 
 	formats := codeformatsettings.Default()
 	formats.RedPacket.Prefix = "RP"
 	payload, err := json.Marshal(map[string]any{
 		"default_homepage":     "dino",
+		"enable_apple_theme":   false,
+		"default_theme_mode":   "dark",
 		"code_format_settings": formats,
 	})
 	require.NoError(t, err)
@@ -37,6 +42,9 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.True(t, changed)
 	require.NoError(t, mount.ApplyUpdate(context.Background(), payload))
 	require.Equal(t, "dino", store.values["default_homepage"])
+	require.Equal(t, "classic", store.values["theme_style"])
+	require.Equal(t, "false", store.values["enable_apple_theme"])
+	require.Equal(t, "dark", store.values["default_theme_mode"])
 	require.NotContains(t, store.values, "transfer_enabled")
 	require.Equal(t, formats, codeformatsettings.FromValues(store.values))
 	admin, err = mount.Admin(context.Background())
@@ -49,6 +57,13 @@ func TestHandlerMountRejectsInvalidCodeFormatSettings(t *testing.T) {
 	changed, err := mount.ValidateUpdate(context.Background(), json.RawMessage(`{"code_format_settings":{}}`))
 	require.True(t, changed)
 	require.Error(t, err)
+}
+
+func TestHandlerMountRejectsInvalidLegacyThemeStyle(t *testing.T) {
+	mount := NewHandlerMount(NewRegistry(&memoryStore{values: map[string]string{}}))
+	changed, err := mount.ValidateUpdate(context.Background(), json.RawMessage(`{"theme_style":"unknown"}`))
+	require.True(t, changed)
+	require.ErrorContains(t, err, "theme_style")
 }
 
 func decodeCodeFormatSettings(t *testing.T, value any) codeformatsettings.Config {

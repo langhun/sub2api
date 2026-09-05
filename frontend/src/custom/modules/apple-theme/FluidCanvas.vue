@@ -81,11 +81,13 @@ onMounted(() => {
   const onMediaChange = () => {
     handle.setParams(isDark() ? DARK_PARAMS : LIGHT_PARAMS)
   }
-  media.addEventListener('change', onMediaChange)
+  if (typeof media.addEventListener === 'function') media.addEventListener('change', onMediaChange)
+  else media.addListener?.(onMediaChange)
 
   cleanup = () => {
     observer.disconnect()
-    media.removeEventListener('change', onMediaChange)
+    if (typeof media.removeEventListener === 'function') media.removeEventListener('change', onMediaChange)
+    else media.removeListener?.(onMediaChange)
     handle.dispose()
   }
 })

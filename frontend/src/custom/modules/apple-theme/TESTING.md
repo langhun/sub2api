@@ -2,7 +2,7 @@
 
 ## 如何启用主题
 
-### 方法 1：通过导航栏切换器（推荐）
+### 方法 1：通过管理后台（唯一主题风格入口）
 
 1. 启动开发服务器：
 ```bash
@@ -10,39 +10,14 @@ cd frontend
 npm run dev
 ```
 
-2. 打开浏览器访问 http://localhost:5173
-
-3. 点击导航栏右上角的**主题按钮**（太阳/月亮图标）
-
-4. 在下拉菜单中：
-   - **主题风格** → 选择 **"Apple Glass"**
-   - **外观模式** → 选择 **"浅色" / "深色" / "自动"**
-
-5. 页面应该立即显示：
+2. 以管理员身份进入 **管理后台** → **站点设置**
+3. 找到 **Apple Theme** 设置项，启用主题并选择默认明暗模式
+4. 保存后刷新页面，页面应该显示：
    - 🌊 **WebGL 流体动画背景**（会随鼠标移动）
    - 💎 **半透明玻璃卡片**（可以看到背后的流体）
    - ✨ **动态渐变效果**
 
-### 方法 2：通过浏览器控制台（快速测试）
-
-打开浏览器控制台（F12），输入：
-
-```javascript
-// 设置 Apple 主题
-localStorage.setItem('theme-style', 'apple')
-
-// 刷新页面
-location.reload()
-```
-
-### 方法 3：通过管理后台（全局配置）
-
-1. 以管理员身份登录
-2. 进入 **管理后台** → **站点设置**
-3. 找到 **"Apple Theme"** 设置项
-4. 开启 **"启用 Apple 主题"**
-5. 设置 **默认主题模式**
-6. 保存设置
+导航栏太阳/月亮按钮只修改当前浏览器的明暗模式，不能修改全局主题风格。
 
 ## 验证效果
 
@@ -81,9 +56,10 @@ location.reload()
 检查控制台是否有错误：
 
 ```javascript
-// 检查主题设置
-console.log('Theme Style:', localStorage.getItem('theme-style'))
-console.log('Theme Mode:', localStorage.getItem('theme-mode'))
+// 检查服务端注入的主题设置与本地明暗偏好
+console.log('Theme enabled:', window.__APP_CONFIG__?.enable_apple_theme)
+console.log('Default mode:', window.__APP_CONFIG__?.default_theme_mode)
+console.log('Local mode:', localStorage.getItem('theme'))
 
 // 检查 HTML 属性
 console.log('data-theme:', document.documentElement.getAttribute('data-theme'))
@@ -96,7 +72,7 @@ console.log('dark class:', document.documentElement.classList.contains('dark'))
 
 ```javascript
 // 检查支持情况
-console.log('backdrop-filter supported:', 
+console.log('backdrop-filter supported:',
   CSS.supports('backdrop-filter', 'blur(10px)') ||
   CSS.supports('-webkit-backdrop-filter', 'blur(10px)')
 )

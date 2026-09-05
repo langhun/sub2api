@@ -363,6 +363,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 import {
   Chart as ChartJS,
@@ -733,6 +734,26 @@ const loadUserSpendingRanking = async () => {
 }
 
 const loadDashboardStats = async () => {
+  if (isPreviewAdminMode()) {
+    const now = new Date().toISOString()
+    stats.value = {
+      total_users: 128, today_new_users: 6, active_users: 42, hourly_active_users: 18,
+      stats_updated_at: now, stats_stale: false, total_api_keys: 86, active_api_keys: 73,
+      total_accounts: 24, normal_accounts: 21, error_accounts: 1, ratelimit_accounts: 2,
+      overload_accounts: 0, total_requests: 18420, total_input_tokens: 4820000,
+      total_output_tokens: 1960000, total_cache_creation_tokens: 0, total_cache_read_tokens: 0,
+      total_tokens: 6780000, total_cost: 84.52, total_actual_cost: 71.38, total_account_cost: 63.1,
+      today_requests: 1264, today_input_tokens: 318000, today_output_tokens: 142000,
+      today_cache_creation_tokens: 0, today_cache_read_tokens: 0, today_tokens: 460000,
+      today_cost: 5.84, today_actual_cost: 4.92, today_account_cost: 4.28,
+      average_duration_ms: 842, uptime: 86400, rpm: 18, tpm: 6400
+    }
+    loading.value = false
+    chartsLoading.value = false
+    userTrendLoading.value = false
+    rankingLoading.value = false
+    return
+  }
   await Promise.all([
     loadDashboardSnapshot(true),
     loadUsersTrend(),
@@ -749,7 +770,7 @@ const loadChartData = async () => {
 }
 
 onMounted(() => {
-  void refreshBatchImageAccess()
+  if (!isPreviewAdminMode()) void refreshBatchImageAccess()
   loadDashboardStats()
 })
 </script>

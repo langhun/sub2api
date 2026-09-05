@@ -13,6 +13,7 @@ import type {
   AuthResponse,
   ActionCaptchaRequestProof
 } from '@/types'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -107,6 +108,26 @@ export const useAuthStore = defineStore('auth', () => {
    * Also starts auto-refresh and immediately fetches latest user data
    */
   function checkAuth(): void {
+    if (isPreviewAdminMode()) {
+      token.value = 'local-visual-preview'
+      user.value = {
+        id: 0,
+        username: 'preview-admin',
+        email: 'preview@localhost',
+        role: 'admin',
+        balance: 0,
+        concurrency: 0,
+        status: 'active',
+        allowed_groups: null,
+        balance_notify_enabled: false,
+        balance_notify_threshold: null,
+        balance_notify_extra_emails: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return
+    }
+
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY)
     const savedUser = localStorage.getItem(AUTH_USER_KEY)
     const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -433,6 +454,9 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if not authenticated or request fails
    */
   async function refreshUser(): Promise<User> {
+    if (isPreviewAdminMode() && user.value) {
+      return user.value
+    }
     if (!token.value) {
       throw new Error('Not authenticated')
     }

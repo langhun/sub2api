@@ -11,10 +11,12 @@ const defaultBrandHomeSettings = (): BrandHomeSettings => ({
 
 function readSettings(settings: CustomSettingsValues): BrandHomeSettings {
   const values = settings as Record<string, unknown>
-  if (values.default_homepage === 'dino' || values.default_homepage === 'pixel') {
-    return { default_homepage: values.default_homepage }
+  const defaultHomepage = values.default_homepage === 'dino' || values.default_homepage === 'pixel'
+    ? values.default_homepage
+    : 'default'
+  return {
+    default_homepage: defaultHomepage,
   }
-  return defaultBrandHomeSettings()
 }
 
 export const brandHomeSettingsPanels: readonly CustomSettingsPanel[] = [
@@ -26,7 +28,7 @@ export const brandHomeSettingsPanels: readonly CustomSettingsPanel[] = [
     settingKeys: ['default_homepage'],
     createForm: defaultBrandHomeSettings,
     fromSettings: readSettings,
-    toPayload: (form) => ({ default_homepage: readSettings(form).default_homepage }),
+    toPayload: (form) => readSettings(form),
     validate: () => '',
   },
 ]

@@ -16,31 +16,6 @@
         v-click-outside="closeDropdown"
         class="dropdown absolute right-0 top-full mt-2 w-56"
       >
-        <!-- Theme Style Section -->
-        <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-dark-400">
-          {{ t('theme.styleLabel') }}
-        </div>
-
-        <button
-          v-for="style in themeStyles"
-          :key="style.value"
-          @click="selectStyle(style.value)"
-          class="dropdown-item"
-          :class="{ 'bg-gray-100 dark:bg-dark-700': themeStyle === style.value }"
-        >
-          <Icon :name="style.icon" size="sm" />
-          <span>{{ t(style.label) }}</span>
-          <Icon
-            v-if="themeStyle === style.value"
-            name="check"
-            size="sm"
-            class="ml-auto text-primary-600 dark:text-primary-400"
-          />
-        </button>
-
-        <div class="my-1 h-px bg-gray-200 dark:bg-dark-700" />
-
-        <!-- Theme Mode Section -->
         <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-dark-400">
           {{ t('theme.modeLabel') }}
         </div>
@@ -70,17 +45,12 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import { useTheme, type ThemeMode, type ThemeStyle } from './useTheme'
+import { useTheme, type ThemeMode } from './useTheme'
 
 const { t } = useI18n()
-const { themeMode, themeStyle, effectiveMode, setThemeMode, setThemeStyle } = useTheme()
+const { themeMode, effectiveMode, setThemeMode } = useTheme()
 
 const isOpen = ref(false)
-
-const themeStyles = [
-  { value: 'default' as ThemeStyle, label: 'theme.styleDefault', icon: 'cog' as const },
-  { value: 'apple' as ThemeStyle, label: 'theme.styleApple', icon: 'sparkles' as const },
-]
 
 const themeModes = [
   { value: 'light' as ThemeMode, label: 'theme.modeLight', icon: 'sun' as const },
@@ -96,14 +66,7 @@ function closeDropdown() {
   isOpen.value = false
 }
 
-function selectStyle(style: ThemeStyle) {
-  console.log('[ThemeSwitcher] Selecting style:', style)
-  setThemeStyle(style)
-  closeDropdown()
-}
-
 function selectMode(mode: ThemeMode) {
-  console.log('[ThemeSwitcher] Selecting mode:', mode)
   setThemeMode(mode)
   closeDropdown()
 }

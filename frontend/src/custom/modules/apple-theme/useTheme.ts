@@ -1,80 +1,73 @@
-import { ref, watch, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
 export type ThemeStyle = 'default' | 'apple'
 
-const THEME_MODE_KEY = 'theme-mode'
-const THEME_STYLE_KEY = 'theme-style'
+type PublicThemeSettings = {
+  enable_apple_theme?: boolean
+  default_theme_mode?: ThemeMode
+  theme_style?: 'glass' | 'classic'
+}
 
-// Get system preference
+const THEME_MODE_KEY = 'theme'
+
 function getSystemTheme(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light'
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-// Initialize from localStorage or defaults
-const themeMode = ref<ThemeMode>(
-  (localStorage.getItem(THEME_MODE_KEY) as ThemeMode) || 'auto'
-)
-
-const themeStyle = ref<ThemeStyle>(
-  (localStorage.getItem(THEME_STYLE_KEY) as ThemeStyle) || 'default'
-)
-
-// Computed effective theme (resolves 'auto' to actual mode)
-const effectiveMode = computed(() => {
-  if (themeMode.value === 'auto') {
-    return getSystemTheme()
-  }
-  return themeMode.value
-})
-
-function applyTheme() {
-  const html = document.documentElement
-  const mode = effectiveMode.value
-
-  console.log('[useTheme] Applying theme:', {
-    themeMode: themeMode.value,
-    themeStyle: themeStyle.value,
-    effectiveMode: mode,
-  })
-
-  // Apply dark class
-  if (mode === 'dark') {
-    html.classList.add('dark')
-  } else {
-    html.classList.remove('dark')
-  }
-
-  // Apply theme style
-  html.setAttribute('data-theme', themeStyle.value)
-  if (themeStyle.value === 'apple') {
-    html.setAttribute('data-glass', 'true')
-  } else {
-    html.removeAttribute('data-glass')
-  }
-
-  console.log('[useTheme] DOM updated:', {
-    'data-theme': html.getAttribute('data-theme'),
-    'dark class': html.classList.contains('dark'),
-  })
-
-  // Save to localStorage
-  localStorage.setItem(THEME_MODE_KEY, themeMode.value)
-  localStorage.setItem(THEME_STYLE_KEY, themeStyle.value)
+function readStoredMode(): ThemeMode | null {
+  if (typeof window === 'undefined') return null
+  const stored = window.localStorage.getItem(THEME_MODE_KEY)
+  return stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : null
 }
 
-// Watch for changes
+function readDefaultMode(settings?: PublicThemeSettings): ThemeMode {
+  const mode = settings?.default_theme_mode
+  return mode === 'light' || mode === 'dark' || mode === 'auto' ? mode : 'auto'
+}
+
+function readThemeStyle(settings?: PublicThemeSettings): ThemeStyle {
+  if (typeof settings?.enable_apple_theme === 'boolean') {
+    return settings.enable_apple_theme ? 'apple' : 'default'
+  }
+  return settings?.theme_style === 'classic' ? 'default' : 'apple'
+}
+
+const injectedSettings = typeof window === 'undefined' ? undefined : window.__APP_CONFIG__
+let defaultThemeMode = readDefaultMode(injectedSettings)
+const themeMode = ref<ThemeMode>(readStoredMode() ?? defaultThemeMode)
+const themeStyle = ref<ThemeStyle>(readThemeStyle(injectedSettings))
+
+const effectiveMode = computed<'light' | 'dark'>(() => (
+  themeMode.value === 'auto' ? getSystemTheme() : themeMode.value
+))
+
+function applyTheme(): void {
+  if (typeof document === 'undefined') return
+  const html = document.documentElement
+  html.classList.toggle('dark', effectiveMode.value === 'dark')
+  html.setAttribute('data-theme', themeStyle.value)
+  if (themeStyle.value === 'apple') html.setAttribute('data-glass', 'true')
+  else html.removeAttribute('data-glass')
+}
+
 watch([themeMode, themeStyle], applyTheme, { immediate: true })
 
-// Listen to system theme changes when in auto mode
 if (typeof window !== 'undefined') {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  mediaQuery.addEventListener('change', () => {
-    if (themeMode.value === 'auto') {
-      applyTheme()
-    }
-  })
+  const onMediaChange = () => {
+    if (themeMode.value === 'auto') applyTheme()
+  }
+  if (typeof mediaQuery.addEventListener === 'function') mediaQuery.addEventListener('change', onMediaChange)
+  else mediaQuery.addListener?.(onMediaChange)
+}
+
+export function applyGlobalThemeSettings(settings: PublicThemeSettings): void {
+  defaultThemeMode = readDefaultMode(settings)
+  if (readStoredMode() === null) themeMode.value = defaultThemeMode
+  themeStyle.value = readThemeStyle(settings)
+  applyTheme()
 }
 
 export function useTheme() {
@@ -84,13 +77,12 @@ export function useTheme() {
     effectiveMode,
     setThemeMode: (mode: ThemeMode) => {
       themeMode.value = mode
-    },
-    setThemeStyle: (style: ThemeStyle) => {
-      themeStyle.value = style
+      if (typeof window !== 'undefined') window.localStorage.setItem(THEME_MODE_KEY, mode)
     },
     toggleMode: () => {
-      const current = effectiveMode.value
-      themeMode.value = current === 'dark' ? 'light' : 'dark'
+      const mode = effectiveMode.value === 'dark' ? 'light' : 'dark'
+      themeMode.value = mode
+      if (typeof window !== 'undefined') window.localStorage.setItem(THEME_MODE_KEY, mode)
     },
   }
 }

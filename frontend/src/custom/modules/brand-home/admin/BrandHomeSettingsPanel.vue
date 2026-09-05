@@ -11,6 +11,7 @@
     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
       {{ localText('访问根路径 / 时使用的首页；三个页面始终可通过 /home、/Pixel 和 /Dino 访问。', 'Selects the page shown at /. All options remain available at /home, /Pixel, and /Dino.') }}
     </p>
+
   </div>
 </template>
 

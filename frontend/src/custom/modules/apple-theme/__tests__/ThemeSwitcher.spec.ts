@@ -6,9 +6,6 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => ({
       'theme.toggle': '切换主题',
-      'theme.styleLabel': '主题风格',
-      'theme.styleDefault': '默认主题',
-      'theme.styleApple': 'Apple Glass',
       'theme.modeLabel': '明暗模式',
       'theme.modeLight': '浅色',
       'theme.modeDark': '深色',
@@ -30,6 +27,7 @@ describe('ThemeSwitcher', () => {
     await wrapper.get('button[aria-label="切换主题"]').trigger('click')
 
     expect(wrapper.find('.dropdown').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Apple Glass')
+    expect(wrapper.text()).toContain('明暗模式')
+    expect(wrapper.text()).not.toContain('Apple Glass')
   })
 })

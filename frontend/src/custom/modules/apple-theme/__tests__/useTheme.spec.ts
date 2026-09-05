@@ -1,45 +1,43 @@
-import { describe, it, expect } from 'vitest'
-import { useTheme } from '../useTheme'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { applyGlobalThemeSettings, useTheme } from '../useTheme'
 
 describe('useTheme', () => {
-  it('should initialize with default values', () => {
-    const { themeMode, themeStyle } = useTheme()
-
-    expect(['light', 'dark', 'auto']).toContain(themeMode.value)
-    expect(['default', 'apple']).toContain(themeStyle.value)
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.className = ''
+    document.documentElement.removeAttribute('data-glass')
+    document.documentElement.removeAttribute('data-theme')
   })
 
-  it('should toggle between light and dark modes', () => {
-    const { themeMode, toggleMode, effectiveMode } = useTheme()
+  it('uses server settings for the global theme style and ignores local overrides', () => {
+    localStorage.setItem('theme-style', 'default')
 
-    const initialMode = effectiveMode.value
-    toggleMode()
-    const newMode = effectiveMode.value
+    applyGlobalThemeSettings({ enable_apple_theme: true, default_theme_mode: 'auto' })
+    expect(useTheme().themeStyle.value).toBe('apple')
+    expect(document.documentElement.dataset.glass).toBe('true')
 
-    expect(newMode).not.toBe(initialMode)
-    expect(['light', 'dark']).toContain(newMode)
+    applyGlobalThemeSettings({ enable_apple_theme: false, default_theme_mode: 'auto' })
+    expect(useTheme().themeStyle.value).toBe('default')
+    expect(document.documentElement.hasAttribute('data-glass')).toBe(false)
   })
 
-  it('should set theme mode correctly', () => {
-    const { themeMode, setThemeMode } = useTheme()
+  it('supports the legacy server theme_style without writing a style preference', () => {
+    localStorage.removeItem('theme-style')
 
-    setThemeMode('dark')
-    expect(themeMode.value).toBe('dark')
+    applyGlobalThemeSettings({ theme_style: 'classic' })
 
-    setThemeMode('light')
-    expect(themeMode.value).toBe('light')
-
-    setThemeMode('auto')
-    expect(themeMode.value).toBe('auto')
+    expect(useTheme().themeStyle.value).toBe('default')
+    expect(localStorage.getItem('theme-style')).toBeNull()
   })
 
-  it('should set theme style correctly', () => {
-    const { themeStyle, setThemeStyle } = useTheme()
+  it('uses the server default mode until the user chooses a local mode', () => {
+    applyGlobalThemeSettings({ enable_apple_theme: true, default_theme_mode: 'dark' })
+    expect(useTheme().effectiveMode.value).toBe('dark')
 
-    setThemeStyle('apple')
-    expect(themeStyle.value).toBe('apple')
+    useTheme().setThemeMode('light')
+    applyGlobalThemeSettings({ enable_apple_theme: true, default_theme_mode: 'dark' })
 
-    setThemeStyle('default')
-    expect(themeStyle.value).toBe('default')
+    expect(useTheme().effectiveMode.value).toBe('light')
+    expect(localStorage.getItem('theme')).toBe('light')
   })
 })

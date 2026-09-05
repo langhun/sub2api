@@ -42,6 +42,8 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0.1, snapshot.Activity.CheckinMinBalance)
 	require.Equal(t, "default", snapshot.BrandHome.DefaultHomepage)
+	require.True(t, snapshot.AppleTheme.Enabled)
+	require.Equal(t, "auto", snapshot.AppleTheme.DefaultThemeMode)
 	require.True(t, snapshot.Activity.LeaderboardEnabled)
 	require.True(t, snapshot.GameHall.ExchangeAllowDGToBalance)
 	require.True(t, snapshot.RegistrationProtection.AliasEnabled)
@@ -53,6 +55,9 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.NotContains(t, public, "transfer_enabled")
 	require.Equal(t, false, public["game_hall_enabled"])
 	require.Equal(t, "default", public["default_homepage"])
+	require.Equal(t, "glass", public["theme_style"])
+	require.Equal(t, true, public["enable_apple_theme"])
+	require.Equal(t, "auto", public["default_theme_mode"])
 	require.Equal(t, 0.01, public["game_exchange_min_amount"])
 }
 
@@ -82,11 +87,16 @@ func TestRegistryWriteValidatesBeforeOneAggregatePersistence(t *testing.T) {
 
 	snapshot.Activity.CheckinEnabled = true
 	snapshot.BrandHome.DefaultHomepage = "dino"
+	snapshot.AppleTheme.Enabled = false
+	snapshot.AppleTheme.DefaultThemeMode = "dark"
 	snapshot.GameHall.Enabled = true
 	require.NoError(t, registry.Write(context.Background(), snapshot))
 	require.Equal(t, 1, store.writes)
 	require.Equal(t, "true", store.values["checkin_enabled"])
 	require.Equal(t, "dino", store.values["default_homepage"])
+	require.Equal(t, "classic", store.values["theme_style"])
+	require.Equal(t, "false", store.values["enable_apple_theme"])
+	require.Equal(t, "dark", store.values["default_theme_mode"])
 	require.NotContains(t, store.values, "transfer_enabled")
 	require.Equal(t, "true", store.values["game_hall_enabled"])
 }

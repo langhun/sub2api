@@ -30,13 +30,43 @@ func (m *Module) RegisterRoutes(admin *gin.RouterGroup) {
 }
 
 type riskListItem struct {
-	UserID      int64    `json:"user_id"`
-	Email       string   `json:"email"`
-	Score       int      `json:"score"`
-	Action      string   `json:"action"`
-	Signals     []string `json:"signals"`
-	ExpiresAt   any      `json:"expires_at"`
-	PaymentOpen bool     `json:"payment_unlocked"`
+	UserID      int64          `json:"user_id"`
+	Email       string         `json:"email"`
+	Score       int            `json:"score"`
+	Action      string         `json:"action"`
+	Signals     []string       `json:"signals"`
+	Evidence    []riskEvidence `json:"evidence"`
+	ExpiresAt   any            `json:"expires_at"`
+	PaymentOpen bool           `json:"payment_unlocked"`
+}
+
+// riskEvidence is intentionally descriptive rather than raw telemetry. The
+// detail is a stable translation key consumed by the admin UI, so this API
+// never exposes IP addresses, email addresses, user agents, or device values.
+type riskEvidence struct {
+	Signal string `json:"signal"`
+	Detail string `json:"detail"`
+}
+
+func evidenceForSignals(signals []string) []riskEvidence {
+	evidence := make([]riskEvidence, 0, len(signals))
+	for _, signal := range signals {
+		detail := "unknown"
+		switch signal {
+		case "exact_fingerprint_repeat":
+			detail = "fingerprint_repeat"
+		case "api_key_created":
+			detail = "api_key_created"
+		case "fast_checkin":
+			detail = "fast_checkin"
+		case "cluster_6h":
+			detail = "cluster_6h"
+		case "cluster_24h":
+			detail = "cluster_24h"
+		}
+		evidence = append(evidence, riskEvidence{Signal: signal, Detail: detail})
+	}
+	return evidence
 }
 
 func (m *Module) list(c *gin.Context) {
@@ -71,6 +101,7 @@ func (m *Module) list(c *gin.Context) {
 			return
 		}
 		_ = json.Unmarshal(raw, &item.Signals)
+		item.Evidence = evidenceForSignals(item.Signals)
 		item.Email = maskRiskEmail(item.Email)
 		items = append(items, item)
 	}

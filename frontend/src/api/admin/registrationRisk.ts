@@ -2,12 +2,19 @@ import { apiClient } from '../client'
 
 export type RegistrationRiskAction = 'none' | 'medium' | 'high' | 'manual_lock' | 'manual_unlock'
 
+export interface RegistrationRiskEvidence {
+  signal: string
+  detail: string
+}
+
 export interface RegistrationRiskItem {
   user_id: number
   email: string
   score: number
   action: RegistrationRiskAction | string
   signals: string[]
+  /** Added by the risk API; optional for compatibility with older responses. */
+  evidence?: RegistrationRiskEvidence[]
   expires_at: string | null
   payment_unlocked: boolean
 }
