@@ -358,18 +358,15 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   let targetA = makeTarget(flowWidth, flowHeight, initial)
   let targetB = makeTarget(flowWidth, flowHeight, initial)
 
-  // Site policy: touch devices and Windows skip the mouse feed entirely.
+  // Mouse input is disabled only for touch/coarse-pointer devices.
+  // Windows desktop browsers still receive precise pointer interaction.
   const coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches
-  const ua = navigator as Navigator & { userAgentData?: { platform?: string } }
-  const windows = ua.userAgentData
-    ? ua.userAgentData.platform === 'Windows'
-    : navigator.userAgent.includes('Windows')
   const onMouseMove = (event: MouseEvent): void => {
     const rect = canvas.getBoundingClientRect()
     pointer.x = (event.clientX - rect.left) / rect.width
     pointer.y = 1 - (event.clientY - rect.top) / rect.height
   }
-  if (!coarse && !windows) window.addEventListener('mousemove', onMouseMove)
+  if (!coarse) window.addEventListener('mousemove', onMouseMove)
 
   const start = performance.now()
   let raf = 0

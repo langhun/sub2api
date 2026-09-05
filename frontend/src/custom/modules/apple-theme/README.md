@@ -200,7 +200,7 @@ const { themeMode, themeStyle, effectiveMode, setThemeMode, setThemeStyle } = us
    - 低功耗模式（GPU 节能）
    - 流体模拟分辨率为显示分辨率的 1/4
    - 自动响应 prefers-reduced-motion
-   - 触摸设备和 Windows 系统默认禁用鼠标跟随
+   - 触摸设备和粗指针设备默认禁用鼠标跟随，Windows 桌面精确指针保持鼠标交互
 
 2. **渲染优化**
    - 使用 CSS 变量避免重绘
