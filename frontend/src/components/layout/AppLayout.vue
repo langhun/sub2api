@@ -26,7 +26,7 @@
 
       <!-- Main Content -->
       <main class="px-4 pb-6 pt-7 md:px-6 lg:px-8 lg:pb-8 lg:pt-9">
-        <div class="mx-auto flex w-full max-w-[1440px] flex-col">
+        <div class="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col">
           <slot />
         </div>
       </main>
