@@ -193,23 +193,25 @@ html[data-glass] header {
 }
 
 /* ==========================================================================
-   侧边栏 (Sidebar) - 100% 还原 DaiGua 官方尺寸、字重、颜色与玻璃透光度
+   侧边栏 (Sidebar) - Apple 纯正无界 Liquid Glass (彻底移除任何右边框线条！)
    ========================================================================== */
 html[data-theme="apple"] .sidebar,
 html[data-glass] .sidebar {
   border: none !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.45) !important;
+  border-right: none !important;
   background: var(--ui-surface) !important;
-  box-shadow: inset 0 1px #ffffff42, var(--ui-shadow) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+  box-shadow: 6px 0 24px -4px rgba(19, 45, 83, 0.04) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
 }
 
 html[data-theme="apple"].dark .sidebar,
 html[data-glass].dark .sidebar {
   border: none !important;
-  border-right: 1px solid rgba(148, 180, 220, 0.18) !important;
-  box-shadow: inset 0 1px #ffffff14, var(--ui-shadow) !important;
+  border-right: none !important;
+  box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.40) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
 }
 
 html[data-theme="apple"] .sidebar-header,
@@ -304,7 +306,8 @@ html[data-theme="apple"] th,
 html[data-theme="apple"] thead th,
 html[data-glass] th,
 html[data-glass] thead th {
-  border-bottom: 1px solid var(--ui-border-soft) !important;
+  border: none !important;
+  border-bottom: none !important;
   color: var(--ui-muted) !important;
   font-weight: 600 !important;
   font-size: 0.75rem !important;
@@ -451,8 +454,8 @@ html[data-glass] [role="listbox"] {
   z-index: 99999 !important;
   position: absolute;
   border-radius: 14px !important;
+  border: none !important;
   background: var(--ui-surface-strong) !important;
-  border: 1px solid var(--ui-border-render) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
@@ -473,7 +476,7 @@ html[data-theme="apple"] .dialog-container,
 html[data-glass] .modal-content,
 html[data-glass] .dialog-container {
   border-radius: 14px !important;
-  border: 1px solid var(--ui-border-render) !important;
+  border: none !important;
   background: var(--ui-surface-strong) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(28px) !important;
@@ -498,7 +501,8 @@ html[data-glass] .docs-header,
 html[data-theme="apple"] .docs-page-header,
 html[data-glass] .docs-page-header {
   background: transparent !important;
-  border-bottom: 1px solid var(--ui-border-soft) !important;
+  border: none !important;
+  border-bottom: none !important;
 }
 
 html[data-theme="apple"] .docs-navigation,
@@ -506,7 +510,7 @@ html[data-glass] .docs-navigation,
 html[data-theme="apple"] .docs-toc,
 html[data-glass] .docs-toc {
   background: transparent !important;
-  border-color: var(--ui-border-soft) !important;
+  border: none !important;
 }
 
 /* 激活的文档章节链接：微晶水玻胶囊 */
@@ -528,7 +532,7 @@ html[data-glass].dark .docs-topic-link-active {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
 }
 
-/* 彻底根除代码块的黑炭死色！全站 pre / code 全面重塑为 Apple Liquid Glass 终端 */
+/* 彻底根除代码块的黑炭死色！全站 pre / code 全面重塑为 Apple 无界毛玻璃终端 (无硬外边框) */
 html[data-theme="apple"]:not(.dark) pre,
 html[data-glass]:not(.dark) pre,
 html[data-theme="apple"]:not(.dark) .docs-markdown pre,
@@ -536,7 +540,7 @@ html[data-glass]:not(.dark) .docs-markdown pre {
   background: rgba(255, 255, 255, 0.45) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.70) !important;
+  border: none !important;
   box-shadow: inset 0 1px 1px #ffffff, 0 4px 16px rgba(19, 45, 83, 0.05) !important;
   color: #0f172a !important;
   border-radius: 12px !important;
@@ -549,17 +553,17 @@ html[data-glass].dark .docs-markdown pre {
   background: rgba(20, 30, 44, 0.50) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border: none !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.35) !important;
   color: #f1f5f9 !important;
   border-radius: 12px !important;
 }
 
-/* 复制按钮毛玻璃化 */
+/* 复制按钮毛玻璃化 (无硬边框) */
 html[data-theme="apple"]:not(.dark) .docs-copy-button,
 html[data-glass]:not(.dark) .docs-copy-button {
   background: rgba(255, 255, 255, 0.80) !important;
-  border: 1px solid rgba(255, 255, 255, 0.90) !important;
+  border: none !important;
   color: #0f172a !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
   border-radius: 6px !important;
@@ -568,7 +572,7 @@ html[data-glass]:not(.dark) .docs-copy-button {
 html[data-theme="apple"].dark .docs-copy-button,
 html[data-glass].dark .docs-copy-button {
   background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border: none !important;
   color: #f8fafc !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
   border-radius: 6px !important;

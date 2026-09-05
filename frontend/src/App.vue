@@ -10,9 +10,10 @@ import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, 
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
 import { useTheme } from '@/custom/modules/apple-theme/useTheme'
+import FluidCanvas from '@/custom/modules/apple-theme/FluidCanvas.vue'
 
 // Initialize theme
-const { } = useTheme()
+const { themeStyle } = useTheme()
 
 const router = useRouter()
 const route = useRoute()
@@ -141,6 +142,16 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- Apple Theme 流体背景：全局单例常驻，路由切换绝不重新加载！ -->
+  <div
+    v-if="themeStyle === 'apple'"
+    data-glass-ambient
+    aria-hidden="true"
+    style="position: fixed; inset: 0; z-index: 0; pointer-events: none;"
+  >
+    <FluidCanvas />
+  </div>
+
   <NavigationProgress />
   <RouterView />
   <Toast />
