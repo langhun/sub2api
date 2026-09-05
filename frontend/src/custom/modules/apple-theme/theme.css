@@ -337,7 +337,9 @@ html[data-glass] .table-wrapper tbody .sticky-col-right {
   backdrop-filter: blur(18px) saturate(110%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(110%) !important;
 }
- (Sub-Glass Tiles)
+
+/* ==========================================================================`r
+   子毛玻璃交互微卡片 (Sub-Glass Tiles)`r
    ========================================================================== */
 html[data-theme="apple"] .card button.group,
 html[data-theme="apple"] .card a.group,
