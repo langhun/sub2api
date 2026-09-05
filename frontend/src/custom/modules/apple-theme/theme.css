@@ -329,8 +329,15 @@ html[data-glass].dark tbody tr:hover {
   background: rgba(255, 255, 255, 0.06) !important;
 }
 
-/* ==========================================================================
-   子毛玻璃交互微卡片 (Sub-Glass Tiles)
+
+/* Fixed action cells need a readable glass layer while preserving the table surface. */
+html[data-theme="apple"] .table-wrapper tbody .sticky-col-right,
+html[data-glass] .table-wrapper tbody .sticky-col-right {
+  background: var(--ui-surface) !important;
+  backdrop-filter: blur(18px) saturate(110%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(110%) !important;
+}
+ (Sub-Glass Tiles)
    ========================================================================== */
 html[data-theme="apple"] .card button.group,
 html[data-theme="apple"] .card a.group,
