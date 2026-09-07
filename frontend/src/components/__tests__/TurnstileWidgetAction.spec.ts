@@ -2,6 +2,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TurnstileWidget from '../TurnstileWidget.vue'
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key })
+}))
+
 describe('TurnstileWidget action binding', () => {
   afterEach(() => {
     delete window.turnstile
