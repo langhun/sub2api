@@ -833,7 +833,7 @@ export default {
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
-      accountsUnit: '',
+      accountsUnit: 'accounts',
       rateAndAccounts: '{rate}x rate · {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
@@ -883,6 +883,7 @@ export default {
         reasoningEffortModelPlaceholder: 'Empty = all / gpt / gpt-5.4',
         reasoningEffortFrom: 'Request value',
         reasoningEffortTo: 'Forwarded value',
+        reasoningEffortToDeny: 'Deny',
         reasoningEffortFromPlaceholder: 'Select A',
         reasoningEffortToPlaceholder: 'Select B',
         fromRequired: 'Select request value A',
@@ -1073,14 +1074,23 @@ export default {
         bufferRangeError: 'Safety buffer must be between 0 and 99.99',
         sumTooHigh: 'Min gross margin plus safety buffer must be less than 100%, otherwise every account would be excluded'
       },
-      modelsList: {
-        title: 'Custom {endpoint} Model List',
-        hint: 'Only changes the {endpoint} response. Whitelist model calls and account routing are unchanged.',
-        loading: 'Loading model list...',
-        empty: 'No displayable models',
+      modelAllowlist: {
+        title: 'Model Allowlist',
+        hint: 'When enabled, models outside this allowlist are rejected (404 model_not_found), and model-list endpoints only show allowlisted models. Entries support exact model IDs and trailing * wildcards.',
+        loading: 'Loading candidate models...',
+        empty: 'No candidate models. Add entries manually below.',
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
-        invertSelection: 'Invert'
+        invertSelection: 'Invert',
+        wildcardTag: 'Wildcard',
+        customPlaceholder: 'Custom entry, e.g. claude-* or gpt-5.5-codex',
+        addCustom: 'Add',
+        emptySelectionError: 'Model allowlist is enabled. Select or add at least one model entry.',
+        errors: {
+          empty: 'Enter a model entry',
+          invalidWildcard: 'The wildcard * may only appear at the end of an entry',
+          duplicate: 'This entry already exists'
+        }
       },
       codexModelsManifest: {
         title: 'Pinned Accounts for Codex Model Manifest',
@@ -1209,14 +1219,6 @@ export default {
         tooltip: 'Configure specific model requests to be routed to designated accounts. Supports wildcard matching, e.g., claude-opus-* matches all opus models.',
         enabled: 'Enabled',
         disabled: 'Disabled',
-      claudeMaxSimulation: {
-        title: 'Claude Max Usage Simulation',
-        tooltip:
-          'When enabled, for Claude models without upstream cache-write usage, the system deterministically maps tokens to a small input plus 1h cache creation while keeping total tokens unchanged.',
-        enabled: 'Enabled (simulate 1h cache)',
-        disabled: 'Disabled',
-        hint: 'Only token categories in usage billing logs are adjusted. No per-request mapping state is persisted.'
-      },
         disabledHint: 'Routing rules will only take effect when enabled',
         addRule: 'Add Routing Rule',
         modelPattern: 'Model Pattern',
@@ -1231,6 +1233,14 @@ export default {
         noRulesHint: 'Add routing rules to route specific model requests to designated accounts',
         searchAccountPlaceholder: 'Search accounts...',
         accountsHint: 'Select accounts to prioritize for this model pattern'
+      },
+      claudeMaxSimulation: {
+        title: 'Claude Max Usage Simulation',
+        tooltip:
+          'When enabled, for Claude models without upstream cache-write usage, the system deterministically maps tokens to a small input plus 1h cache creation while keeping total tokens unchanged.',
+        enabled: 'Enabled (simulate 1h cache)',
+        disabled: 'Disabled',
+        hint: 'Only token categories in usage billing logs are adjusted. No per-request mapping state is persisted.'
       },
       mcpXml: {
         title: 'MCP XML Protocol Injection',
