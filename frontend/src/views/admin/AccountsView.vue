@@ -224,23 +224,16 @@
           </template>
           <template #cell-name="{ row, value }">
             <div class="flex flex-col">
-              <HelpTooltip
+              <a
                 v-if="accountHomepageUrl(row)"
-                :content="accountHomepageUrl(row)"
-                width-class="w-max max-w-sm break-all"
-                class="-ml-1 self-start"
+                :href="accountHomepageUrl(row)"
+                target="_blank"
+                rel="noopener noreferrer"
+                :aria-label="accountHomepageUrl(row)"
+                class="self-start border-b border-dotted border-gray-300 font-medium text-gray-900 dark:border-dark-600 dark:text-white"
               >
-                <template #trigger>
-                  <a
-                    :href="accountHomepageUrl(row)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="border-b border-dotted border-gray-300 font-medium text-gray-900 dark:border-dark-600 dark:text-white"
-                  >
-                    {{ value }}
-                  </a>
-                </template>
-              </HelpTooltip>
+                {{ value }}
+              </a>
               <span v-else class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
               <span
                 v-if="accountDisplayEmail(row)"
