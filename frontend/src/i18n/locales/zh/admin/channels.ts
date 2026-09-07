@@ -64,6 +64,8 @@ export default {
       updateError: '更新渠道失败',
       deleteError: '删除渠道失败',
       nameRequired: '请输入渠道名称',
+      noGroupsSelected: '请为 {platform} 至少选择一个分组',
+      emptyModelsInPricing: '请为 {platform} 定价规则至少添加一个模型',
       duplicateModels: '模型「{0}」在多个定价条目中重复',
       noGroupsSelected: '{platform} 平台未选择分组',
       emptyModelsInPricing: '{platform} 平台存在未配置模型的定价条目',

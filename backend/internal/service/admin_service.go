@@ -735,9 +735,11 @@ func NewAdminService(
 	channelCacheInvalidator ChannelCacheInvalidator,
 ) AdminService {
 	return &adminServiceImpl{
+		cfg:                     cfg,
 		userRepo:                userRepo,
 		groupRepo:               groupRepo,
 		groupDuplicateRepo:      groupRepo,
+		emptyGroupDeleteRepo:    groupRepo,
 		accountRepo:             accountRepo,
 		accountDuplicateRepo:    accountRepo,
 		accountBillingRepo:      accountRepo,
