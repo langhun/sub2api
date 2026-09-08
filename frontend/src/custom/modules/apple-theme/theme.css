@@ -515,6 +515,43 @@ html[data-glass] .dialog-container {
   -webkit-backdrop-filter: blur(28px) !important;
 }
 
+/* Usage detail tooltips float above transparent tables. Keep a solid enough
+   glass surface so the rows underneath cannot compete with the details. */
+html[data-theme="apple"] .usage-detail-tooltip-panel,
+html[data-glass] .usage-detail-tooltip-panel {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(148 180 220 / 28%) !important;
+  background: rgb(18 27 40 / 96%) !important;
+  color: #f5f7fb !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 14px 36px rgb(2 6 14 / 34%) !important;
+  backdrop-filter: blur(24px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(135%) !important;
+}
+
+html[data-theme="apple"] [data-testid="cost-detail-tooltip"] > .usage-detail-tooltip-panel,
+html[data-theme="apple"] [data-testid="token-detail-tooltip"] > .usage-detail-tooltip-panel,
+html[data-glass] [data-testid="cost-detail-tooltip"] > .usage-detail-tooltip-panel,
+html[data-glass] [data-testid="token-detail-tooltip"] > .usage-detail-tooltip-panel {
+  background-color: rgb(18 27 40 / 96%) !important;
+  border-color: rgb(148 180 220 / 28%) !important;
+}
+
+html[data-theme="apple"] .usage-detail-tooltip-arrow,
+html[data-glass] .usage-detail-tooltip-arrow {
+  border-left-color: rgb(18 27 40 / 96%) !important;
+}
+
+html[data-theme="apple"] .usage-detail-tooltip-panel .text-gray-400,
+html[data-glass] .usage-detail-tooltip-panel .text-gray-400 {
+  color: #c4cfdf !important;
+}
+
+html[data-theme="apple"] .usage-detail-tooltip-panel .text-white,
+html[data-glass] .usage-detail-tooltip-panel .text-white {
+  color: #f8fafc !important;
+}
+
 /* ==========================================================================
    帮助文档 (/docs) 与全站 Markdown 代码块 (Terminal Liquid Glass) 彻底除黑
    ========================================================================== */

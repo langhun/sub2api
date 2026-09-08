@@ -6,11 +6,13 @@ import postcss from 'postcss'
 const themeCss = readFileSync(resolve(__dirname, '../theme.css'), 'utf8')
 const inlineCodeRules: postcss.Rule[] = []
 const transparentTextSurfaceRules: postcss.Rule[] = []
+const usageTooltipRules: postcss.Rule[] = []
 postcss.parse(themeCss).walkRules((rule) => {
   if (rule.selector.includes('code:not(pre code)')) inlineCodeRules.push(rule)
   if (rule.selector.includes('.dimension-cell') && rule.selector.includes('.summary-value')) {
     transparentTextSurfaceRules.push(rule)
   }
+  if (rule.selector.includes('.usage-detail-tooltip-panel')) usageTooltipRules.push(rule)
 })
 
 afterEach(() => {
@@ -72,5 +74,19 @@ describe('glass monitor text surfaces', () => {
     expect(backgroundColors).toHaveLength(1)
     expect(backgroundColors[0]!.value).toBe('transparent')
     expect(backgroundColors[0]!.important).toBe(true)
+  })
+})
+
+describe('glass usage detail tooltip', () => {
+  it('keeps cost details readable above transparent tables', () => {
+    expect(usageTooltipRules.length).toBeGreaterThanOrEqual(3)
+    const surfaceRule = usageTooltipRules.find(rule => !rule.selector.includes('.text-'))
+    expect(surfaceRule).toBeDefined()
+    const background = [...(surfaceRule?.nodes ?? [])].find(
+      node => node.type === 'decl' && node.prop === 'background',
+    ) as postcss.Declaration | undefined
+    expect(background?.value).toBe('rgb(18 27 40 / 96%)')
+    expect(background?.important).toBe(true)
+    expect(surfaceRule?.nodes.some(node => node.type === 'decl' && node.prop === 'backdrop-filter')).toBe(true)
   })
 })
