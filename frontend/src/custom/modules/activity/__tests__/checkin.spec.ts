@@ -33,6 +33,27 @@ describe('checkin store errors', () => {
     expect(store.status?.can_checkin).toBe(true)
   })
 
+  it('marks an administrator-disabled account unavailable instead of checked in', async () => {
+    const store = useCheckinStore()
+    store.status = {
+      enabled: true,
+      luck_enabled: true,
+      blindbox_enabled: true,
+      can_checkin: false,
+      unavailable_reason: 'admin_disabled',
+      streak_days: 0,
+      today_reward: null,
+      min_reward: 1,
+      max_reward: 5,
+      min_multiplier: 0.1,
+      max_multiplier: 1.7,
+      balance: 10,
+    }
+
+    expect(store.accessDisabled).toBe(true)
+    expect(store.checkedInToday).toBe(false)
+  })
+
   it('captures normal and lucky action failures and supports explicit dismissal', async () => {
     const store = useCheckinStore()
     const normalFailure = new Error('normal failed')

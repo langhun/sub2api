@@ -12,6 +12,7 @@ import (
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
+	checkinuseraccess "github.com/Wei-Shaw/sub2api/internal/custom/modules/checkin-user-access"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	docsmodule "github.com/Wei-Shaw/sub2api/internal/custom/modules/docs"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
@@ -51,6 +52,7 @@ type Runtime struct {
 	RegistrationRisk    *registrationprotection.Module
 	RechargePromotions  *rechargepromotions.Module
 	SupportContacts     *supportcontacts.Module
+	CheckinUserAccess   *checkinuseraccess.Module
 	SmartRouting        *smartrouting.Module
 	UsageQuerySettings  UsageQuerySettings
 }
@@ -154,6 +156,7 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
+	checkinUserAccess := checkinuseraccess.NewModule(db, registrationPolicy)
 	activityCheckin, err := activitycheckin.NewOperationalModule(activitycheckin.Dependencies{
 		Repository:   activitycheckin.NewRepository(client),
 		Transactions: activitycheckin.NewTransactionRunner(client),
@@ -167,7 +170,7 @@ func NewRuntime(
 			activityRewardsHTTP.Runner,
 			activityRewardsHTTP.Outbox,
 		),
-		RewardEligibility: registrationPolicy,
+		RewardEligibility: checkinUserAccess.Eligibility,
 	}, activitycheckin.NewEntBlindboxRecordsReader(client), checkinProtector)
 	if err != nil {
 		return nil, err
@@ -189,6 +192,7 @@ func NewRuntime(
 		RegistrationRisk:    registrationRiskModule,
 		RechargePromotions:  rechargePromotions,
 		SupportContacts:     supportcontacts.NewModule(db),
+		CheckinUserAccess:   checkinUserAccess,
 		SmartRouting:        smartRouting,
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil

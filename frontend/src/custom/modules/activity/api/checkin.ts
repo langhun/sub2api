@@ -31,7 +31,8 @@ export interface CheckinStatus {
   blindbox_enabled: boolean
   blindbox_trigger_type?: string
   blindbox_interval?: number
-  can_checkin: boolean
+	can_checkin: boolean
+	unavailable_reason?: string
   streak_days: number
   today_reward: number | null
   today_checkin_type?: string

@@ -32,6 +32,7 @@ type CheckinStatus struct {
 	BlindboxTriggerType string   `json:"blindbox_trigger_type,omitempty"`
 	BlindboxInterval    int      `json:"blindbox_interval,omitempty"`
 	CanCheckin          bool     `json:"can_checkin"`
+	UnavailableReason   string   `json:"unavailable_reason,omitempty"`
 	StreakDays          int      `json:"streak_days"`
 	TodayReward         *float64 `json:"today_reward,omitempty"`
 	TodayCheckinType    string   `json:"today_checkin_type,omitempty"`
@@ -71,6 +72,19 @@ type CheckinService interface {
 // error before creating a record or changing the balance.
 type RewardEligibility interface {
 	CheckinRewardAllowed(ctx context.Context, userID int64) error
+}
+
+// CheckinAvailability is an optional read-only extension of RewardEligibility.
+// It lets an Overlay policy hide unavailable actions before a user attempts a
+// check-in mutation. Implementations that do not expose it preserve the
+// existing status behavior.
+type CheckinAvailability struct {
+	Allowed bool
+	Reason  string
+}
+
+type CheckinAvailabilityProvider interface {
+	CheckinAvailability(ctx context.Context, userID int64) (CheckinAvailability, error)
 }
 
 // BlindboxRecord is the check-in endpoint's read-only record representation.

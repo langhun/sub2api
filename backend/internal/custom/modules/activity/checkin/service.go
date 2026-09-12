@@ -298,6 +298,17 @@ func (s *Service) GetStatus(ctx context.Context, userID int64) (*contract.Checki
 	if !anyEnabled {
 		return status, nil
 	}
+	if availability, ok := s.rewardEligibility.(contract.CheckinAvailabilityProvider); ok {
+		decision, err := availability.CheckinAvailability(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if !decision.Allowed {
+			status.CanCheckin = false
+			status.UnavailableReason = decision.Reason
+			return status, nil
+		}
+	}
 	status.BlindboxTriggerType = settings.Blindbox.TriggerType
 	status.BlindboxInterval = settings.Blindbox.Interval
 	today := s.clock.Today()

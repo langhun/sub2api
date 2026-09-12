@@ -33,6 +33,8 @@ import { supportContactsSettingsPanels } from './modules/support-contacts/settin
 import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
 import { formatAuditAction } from './modules/audit-log-localization/actionLabels'
 import { appleThemeSettingsPanels } from './modules/apple-theme/settings'
+import CheckinUserAccessModal from './modules/checkin-user-access/CheckinUserAccessModal.vue'
+import { checkinUserAccessActions } from './modules/checkin-user-access/userActions'
 import './payments'
 export {
   customPaymentDefinition,
@@ -71,6 +73,18 @@ export interface CustomNotificationCenterExtension {
 
 export interface CustomAccountActionDefinition extends CustomAccountAction {}
 
+export interface CustomAdminUserAction {
+  id: string
+  labelKey: string
+  icon: 'shield'
+  visible: (user: import('@/types').AdminUser) => boolean
+}
+
+export interface CustomAdminUserActionModal {
+  id: string
+  component: Component
+}
+
 export interface CustomRechargeSummaryExtension {
   id: string
   component: Component
@@ -92,6 +106,16 @@ export const customSupportContactEntries: readonly CustomSupportContactEntry[] =
 
 export const customAccountActions: readonly CustomAccountActionDefinition[] = [
   ...openAIAccountActions,
+]
+
+// Core user management only knows this generic action/modal contract. Each
+// downstream capability remains implemented and owned by its Overlay module.
+export const customAdminUserActions: readonly CustomAdminUserAction[] = [
+  ...checkinUserAccessActions,
+]
+
+export const customAdminUserActionModals: readonly CustomAdminUserActionModal[] = [
+  { id: 'checkin-user-access', component: CheckinUserAccessModal },
 ]
 
 // Core checkout and order pages render these components through the fixed

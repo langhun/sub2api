@@ -60,6 +60,13 @@ func RegisterRoutes(
 		v1.Use(middleware.AdminComplianceGuard(settingService))
 		runtime.RegistrationRisk.RegisterRoutes(v1)
 	}
+	if runtime.CheckinUserAccess != nil {
+		v1 := r.Group("/api/v1/custom/admin")
+		v1.Use(gin.HandlerFunc(adminAuth))
+		v1.Use(gin.HandlerFunc(auditLog))
+		v1.Use(middleware.AdminComplianceGuard(settingService))
+		runtime.CheckinUserAccess.RegisterRoutes(v1)
+	}
 	if runtime.RechargePromotions != nil {
 		v1 := r.Group("/api/v1")
 		preview := v1.Group("")

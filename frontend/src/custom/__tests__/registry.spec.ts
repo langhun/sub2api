@@ -9,6 +9,8 @@ import {
   customNavigation,
   customNotificationCenterExtensions,
   customAccountActions,
+  customAdminUserActions,
+  customAdminUserActionModals,
   customPaymentOrderDetailExtensions,
   customRechargeSummaryExtensions,
   customRoutes,
@@ -32,6 +34,7 @@ const announcementBellSource = readFileSync(resolve(directory, '../../components
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
 const accountActionMenuSource = readFileSync(resolve(directory, '../../components/admin/account/AccountActionMenu.vue'), 'utf8')
 const accountsViewSource = readFileSync(resolve(directory, '../../views/admin/AccountsView.vue'), 'utf8')
+const usersViewSource = readFileSync(resolve(directory, '../../views/admin/UsersView.vue'), 'utf8')
 const paymentViewSource = readFileSync(resolve(directory, '../../views/user/PaymentView.vue'), 'utf8')
 const userOrdersViewSource = readFileSync(resolve(directory, '../../views/user/UserOrdersView.vue'), 'utf8')
 const adminOrdersViewSource = readFileSync(resolve(directory, '../../views/admin/orders/AdminOrdersView.vue'), 'utf8')
@@ -131,6 +134,15 @@ describe('custom overlay registry', () => {
     expect(accountActionMenuSource).toContain("$emit('custom-action', action.id, account)")
     expect(accountsViewSource).toContain("import OpenAIRTModal from '@/custom/modules/openai-rt/OpenAIRTModal.vue'")
     expect(accountsViewSource).toContain('@custom-action="handleCustomAccountAction"')
+  })
+
+  it('mounts per-user check-in access through generic user action adapters', () => {
+    expect(customAdminUserActions.map((action) => action.id)).toContain('checkin-user-access')
+    expect(customAdminUserActionModals.map((modal) => modal.id)).toContain('checkin-user-access')
+    expect(usersViewSource).toContain("import { customAdminUserActions, customAdminUserActionModals } from '@/custom/registry'")
+    expect(usersViewSource).toContain('v-for="action in visibleCustomUserActions(user)"')
+    expect(usersViewSource).toContain('v-for="modal in customAdminUserActionModals"')
+    expect(usersViewSource).not.toContain('@/custom/modules/checkin-user-access')
   })
 
   it('mounts recharge overlays through generic checkout and order detail adapters', () => {

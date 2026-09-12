@@ -334,6 +334,7 @@ $script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new(
     'frontend/src/views/admin/SettingsView.vue',
     # Presentation-only Overlay adapters. They delegate display classification
     # or formatting to frontend/src/custom and must not contain custom rules.
+    'frontend/src/views/admin/UsersView.vue',
     'frontend/src/components/admin/user/UserBalanceHistoryModal.vue',
     'frontend/src/views/user/AffiliateView.vue',
     'frontend/src/views/user/RedeemView.vue'

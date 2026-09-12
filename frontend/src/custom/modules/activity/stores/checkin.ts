@@ -12,11 +12,12 @@ export const useCheckinStore = defineStore('checkin', () => {
   const checkinResult = ref<CheckinResult | null>(null)
   const blindboxResult = ref<BlindboxResult | null>(null)
 
-  const canCheckin = computed(() => status.value?.can_checkin ?? false)
+	const canCheckin = computed(() => status.value?.can_checkin ?? false)
+	const accessDisabled = computed(() => status.value?.unavailable_reason === 'admin_disabled')
   const enabled = computed(() => (status.value?.enabled ?? false) || (status.value?.luck_enabled ?? false))
   const normalEnabled = computed(() => status.value?.enabled ?? false)
   const luckEnabled = computed(() => status.value?.luck_enabled ?? false)
-  const checkedInToday = computed(() => enabled.value && !canCheckin.value && status.value !== null)
+	const checkedInToday = computed(() => enabled.value && !canCheckin.value && !accessDisabled.value && status.value !== null)
   const streakDays = computed(() => status.value?.streak_days ?? 0)
   const todayReward = computed(() => status.value?.today_reward ?? null)
   const todayCheckinType = computed(() => status.value?.today_checkin_type ?? null)
@@ -150,7 +151,8 @@ export const useCheckinStore = defineStore('checkin', () => {
     actionError,
     checkinResult,
     blindboxResult,
-    canCheckin,
+	canCheckin,
+	accessDisabled,
     enabled,
     normalEnabled,
     luckEnabled,

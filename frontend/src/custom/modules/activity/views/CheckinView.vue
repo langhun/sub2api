@@ -99,6 +99,9 @@
                       {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
                     </p>
                   </template>
+                  <template v-else-if="checkinStore.accessDisabled">
+                    <p class="text-sm text-amber-600 dark:text-amber-400">{{ t('checkin.accessDisabled') }}</p>
+                  </template>
                   <template v-else-if="checkinStore.todayReward !== null">
                     <p class="text-sm text-emerald-600 dark:text-emerald-400">
                       <span v-if="checkinStore.todayCheckinType === 'luck'">
@@ -130,6 +133,10 @@
                     {{ t('checkin.luckCheckin') }}
                   </button>
                 </template>
+                <div v-else-if="checkinStore.accessDisabled" class="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                  {{ t('checkin.accessDisabled') }}
+                </div>
                 <div v-else class="flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {{ t('checkin.checked') }}

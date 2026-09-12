@@ -730,6 +730,16 @@
                 {{ t('admin.users.balanceHistory') }}
               </button>
 
+              <template v-for="action in visibleCustomUserActions(user)" :key="action.id">
+                <button
+                  @click="openCustomUserAction(action.id, user); closeActionMenu()"
+                  class="flex w-full items-center gap-2 px-4 py-2 text-sm text-sky-600 hover:bg-gray-100 dark:hover:bg-dark-700"
+                >
+                  <Icon :name="action.icon" size="sm" />
+                  {{ t(action.labelKey) }}
+                </button>
+              </template>
+
               <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
 
               <!-- Delete (not for admin) -->
@@ -768,6 +778,15 @@
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
+    <component
+      v-for="modal in customAdminUserActionModals"
+      :is="modal.component"
+      :key="modal.id"
+      :show="activeCustomUserActionID === modal.id"
+      :user="customActionUser"
+      @close="closeCustomUserAction"
+      @updated="handleCustomUserActionUpdated"
+    />
   </AppLayout>
 </template>
 
@@ -811,6 +830,7 @@ import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { customAdminUserActions, customAdminUserActionModals } from '@/custom/registry'
 
 const appStore = useAppStore()
 
@@ -1326,6 +1346,8 @@ const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
+const activeCustomUserActionID = ref<string | null>(null)
+const customActionUser = ref<AdminUser | null>(null)
 const editingUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
@@ -1487,6 +1509,22 @@ const openActionMenu = (user: AdminUser, e: MouseEvent) => {
 const closeActionMenu = () => {
   activeMenuId.value = null
   menuPosition.value = null
+}
+
+const visibleCustomUserActions = (user: AdminUser) => customAdminUserActions.filter(action => action.visible(user))
+
+const openCustomUserAction = (actionID: string, user: AdminUser) => {
+  activeCustomUserActionID.value = actionID
+  customActionUser.value = user
+}
+
+const closeCustomUserAction = () => {
+  activeCustomUserActionID.value = null
+  customActionUser.value = null
+}
+
+const handleCustomUserActionUpdated = () => {
+  loadUsers()
 }
 
 // Close menu when clicking outside

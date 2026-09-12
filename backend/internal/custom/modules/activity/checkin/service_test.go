@@ -157,6 +157,42 @@ func (s *checkinRewardEligibilityStub) CheckinRewardAllowed(_ context.Context, u
 	return s.err
 }
 
+type checkinAvailabilityStub struct {
+	checkinRewardEligibilityStub
+	availability contract.CheckinAvailability
+	err          error
+}
+
+func (s *checkinAvailabilityStub) CheckinAvailability(context.Context, int64) (contract.CheckinAvailability, error) {
+	return s.availability, s.err
+}
+
+func TestServiceStatusHidesActionsForUnavailableEligibility(t *testing.T) {
+	today := time.Date(2026, time.September, 12, 0, 0, 0, 0, time.Local)
+	eligibility := &checkinAvailabilityStub{availability: contract.CheckinAvailability{Allowed: false, Reason: "admin_disabled"}}
+	service, err := NewService(Dependencies{
+		Repository:   &checkinRepositoryStub{},
+		Transactions: &checkinTransactionStub{},
+		Accounts:     checkinAccountStub{account: contract.Account{ID: 9, Status: accountStatusActive, Balance: 20}},
+		Balance:      &checkinBalanceStub{},
+		Ledger:       &checkinLedgerStub{},
+		Settings: checkinSettingsStub{value: contract.Settings{Checkin: contract.CheckinSettings{
+			Enabled: true, MinimumReward: 1, MaximumReward: 5,
+		}}},
+		Clock:             checkinClockStub{now: today},
+		Random:            checkinRandomStub{value: 0.5},
+		RewardEligibility: eligibility,
+	})
+	require.NoError(t, err)
+
+	status, err := service.GetStatus(context.Background(), 9)
+
+	require.NoError(t, err)
+	require.False(t, status.CanCheckin)
+	require.Equal(t, "admin_disabled", status.UnavailableReason)
+	require.Empty(t, eligibility.calls)
+}
+
 func TestServiceCheckinRejectsIneligibleRewardBeforeTransaction(t *testing.T) {
 	today := time.Date(2026, time.July, 25, 0, 0, 0, 0, time.Local)
 	eligibilityErr := errors.New("duplicate registration fingerprint")

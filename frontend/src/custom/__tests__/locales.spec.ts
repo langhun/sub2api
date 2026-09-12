@@ -72,4 +72,14 @@ describe('custom admin locale overlay', () => {
     expect(enAdmin).not.toHaveProperty('admin')
     expect(zhAdmin).not.toHaveProperty('admin')
   })
+
+  it('mounts check-in access labels at the admin namespace root', async () => {
+    const { default: enAdmin } = await import('@/i18n/locales/en/admin')
+    const { default: zhAdmin } = await import('@/i18n/locales/zh/admin')
+
+    expect(enAdmin.checkinUserAccess.menuAction).toBe('Check-in access')
+    expect(zhAdmin.checkinUserAccess.menuAction).toBe('签到权限')
+    expect(enAdmin).not.toHaveProperty('admin')
+    expect(zhAdmin).not.toHaveProperty('admin')
+  })
 })

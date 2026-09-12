@@ -77,3 +77,23 @@ func TestActivityRedeemMetadataMigrationPreservesLegacyColumns(t *testing.T) {
 		t.Fatal("custom migration must not alter immutable legacy redeem_codes columns")
 	}
 }
+
+func TestCheckinUserAccessMigrationStaysInCustomSchema(t *testing.T) {
+	content, err := files.ReadFile("014_checkin_user_access.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"CREATE TABLE IF NOT EXISTS custom_checkin_user_access",
+		"REFERENCES users(id) ON DELETE CASCADE",
+		"updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+	if strings.Contains(sql, "ALTER TABLE users") || strings.Contains(sql, "DROP TABLE users") {
+		t.Fatal("custom migration must not modify the upstream users table")
+	}
+}
