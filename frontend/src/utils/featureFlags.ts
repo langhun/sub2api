@@ -89,42 +89,55 @@ export function defineFeatureFlag(
   return def
 }
 
+// Upstream callers use the more strongly typed name; keep the broad custom
+// overlay API above so custom modules can register flags not yet in PublicSettings.
+function defineFlag<K extends Extract<keyof PublicSettings, string>>(
+  def: { key: K; mode: FeatureFlagMode; label: string },
+): FeatureFlagDefinition {
+  return defineFeatureFlag(def)
+}
+
 /**
  * Registered feature flags. Add a new entry here when introducing a new
  * public-settings-driven switch; see the "Adding a new flag" checklist above.
  */
 export const FeatureFlags = {
-  channelMonitor: defineFeatureFlag({
+  channelMonitor: defineFlag({
     key: 'channel_monitor_enabled',
     mode: 'opt-out',
     label: 'Channel Monitor',
   }),
-  availableChannels: defineFeatureFlag({
+  availableChannels: defineFlag({
     key: 'available_channels_enabled',
     mode: 'opt-in',
     label: 'Available Channels',
   }),
-  modelPlaza: defineFeatureFlag({
+  subscription: defineFlag({
+    key: 'subscription_enabled',
+    mode: 'opt-out',
+    label: 'Subscription',
+  }),
+  modelPlaza: defineFlag({
     key: 'model_plaza_enabled',
     mode: 'opt-in',
     label: 'Model Plaza',
   }),
-  pluginManagement: defineFeatureFlag({
+  pluginManagement: defineFlag({
     key: 'plugin_management_enabled',
     mode: 'opt-in',
     label: 'Plugin Management',
   }),
-  payment: defineFeatureFlag({
+  payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
     label: 'Payment',
   }),
-  riskControl: defineFeatureFlag({
+  riskControl: defineFlag({
     key: 'risk_control_enabled',
     mode: 'opt-in',
     label: 'Risk Control',
   }),
-  affiliate: defineFeatureFlag({
+  affiliate: defineFlag({
     key: 'affiliate_enabled',
     mode: 'opt-in',
     label: 'Affiliate',
@@ -182,7 +195,16 @@ export function resolveFeatureFlagKey(
  * `false` → the feature is disabled (menu/route should hide).
  */
 export function isFeatureFlagEnabled(flag: FeatureFlagDefinition): boolean {
-  return resolveFeatureFlagValue(flag, getPublicSettings?.())
+  const settings = getPublicSettings ? getPublicSettings() : useAppStore().cachedPublicSettings
+  return resolveFeatureFlag(settings, flag)
+}
+
+/** Pure resolver for callers that already hold public settings. */
+export function resolveFeatureFlag(
+  settings: Partial<PublicSettings> | null | undefined,
+  flag: FeatureFlagDefinition,
+): boolean {
+  return resolveFeatureFlagValue(flag, settings)
 }
 
 /**

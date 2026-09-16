@@ -77,7 +77,7 @@ const handleUpdateProfile = async () => {
     })
     authStore.user = updatedUser
     appStore.showSuccess(t('profile.updateSuccess'))
-  } catch (error: any) {
+  } catch (error: unknown) {
     appStore.showError(extractApiErrorMessage(error, t('profile.updateFailed')))
   } finally {
     loading.value = false

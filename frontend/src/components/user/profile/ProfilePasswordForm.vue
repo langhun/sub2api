@@ -108,7 +108,7 @@ const handleChangePassword = async () => {
     await userAPI.changePassword(form.value.old_password, form.value.new_password)
     form.value = { old_password: '', new_password: '', confirm_password: '' }
     appStore.showSuccess(t('profile.passwordChangeSuccess'))
-  } catch (error: any) {
+  } catch (error: unknown) {
     appStore.showError(extractApiErrorMessage(error, t('profile.passwordChangeFailed')))
   } finally {
     loading.value = false
