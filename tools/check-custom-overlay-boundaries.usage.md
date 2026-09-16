@@ -39,9 +39,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-custom-overlay-b
   -ReportPath artifacts/overlay-boundary.json
 ```
 
-For an upstream merge, create a pre-sync and post-sync report with the exact
-old/new upstream commits, then compare them. The second gate rejects a merge
-that introduces new shared paths while reporting upstream paths separately.
+For an upstream merge, use the sync gate's `-GenerateReports` mode. It creates
+both immutable pre/post reports internally, suppresses the expected historical
+shared-path inventory, and rejects only paths newly introduced by this sync.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-upstream-sync.ps1 `
@@ -49,9 +49,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-upstream-sync.ps
   -ProductAfter HEAD `
   -OldUpstream <old-upstream-sha> `
   -NewUpstream 43d4bae24 `
+  -GenerateReports `
   -PreReport artifacts/overlay-pre.json `
   -PostReport artifacts/overlay-post.json
 ```
+
+Do not run the two raw `OverlayBoundary` commands as standalone acceptance
+checks. They intentionally return exit code 1 when historical shared paths
+exist; `check-upstream-sync.ps1` is the acceptance gate for a merge.
 
 The gate reports the following ownership categories separately:
 

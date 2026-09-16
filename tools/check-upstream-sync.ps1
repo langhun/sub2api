@@ -8,10 +8,9 @@ param(
     [string]$OldUpstream,
     [Parameter(Mandatory)]
     [string]$NewUpstream,
-    [Parameter(Mandatory)]
     [string]$PreReport,
-    [Parameter(Mandatory)]
     [string]$PostReport,
+    [switch]$GenerateReports,
     [string]$GitPath
 )
 
@@ -68,11 +67,51 @@ function Read-BoundaryReport {
     return @($report.Violations | Where-Object { $_.Bucket -in @('shared', 'immutable-migration-change') } | ForEach-Object { $_.Path } | Sort-Object -Unique)
 }
 
+function New-BoundaryReport {
+    param(
+        [string]$UpstreamRef,
+        [string]$TargetRef,
+        [string]$ReportPath
+    )
+
+    $boundaryScript = Join-Path $PSScriptRoot 'check-custom-overlay-boundaries.ps1'
+    if (-not (Test-Path -LiteralPath $boundaryScript -PathType Leaf)) {
+        throw "Boundary checker does not exist: $boundaryScript"
+    }
+
+    $output = @(& $boundaryScript `
+        -Mode OverlayBoundary `
+        -UpstreamRef $UpstreamRef `
+        -TargetRef $TargetRef `
+        -ReportPath $ReportPath `
+        -GitPath $script:GitExecutable *>&1)
+    $exitCode = $LASTEXITCODE
+
+    # Exit 1 is expected when the product has historical shared paths. The
+    # pre/post comparator below decides whether this sync introduced new ones.
+    if ($exitCode -notin @(0, 1) -or -not (Test-Path -LiteralPath $ReportPath -PathType Leaf)) {
+        $details = ($output | Select-Object -Last 20) -join [Environment]::NewLine
+        throw "Boundary report generation failed for $TargetRef (exit $exitCode).$([Environment]::NewLine)$details"
+    }
+}
+
 $script:GitExecutable = Resolve-GitPath -RequestedPath $GitPath
 $beforeCommit = Resolve-Commit -Ref $ProductBefore
 $afterCommit = Resolve-Commit -Ref $ProductAfter
 $oldUpstreamCommit = Resolve-Commit -Ref $OldUpstream
 $newUpstreamCommit = Resolve-Commit -Ref $NewUpstream
+
+if (-not $PreReport) {
+    $PreReport = Join-Path (Get-Location) 'artifacts/overlay-pre.json'
+}
+if (-not $PostReport) {
+    $PostReport = Join-Path (Get-Location) 'artifacts/overlay-post.json'
+}
+
+if ($GenerateReports) {
+    New-BoundaryReport -UpstreamRef $oldUpstreamCommit -TargetRef $beforeCommit -ReportPath $PreReport
+    New-BoundaryReport -UpstreamRef $newUpstreamCommit -TargetRef $afterCommit -ReportPath $PostReport
+}
 
 if (-not (Test-Ancestor -Ancestor $oldUpstreamCommit -Descendant $beforeCommit)) {
     throw "Old upstream $oldUpstreamCommit is not an ancestor of pre-sync product $beforeCommit."
