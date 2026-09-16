@@ -347,10 +347,10 @@ type UpdateSettingsRequest struct {
 	// Subscription feature switch (user-facing subscription surface; see SettingKeySubscriptionEnabled)
 	SubscriptionEnabled *bool `json:"subscription_enabled"`
 	// Model Plaza feature switches + description
-	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth *bool   `json:"model_plaza_require_auth"`
-	ModelPlazaDescription *string `json:"model_plaza_description"`
-	PluginManagementEnabled *bool `json:"plugin_management_enabled"`
+	ModelPlazaEnabled       *bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth   *bool   `json:"model_plaza_require_auth"`
+	ModelPlazaDescription   *string `json:"model_plaza_description"`
+	PluginManagementEnabled *bool   `json:"plugin_management_enabled"`
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
@@ -1972,7 +1972,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return previousSettings.ModelPlazaDescription
 		}(),
 		PluginManagementEnabled: func() bool {
-			if req.PluginManagementEnabled != nil { return *req.PluginManagementEnabled }
+			if req.PluginManagementEnabled != nil {
+				return *req.PluginManagementEnabled
+			}
 			return previousSettings.PluginManagementEnabled
 		}(),
 		AffiliateEnabled: func() bool {
@@ -2406,8 +2408,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 		SubscriptionEnabled:      updatedSettings.SubscriptionEnabled,
 
-		ModelPlazaEnabled:     updatedSettings.ModelPlazaEnabled,
-		ModelPlazaRequireAuth: updatedSettings.ModelPlazaRequireAuth,
+		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,
 		ModelPlazaDescription:   updatedSettings.ModelPlazaDescription,
 		PluginManagementEnabled: updatedSettings.PluginManagementEnabled,
 
