@@ -28,17 +28,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-custom-overlay-b
   -IncludeWorktree
 ```
 
-```powershell
-# Normal module/upstream synchronization boundary check. Record the exact SHA
-# in the sync commit or CI metadata; do not substitute origin/main here.
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-custom-overlay-boundaries.ps1 `
-  -Mode OverlayBoundary `
-  -UpstreamRef 43d4bae24 `
-  -TargetRef HEAD `
-  -IncludeWorktree `
-  -ReportPath artifacts/overlay-boundary.json
-```
-
 For an upstream merge, use the sync gate's `-GenerateReports` mode. It creates
 both immutable pre/post reports internally, suppresses the expected historical
 shared-path inventory, and rejects only paths newly introduced by this sync.
@@ -54,9 +43,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-upstream-sync.ps
   -PostReport artifacts/overlay-post.json
 ```
 
-Do not run the two raw `OverlayBoundary` commands as standalone acceptance
-checks. They intentionally return exit code 1 when historical shared paths
-exist; `check-upstream-sync.ps1` is the acceptance gate for a merge.
+Do not run raw `OverlayBoundary` commands as standalone acceptance checks.
+They intentionally return exit code 1 when historical shared paths exist;
+`check-upstream-sync.ps1 -GenerateReports` is the only acceptance entry point
+for an upstream merge.
 
 The gate reports the following ownership categories separately:
 

@@ -148,8 +148,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot calculate upstream merge base.' }
 $upstreamPaths = @(& $script:GitExecutable diff --name-only "$upstreamBase..$newUpstreamCommit")
 if ($LASTEXITCODE -ne 0) { throw 'Cannot list upstream changes.' }
 
-Write-Host "Pre-sync shared paths: $($preViolations.Count)"
-Write-Host "Post-sync shared paths: $($postViolations.Count)"
+Write-Host "Existing shared inventory before sync (informational): $($preViolations.Count)"
+Write-Host "Existing shared inventory after sync (informational): $($postViolations.Count)"
+Write-Host "New shared paths introduced by this sync: $($newViolations.Count)"
 Write-Host "Reviewed sync merge: $syncCommit ($subject)"
 Write-Host "Upstream-only changed paths: $($upstreamPaths.Count)"
 if ($newViolations.Count -gt 0) {
@@ -158,4 +159,4 @@ if ($newViolations.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'Upstream sync gate passed: no new shared Overlay paths were introduced.'
+Write-Host 'Upstream sync gate passed: no new shared Overlay paths were introduced. Existing inventory is not a sync failure.'
