@@ -1478,23 +1478,34 @@ func (s *OpenAIGatewayService) bindHTTPResponseAccount(ctx context.Context, c *g
 	if store == nil {
 		return
 	}
+	// The client may close the stream immediately after receiving its terminal
+	// event, canceling the request context before these durable affinity writes
+	// run. Preserve request values, but give all Redis writes one bounded budget
+	// independent of the downstream connection lifecycle.
+	bindBaseCtx := context.Background()
+	if ctx != nil {
+		bindBaseCtx = context.WithoutCancel(ctx)
+	}
+	bindCtx, cancel := context.WithTimeout(bindBaseCtx, openAIWSStateStoreRedisTimeout)
+	defer cancel()
+
 	groupID := getOpenAIGroupIDFromContext(c)
 	ttl := s.openAIWSResponseStickyTTL()
 	if routes, ok := s.smartRoutingResolver.(SmartRoutingResponseRoutes); ok {
-		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
-			if key, found := APIKeyFromContext(ctx); found {
-				if err := routes.BindRoutingResponse(ctx, key, state.MainGroupID, groupID, account.ID, responseID, ttl); err != nil {
+		if state := SmartRoutingStateFromContext(bindCtx); state != nil && state.SmartRoutingActive {
+			if key, found := APIKeyFromContext(bindCtx); found {
+				if err := routes.BindRoutingResponse(bindCtx, key, state.MainGroupID, groupID, account.ID, responseID, ttl); err != nil {
 					logger.L().Warn("smart_routing.response_owner_bind_failed", zap.Error(err))
 				}
 			}
 		}
 	}
-	logOpenAIWSBindResponseAccountWarn(groupID, account.ID, responseID, store.BindResponseAccount(ctx, groupID, responseID, account.ID, ttl))
+	logOpenAIWSBindResponseAccountWarn(groupID, account.ID, responseID, store.BindResponseAccount(bindCtx, groupID, responseID, account.ID, ttl))
 	ownerUserID, ownerAPIKeyID := int64(0), int64(0)
 	if rawOwner, ok := c.Get(openAIHTTPResponseOwnerContextKey); ok {
 		if owner, ok := rawOwner.(openAIHTTPResponseOwner); ok && owner.userID > 0 && owner.apiKeyID > 0 {
 			ownerUserID, ownerAPIKeyID = owner.userID, owner.apiKeyID
-			if err := s.BindOpenAIHTTPResponseOwner(ctx, groupID, responseID, owner.userID, owner.apiKeyID); err != nil {
+			if err := s.BindOpenAIHTTPResponseOwner(bindCtx, groupID, responseID, owner.userID, owner.apiKeyID); err != nil {
 				logger.L().Warn(
 					"openai.http_bind_response_owner_failed",
 					zap.Int64("group_id", groupID),
@@ -1513,7 +1524,7 @@ func (s *OpenAIGatewayService) bindHTTPResponseAccount(ctx context.Context, c *g
 	// not reject a valid continuation before the router can restore its sticky
 	// selected group. Account binding remains scoped to the selected group.
 	if state := SmartRoutingStateFromContext(c.Request.Context()); state != nil && state.MainGroupID > 0 && state.MainGroupID != groupID && ownerUserID > 0 && ownerAPIKeyID > 0 {
-		if err := s.BindOpenAIHTTPResponseOwner(ctx, state.MainGroupID, responseID, ownerUserID, ownerAPIKeyID); err != nil {
+		if err := s.BindOpenAIHTTPResponseOwner(bindCtx, state.MainGroupID, responseID, ownerUserID, ownerAPIKeyID); err != nil {
 			logger.L().Debug("openai.http_bind_primary_response_owner_alias_failed", zap.Error(err))
 		}
 	}

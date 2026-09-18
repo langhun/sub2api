@@ -135,6 +135,7 @@
                   v-for="(_, index) in 6"
                   :key="index"
                   :ref="(el) => setInputRef(el, index)"
+                  :value="code[index]"
                   type="text"
                   maxlength="1"
                   inputmode="numeric"
@@ -171,6 +172,7 @@ import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { totpAPI } from '@/api'
+import { extractApiErrorMessage } from '@/utils/apiError'
 import type { TotpSetupResponse } from '@/types'
 import QRCode from 'qrcode'
 import { extractApiErrorMessage } from '@/utils/apiError'
