@@ -473,6 +473,9 @@ func setOpsSelectedAccount(c *gin.Context, accountID int64, platform ...string) 
 	}
 	service.ClearOpsUpstreamModel(c)
 	c.Set(opsAccountIDKey, accountID)
+	if key := getOpsAPIKey(c); key != nil && key.GroupID != nil {
+		service.SetOpsAccountGroup(c, accountID, *key.GroupID)
+	}
 	if c.Request != nil {
 		ctx := context.WithValue(c.Request.Context(), ctxkey.AccountID, accountID)
 		if len(platform) > 0 {
@@ -1276,6 +1279,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			entry.ClientIP = &clientIP
 		}
 
+		applyOpsAttemptGroup(c, entry)
 		enqueueOpsErrorLog(ops, entry)
 	}
 }
@@ -1392,6 +1396,7 @@ func logOpsRecoveredUpstream(c *gin.Context, ops *service.OpsService, finalStatu
 		entry.ClientIP = &clientIP
 	}
 	applyOpsLatencyFieldsFromContext(c, entry)
+	applyOpsAttemptGroup(c, entry)
 	enqueueOpsErrorLog(ops, entry)
 }
 
@@ -1581,6 +1586,11 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 		entry.ClientIP = &clientIP
 	}
 
+	applyOpsAttemptGroup(c, entry)
+	if streamErr.GroupID > 0 {
+		groupID := streamErr.GroupID
+		entry.GroupID = &groupID
+	}
 	enqueueOpsErrorLog(ops, entry)
 }
 
@@ -1624,6 +1634,26 @@ func applyOpsStreamErrorSnapshot(entry *service.OpsInsertErrorLogInput, streamEr
 		entry.ErrorOwner = "provider"
 		entry.ErrorSource = "upstream_http"
 		entry.IsBusinessLimited = false
+	}
+}
+
+func applyOpsAttemptGroup(c *gin.Context, entry *service.OpsInsertErrorLogInput) {
+	if entry == nil || entry.AccountID == nil {
+		return
+	}
+	groupID := int64(0)
+	for i := len(entry.UpstreamErrors) - 1; i >= 0; i-- {
+		ev := entry.UpstreamErrors[i]
+		if ev != nil && ev.AccountID == *entry.AccountID && ev.GroupID > 0 {
+			groupID = ev.GroupID
+			break
+		}
+	}
+	if groupID == 0 {
+		groupID = service.OpsAccountGroup(c, *entry.AccountID)
+	}
+	if groupID > 0 {
+		entry.GroupID = &groupID
 	}
 }
 

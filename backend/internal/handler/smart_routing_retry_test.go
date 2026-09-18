@@ -90,3 +90,83 @@ func TestSmartRoutingCapacityRetriesAreBoundedAcrossReselection(t *testing.T) {
 	require.False(t, retrySmartRoutingCapacity(c, nil, 13, 1), "group changes must not reset the request budget")
 	require.Empty(t, s.ExhaustedGroups)
 }
+
+type routingAdmissionFixture struct {
+	allowed            bool
+	acquires, releases int
+	attempts           []service.SmartRoutingAttempt
+}
+
+func (f *routingAdmissionFixture) AcquireRoutingAccount(context.Context, int64, string, string, bool) (string, bool) {
+	f.acquires++
+	return "probe-token", f.allowed
+}
+
+func (f *routingAdmissionFixture) ReleaseRoutingAccount(int64, string, string, bool, string) {
+	f.releases++
+}
+
+func (f *routingAdmissionFixture) ObserveRoutingAttempt(a service.SmartRoutingAttempt) {
+	f.attempts = append(f.attempts, a)
+}
+
+func TestSmartRoutingForwardAdmissionAndCleanup(t *testing.T) {
+	for _, scenario := range []string{"success", "failure", "cancel", "request_error", "panic", "denied", "single"} {
+		t.Run(scenario, func(t *testing.T) {
+			controller := &routingAdmissionFixture{allowed: scenario != "denied"}
+			state := &service.SmartRoutingRequestState{SmartRoutingActive: scenario != "single", Observer: controller, RequestedModel: "gpt-5", EndpointType: "responses", CurrentGroupID: 2}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ctx = service.WithSmartRoutingState(service.WithAPIKeyContext(ctx, &service.APIKey{ID: 9}), state)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
+			calls := 0
+			run := func() {
+				_, err := forwardWithSmartRouting(c, 11, false, func() (*service.OpenAIForwardResult, error) {
+					calls++
+					switch scenario {
+					case "cancel":
+						cancel()
+						return nil, context.Canceled
+					case "request_error":
+						return nil, &service.UpstreamFailoverError{StatusCode: 400, Scope: service.GatewayFailureScopeRequest}
+					case "failure":
+						return nil, &service.UpstreamFailoverError{StatusCode: 503}
+					case "panic":
+						panic("forward panic")
+					}
+					return &service.OpenAIForwardResult{}, nil
+				})
+				if scenario == "denied" {
+					var failure *service.UpstreamFailoverError
+					require.ErrorAs(t, err, &failure)
+					require.False(t, failure.ShouldReportAccountScheduleFailure())
+				}
+			}
+			if scenario == "panic" {
+				require.Panics(t, run)
+			} else {
+				run()
+			}
+			if scenario == "single" {
+				require.Zero(t, controller.acquires)
+				require.Zero(t, controller.releases)
+			} else {
+				require.Equal(t, 1, controller.acquires)
+				if scenario == "denied" {
+					require.Zero(t, calls)
+					require.Zero(t, controller.releases)
+				} else {
+					require.Equal(t, 1, controller.releases)
+				}
+			}
+			if scenario == "success" || scenario == "failure" {
+				require.Len(t, controller.attempts, 1)
+				require.Equal(t, "probe-token", controller.attempts[0].ProbeToken)
+			} else {
+				require.Empty(t, controller.attempts, "orchestration failures must not penalize the upstream")
+			}
+			require.Empty(t, state.ProbeToken)
+		})
+	}
+}

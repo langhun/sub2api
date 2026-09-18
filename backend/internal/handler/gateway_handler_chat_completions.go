@@ -289,7 +289,6 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 		// 5. Forward request
 		writerSizeBeforeForward := c.Writer.Size()
-		forwardStart := time.Now()
 		forwardBody := body
 		if attemptChannelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
@@ -304,7 +303,9 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				}
 				return
 			}
-			result, err = h.geminiCompatService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody)
+			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				return h.geminiCompatService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody)
+			})
 		} else if shouldUseAntigravityCompat(account) {
 			if h.antigravityGatewayService == nil {
 				h.chatCompletionsErrorResponse(c, http.StatusBadGateway, "upstream_error", "Antigravity compatibility service is not configured")
@@ -314,15 +315,18 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				return
 			}
 			setActualUpstreamEndpoint(c, EndpointAntigravityGenerateContent)
-			result, err = h.antigravityGatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				return h.antigravityGatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+			})
 		} else {
-			result, err = h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				return h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+			})
 		}
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
-		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError

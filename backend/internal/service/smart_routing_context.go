@@ -86,6 +86,7 @@ type SmartRoutingRequestState struct {
 	CurrentGroupID      int64
 	ExhaustedGroups     map[int64]struct{}
 	FailedAccountIDs    map[int64]struct{}
+	AccountExclusions   map[int64]string
 	NoRoute             bool
 	Strategy            string
 	SpeedWeight         float64
@@ -97,7 +98,7 @@ type SmartRoutingRequestState struct {
 	Observer            SmartRoutingAttemptObserver
 	ContinuityGroupID   int64
 	ContinuityAccountID int64
-	RecoveryProbe       bool
+	ProbeToken          string
 	AccountMetrics      map[int64]SmartRoutingAccountMetric
 	// PrimaryGroupSnapshot is captured before the request-local API key is
 	// mutated to a candidate. It lets failover restore a coherent Group

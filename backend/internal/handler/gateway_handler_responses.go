@@ -299,7 +299,6 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 		// 5. Forward request
 		writerSizeBeforeForward := c.Writer.Size()
-		forwardStart := time.Now()
 		forwardBody := body
 		if attemptChannelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
@@ -315,15 +314,18 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			setActualUpstreamEndpoint(c, EndpointAntigravityGenerateContent)
-			result, err = h.antigravityGatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
+			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				return h.antigravityGatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
+			})
 		} else {
-			result, err = h.gatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
+			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				return h.gatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
+			})
 		}
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
-		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError

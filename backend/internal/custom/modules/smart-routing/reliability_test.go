@@ -110,103 +110,10 @@ func TestExplorationUsesIndependentRequestBuckets(t *testing.T) {
 	}
 	require.Greater(t, explored, 400)
 	require.Less(t, explored, 600)
-	groups[1].Recovering = true
+	groups[1].Eligible = false
 	for i := 0; i < 100; i++ {
 		require.Equal(t, -1, m.explorationIndex(key, p, groups, 2, fmt.Sprint(i), "gpt-5"))
 	}
-}
-
-func TestHealthCircuitRequiresBoundedSuccessfulRecovery(t *testing.T) {
-	m := &Module{}
-	now := time.Now()
-	a := service.SmartRoutingAttempt{GroupID: 2, AccountID: 11, Model: "gpt-5", Endpoint: "responses", Stream: true, CreatedAt: now}
-	ctx := service.WithSmartRoutingState(context.Background(), &service.SmartRoutingRequestState{EndpointType: a.Endpoint, Stream: true})
-	for i := 0; i < 3; i++ {
-		m.ObserveRoutingAttempt(a)
-	}
-	blocked, recovering := m.routeHealth(ctx, 2, a.Model)
-	require.True(t, blocked)
-	require.True(t, recovering)
-	a.Success = true
-	m.ObserveRoutingAttempt(a)
-	blocked, _ = m.routeHealth(ctx, 2, a.Model)
-	require.True(t, blocked, "a lucky success must not clear cooldown")
-	key := healthKey(2, a.Model, a.Endpoint, true)
-	m.feedback.mu.Lock()
-	h := m.feedback.health[key]
-	h.OpenUntil = now.Add(-time.Second)
-	m.feedback.health[key] = h
-	m.feedback.mu.Unlock()
-	require.True(t, m.acquireRecoveryProbe(ctx, 2, a.Model))
-	require.False(t, m.acquireRecoveryProbe(ctx, 2, a.Model), "only one probe per lease")
-	a.RecoveryProbe = true
-	m.ObserveRoutingAttempt(a)
-	_, recovering = m.routeHealth(ctx, 2, a.Model)
-	require.True(t, recovering)
-	m.ObserveRoutingAttempt(a)
-	blocked, recovering = m.routeHealth(ctx, 2, a.Model)
-	require.False(t, blocked)
-	require.False(t, recovering)
-}
-
-func TestRedisHealthCircuitSharedAcrossNodes(t *testing.T) {
-	r := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: r.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
-	ctx := context.Background()
-	key := healthKey(2, "gpt-5", "responses", true)
-	keys := []string{key, key + ":failures", key + ":recovering", key + ":success", key + ":total"}
-	for i := 0; i < 3; i++ {
-		require.NoError(t, client.Eval(ctx, healthFeedbackScript, keys, false, false).Err())
-	}
-	m := &Module{redis: client}
-	ctx = service.WithSmartRoutingState(ctx, &service.SmartRoutingRequestState{EndpointType: "responses", Stream: true})
-	blocked, recovering := m.routeHealth(ctx, 2, "gpt-5")
-	require.True(t, blocked)
-	require.True(t, recovering)
-	require.NoError(t, client.Eval(ctx, healthFeedbackScript, keys, true, false).Err())
-	require.True(t, r.Exists(key))
-	r.FastForward(31 * time.Second)
-	r.FastForward(3 * time.Minute)
-	_, recovering = m.routeHealth(ctx, 2, "gpt-5")
-	require.True(t, recovering, "idle time must not masquerade as successful recovery")
-	require.True(t, m.acquireRecoveryProbe(ctx, 2, "gpt-5"))
-	require.False(t, (&Module{redis: client}).acquireRecoveryProbe(ctx, 2, "gpt-5"))
-	for i := 0; i < 2; i++ {
-		require.NoError(t, client.Eval(ctx, healthFeedbackScript, keys, true, true).Err())
-	}
-	_, recovering = m.routeHealth(ctx, 2, "gpt-5")
-	require.False(t, recovering)
-}
-
-func TestHealthCircuitUsesSharedRecoveryAfterLocalFeedbackFlush(t *testing.T) {
-	r := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: r.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
-	m := &Module{redis: client}
-	a := service.SmartRoutingAttempt{GroupID: 2, Model: "gpt-5", Endpoint: "responses", Stream: true, CreatedAt: time.Now()}
-	for i := 0; i < 10; i++ {
-		m.ObserveRoutingAttempt(a)
-	}
-	key := healthKey(2, a.Model, a.Endpoint, true)
-	require.Eventually(t, func() bool {
-		m.feedback.mu.Lock()
-		defer m.feedback.mu.Unlock()
-		h := m.feedback.health[key]
-		return h.Pending == 0 && h.Synced
-	}, 3*time.Second, 5*time.Millisecond)
-	total, err := r.Get(key + ":total")
-	require.NoError(t, err)
-	require.Equal(t, "10", total)
-	r.FastForward(31 * time.Second)
-	keys := []string{key, key + ":failures", key + ":recovering", key + ":success", key + ":total"}
-	for i := 0; i < 2; i++ {
-		require.NoError(t, client.Eval(context.Background(), healthFeedbackScript, keys, true, true).Err())
-	}
-	ctx := service.WithSmartRoutingState(context.Background(), &service.SmartRoutingRequestState{EndpointType: a.Endpoint, Stream: true})
-	blocked, recovering := m.routeHealth(ctx, 2, a.Model)
-	require.False(t, blocked, "another node's completed recovery supersedes flushed local state")
-	require.False(t, recovering)
 }
 
 func TestResponseRouteRemainsScopedAndRejectsRevokedCandidates(t *testing.T) {

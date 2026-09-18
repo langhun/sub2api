@@ -949,15 +949,17 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 			writerSizeBeforeForward := c.Writer.Size()
-			forwardStart := time.Now()
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
-				result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, attemptBody, hasBoundSession)
+				result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+					return h.antigravityGatewayService.Forward(requestCtx, c, account, attemptBody, hasBoundSession)
+				})
 			} else {
-				result, err = h.gatewayService.Forward(requestCtx, c, account, attemptParsedReq)
+				result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+					return h.gatewayService.Forward(requestCtx, c, account, attemptParsedReq)
+				})
 			}
 
 			// 兜底释放串行锁（正常情况已通过回调提前释放）
-			observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 			if queueRelease != nil {
 				queueRelease()
 			}

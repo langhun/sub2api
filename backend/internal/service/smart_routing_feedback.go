@@ -18,7 +18,8 @@ type SmartRoutingAttempt struct {
 	Attempt                      int
 	Model, Endpoint              string
 	Stream, Success              bool
-	RecoveryProbe                bool
+	ProbeToken                   string
+	StatusCode                   int
 	SpeedMs                      int64
 	CreatedAt                    time.Time
 }
@@ -30,11 +31,48 @@ type SmartRoutingAttemptObserver interface {
 type SmartRoutingAccountMetric struct {
 	SpeedMs   float64
 	ErrorRate float64
-	Blocked   bool
 }
 
 type SmartRoutingAccountMetricProvider interface {
 	RoutingAccountMetrics(context.Context, int64, string, string, bool) map[int64]SmartRoutingAccountMetric
+}
+
+// SmartRoutingAccountAdmission is implemented by the Overlay. A recovery lease
+// belongs to one account, never to an entire group of otherwise healthy peers.
+type SmartRoutingAccountAdmission interface {
+	AcquireRoutingAccount(context.Context, int64, string, string, bool) (string, bool)
+	ReleaseRoutingAccount(int64, string, string, bool, string)
+}
+
+const SmartRoutingAccountUnavailableReason GatewayFailureReason = "smart_routing_account_unavailable"
+
+func BeginSmartRoutingAttempt(ctx context.Context, accountID int64) (func(), error) {
+	s := SmartRoutingStateFromContext(ctx)
+	if s == nil || !s.SmartRoutingActive {
+		return func() {}, nil
+	}
+	controller, ok := s.Observer.(SmartRoutingAccountAdmission)
+	if !ok {
+		return func() {}, nil
+	}
+	token, admitted := controller.AcquireRoutingAccount(ctx, accountID, s.RequestedModel, s.EndpointType, s.Stream)
+	if !admitted {
+		if s.FailedAccountIDs == nil {
+			s.FailedAccountIDs = map[int64]struct{}{}
+		}
+		s.FailedAccountIDs[accountID] = struct{}{}
+		if s.AccountExclusions == nil {
+			s.AccountExclusions = map[int64]string{}
+		}
+		s.AccountExclusions[accountID] = "account unavailable at final admission"
+		return func() {}, &UpstreamFailoverError{StatusCode: 503, Reason: SmartRoutingAccountUnavailableReason}
+	}
+	s.ProbeToken = token
+	model, endpoint, stream := s.RequestedModel, s.EndpointType, s.Stream
+	return func() {
+		controller.ReleaseRoutingAccount(accountID, model, endpoint, stream, token)
+		s.ProbeToken = ""
+	}, nil
 }
 
 func LoadSmartRoutingAccountMetrics(ctx context.Context, resolver SmartRoutingResolver, groupID *int64) {
@@ -44,14 +82,6 @@ func LoadSmartRoutingAccountMetrics(ctx context.Context, resolver SmartRoutingRe
 	}
 	if provider, ok := resolver.(SmartRoutingAccountMetricProvider); ok {
 		s.AccountMetrics = provider.RoutingAccountMetrics(ctx, *groupID, s.RequestedModel, s.EndpointType, s.Stream)
-		for id, metric := range s.AccountMetrics {
-			if metric.Blocked {
-				if s.FailedAccountIDs == nil {
-					s.FailedAccountIDs = map[int64]struct{}{}
-				}
-				s.FailedAccountIDs[id] = struct{}{}
-			}
-		}
 	}
 }
 
@@ -113,6 +143,7 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 	if state == nil || !state.SmartRoutingActive || state.Observer == nil || accountID <= 0 || ctx.Err() != nil {
 		return
 	}
+	statusCode := 0
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return
@@ -122,6 +153,7 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 			if !failure.ShouldRetryNextAccount() || failure.RequestScopedTransient || failure.Scope == GatewayFailureScopeRequest || !failure.ShouldReportAccountScheduleFailure() {
 				return
 			}
+			statusCode = failure.StatusCode
 		} else {
 			var streamRead *openAIUpstreamStreamReadError
 			var streamEvent *sseStreamErrorEventError
@@ -151,8 +183,8 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 		RequestID: requestID, APIKeyID: key.ID, GroupID: state.CurrentGroupID,
 		AccountID: accountID, Attempt: state.Attempt, Model: state.RequestedModel,
 		Endpoint: state.EndpointType, Stream: stream, Success: err == nil,
-		RecoveryProbe: state.RecoveryProbe,
-		SpeedMs:       speed, CreatedAt: time.Now(),
+		ProbeToken: state.ProbeToken, StatusCode: statusCode,
+		SpeedMs: speed, CreatedAt: time.Now(),
 	})
 }
 

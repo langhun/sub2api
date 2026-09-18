@@ -60,3 +60,16 @@ func observeSmartRoutingForward(c *gin.Context, accountID int64, stream bool, st
 	}
 	service.ObserveSmartRoutingAttempt(c.Request.Context(), accountID, stream, time.Since(started), firstToken, err)
 }
+
+func forwardWithSmartRouting[T any](c *gin.Context, accountID int64, stream bool, forward func() (T, error)) (T, error) {
+	var zero T
+	release, err := service.BeginSmartRoutingAttempt(c.Request.Context(), accountID)
+	if err != nil {
+		return zero, err
+	}
+	defer release()
+	started := time.Now()
+	result, err := forward()
+	observeSmartRoutingForward(c, accountID, stream, started, result, err)
+	return result, err
+}

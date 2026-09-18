@@ -21,6 +21,7 @@ const (
 	OpsUpstreamErrorDetailKey  = "ops_upstream_error_detail"
 	OpsUpstreamErrorsKey       = "ops_upstream_errors"
 	OpsUpstreamModelKey        = "ops_upstream_model"
+	OpsAccountRoutesKey        = "ops_account_routes"
 
 	// Optional stage latencies (milliseconds) for troubleshooting and alerting.
 	OpsAuthLatencyMsKey      = "ops_auth_latency_ms"
@@ -158,6 +159,7 @@ type OpsStreamError struct {
 	// SkipMonitoring snapshots the rule decision for this visible failure.
 	SkipMonitoring  bool
 	AccountID       int64
+	GroupID         int64
 	UpstreamModel   string
 	UpstreamStatus  int
 	UpstreamMessage string
@@ -264,6 +266,7 @@ func snapshotOpsStreamErrorContext(c *gin.Context, streamErr *OpsStreamError) {
 	if c.Request != nil {
 		if accountID, ok := c.Request.Context().Value(ctxkey.AccountID).(int64); ok && accountID > 0 {
 			streamErr.AccountID = accountID
+			streamErr.GroupID = OpsAccountGroup(c, accountID)
 		}
 	}
 	if value, ok := c.Get(OpsUpstreamModelKey); ok {
@@ -387,6 +390,7 @@ type OpsUpstreamErrorEvent struct {
 	// Context
 	Platform    string `json:"platform,omitempty"`
 	AccountID   int64  `json:"account_id,omitempty"`
+	GroupID     int64  `json:"group_id,omitempty"`
 	AccountName string `json:"account_name,omitempty"`
 
 	// Proxy attribution is an immutable, credential-free snapshot of the route
@@ -444,6 +448,9 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	if ev.AtUnixMs <= 0 {
 		ev.AtUnixMs = time.Now().UnixMilli()
 	}
+	if ev.GroupID == 0 {
+		ev.GroupID = OpsAccountGroup(c, ev.AccountID)
+	}
 	ev.Platform = strings.TrimSpace(ev.Platform)
 	normalizeOpsUpstreamProxyAttribution(&ev)
 	ev.UpstreamRequestID = strings.TrimSpace(ev.UpstreamRequestID)
@@ -471,6 +478,30 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	c.Set(OpsUpstreamErrorsKey, existing)
 
 	checkSkipMonitoringForUpstreamEvent(c, &evCopy)
+}
+
+// Snapshot route attribution before forward. Never infer a failed attempt's
+// group from the request's mutable key after cross-group recovery.
+func SetOpsAccountGroup(c *gin.Context, accountID, groupID int64) {
+	if c == nil || accountID <= 0 || groupID <= 0 {
+		return
+	}
+	value, _ := c.Get(OpsAccountRoutesKey)
+	routes, _ := value.(map[int64]int64)
+	if routes == nil {
+		routes = map[int64]int64{}
+	}
+	routes[accountID] = groupID
+	c.Set(OpsAccountRoutesKey, routes)
+}
+
+func OpsAccountGroup(c *gin.Context, accountID int64) int64 {
+	if c == nil {
+		return 0
+	}
+	value, _ := c.Get(OpsAccountRoutesKey)
+	routes, _ := value.(map[int64]int64)
+	return routes[accountID]
 }
 
 // opsUpstreamProxyAttribution derives both attribution fields from one

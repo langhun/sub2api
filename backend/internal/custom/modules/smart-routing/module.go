@@ -58,7 +58,6 @@ type Group struct {
 	Score         float64 `json:"score"`
 	Eligible      bool    `json:"eligible"`
 	Reason        string  `json:"reason,omitempty"`
-	Recovering    bool    `json:"recovering,omitempty"`
 }
 
 type UpdateRequest struct {
@@ -597,10 +596,8 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	}
 	// `rank` deliberately returns diagnostic rows for ineligible candidates so
 	// the preview endpoint can explain why they were filtered. They are not a
-	// route, however. Clear the active marker before returning nil when the
-	// complete candidate pool is unavailable; otherwise the scheduler can
-	// treat the restored primary as an active smart route and re-enter its
-	// retry loop indefinitely.
+	// route, however. Mark an empty pool as NoRoute so restoring the primary
+	// cannot accidentally re-enter scheduling for an exhausted request.
 	hasEligible := false
 	for _, candidate := range ranked {
 		if candidate.Eligible {
@@ -610,6 +607,7 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	}
 	if !hasEligible {
 		state.NoRoute = true
+		m.recordNoRoute(ctx, key, p, model, ranked)
 		return nil, nil
 	}
 	// Preserve account retries in the admitted group until it is explicitly
@@ -636,17 +634,21 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		// even price-only strategies may explore.
 		ranked[0], ranked[exploreIndex] = ranked[exploreIndex], ranked[0]
 	}
-	for _, g := range ranked {
+	for i := range ranked {
+		g := &ranked[i]
 		if !g.Eligible {
 			continue
 		}
 		if _, exhausted := state.ExhaustedGroups[g.GroupID]; exhausted {
+			g.Reason = "group exhausted in request"
 			continue
 		}
 		if _, rejected := state.BillingRejectedGroups[g.GroupID]; rejected {
+			g.Reason = "billing admission rejected"
 			continue
 		}
 		if !routeStateAllowsGroup(state, g.GroupID, maxSwitches) {
+			g.Reason = "continuity or switch budget restriction"
 			// previous_response_id chains cannot be replayed against another
 			// group. Let the normal selector return its explicit no-account
 			// error instead of silently changing the conversation owner.
@@ -673,30 +675,24 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 				state.TriedGroups[g.GroupID] = struct{}{}
 				continue
 			}
-			if g.Recovering && !state.RecoveryProbe && !m.acquireRecoveryProbe(ctx, g.GroupID, model) {
-				continue
-			}
-			state.RecoveryProbe = g.Recovering
 			decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: len(state.TriedGroups), Reason: g.Reason}
-			m.recordDecision(ctx, key, p, model, g, decision)
+			m.recordDecision(ctx, key, p, model, *g, decision)
 			return decision, nil
 		}
 		if _, tried := state.TriedGroups[g.GroupID]; tried {
+			g.Reason = "group already tried"
 			continue
 		}
 		depth := len(state.TriedGroups)
-		if g.Recovering && !m.acquireRecoveryProbe(ctx, g.GroupID, model) {
-			continue
-		}
-		state.RecoveryProbe = g.Recovering
 		decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}
-		m.recordDecision(ctx, key, p, model, g, decision)
+		m.recordDecision(ctx, key, p, model, *g, decision)
 		return decision, nil
 	}
 	// Every eligible row may already be tried, rejected by continuity, or
 	// beyond the switch budget. There is no next route for this invocation;
 	// fail closed instead of reusing an exhausted primary group.
 	state.NoRoute = true
+	m.recordNoRoute(ctx, key, p, model, ranked)
 	return nil, nil
 }
 
@@ -850,8 +846,22 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 	}
 	remaining := 0
 	eligibleAccounts := make([]service.Account, 0, len(accounts))
+	healthModel := model
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.RequestedModel != "" {
+		healthModel = state.RequestedModel
+	}
+	unavailable := m.unavailableRoutingAccounts(ctx, accounts, healthModel)
 	for i := range accounts {
 		account := &accounts[i]
+		if unavailable[account.ID] {
+			if state := service.SmartRoutingStateFromContext(ctx); state != nil {
+				if state.FailedAccountIDs == nil {
+					state.FailedAccountIDs = map[int64]struct{}{}
+				}
+				state.FailedAccountIDs[account.ID] = struct{}{}
+			}
+			continue
+		}
 		if state := service.SmartRoutingStateFromContext(ctx); state != nil {
 			if _, failed := state.FailedAccountIDs[account.ID]; failed {
 				continue
@@ -1112,13 +1122,6 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			// collecting metrics so rank and Resolve can consider it.
 			g.Eligible = true
 		}
-		blocked, recovering := m.routeHealth(ctx, g.GroupID, model)
-		if blocked {
-			g.Eligible, g.Reason = false, "upstream failure cooldown"
-			out = append(out, g)
-			continue
-		}
-		g.Recovering = recovering
 		st := m.loadStats(ctx, g.GroupID, model)
 		if st.Samples < minSamples && st.FallbackSamples > st.Samples {
 			st.Samples = st.FallbackSamples
@@ -1249,7 +1252,7 @@ func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Grou
 	}
 	candidates := make([]int, 0, len(ranked))
 	for i := range ranked {
-		if !ranked[i].Eligible || ranked[i].Recovering || ranked[i].GroupID == primaryGroupID || ranked[i].Samples >= minSamples {
+		if !ranked[i].Eligible || ranked[i].GroupID == primaryGroupID || ranked[i].Samples >= minSamples {
 			continue
 		}
 		candidates = append(candidates, i)
