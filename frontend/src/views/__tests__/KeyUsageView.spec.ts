@@ -242,6 +242,30 @@ describe('KeyUsageView daily detail', () => {
     wrapper.unmount()
   })
 
+  it('cancels pending ring animation work when the view unmounts', async () => {
+    vi.useFakeTimers()
+    const cancelFrame = vi.fn((id: number) => clearTimeout(id))
+    vi.stubGlobal('cancelAnimationFrame', cancelFrame)
+    const wrapper = mount(KeyUsageView, {
+      global: {
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          LocaleSwitcher: true,
+          Icon: true,
+        },
+      },
+    })
+
+    await wrapper.find('input').setValue('sk-test-key')
+    await wrapper.find('input').trigger('keydown.enter')
+    await flushPromises()
+    await nextTick()
+    wrapper.unmount()
+
+    expect(cancelFrame).toHaveBeenCalled()
+    expect(() => vi.runAllTimers()).not.toThrow()
+  })
+
   it('queries the current local calendar date near midnight', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 6, 13, 0, 30))

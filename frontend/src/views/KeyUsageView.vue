@@ -537,6 +537,9 @@ const RING_GRADIENTS = [
 
 const ringAnimated = ref(false)
 const displayPcts = ref<number[]>([])
+let ringAnimationRun = 0
+let ringDelayTimer: ReturnType<typeof setTimeout> | null = null
+const ringFrameIds = new Set<number>()
 
 const ringTrackColor = computed(() => isDark.value ? '#222222' : '#F0F0EE')
 
@@ -555,7 +558,29 @@ function getRingOffset(ring: RingItem): number {
   return CIRCUMFERENCE - (Math.min(ring.pct, 100) / 100) * CIRCUMFERENCE
 }
 
+function cancelRingAnimation() {
+  ringAnimationRun += 1
+  if (ringDelayTimer !== null) {
+    clearTimeout(ringDelayTimer)
+    ringDelayTimer = null
+  }
+  if (typeof cancelAnimationFrame === 'function') {
+    for (const frameId of ringFrameIds) cancelAnimationFrame(frameId)
+  }
+  ringFrameIds.clear()
+}
+
+function scheduleRingFrame(callback: (timestamp: number) => void) {
+  const frameId = requestAnimationFrame((timestamp) => {
+    ringFrameIds.delete(frameId)
+    callback(timestamp)
+  })
+  ringFrameIds.add(frameId)
+}
+
 function triggerRingAnimation(items: RingItem[]) {
+  cancelRingAnimation()
+  const animationRun = ringAnimationRun
   ringAnimated.value = false
   displayPcts.value = items.map(() => 0)
 
@@ -568,8 +593,12 @@ function triggerRingAnimation(items: RingItem[]) {
   }
 
   nextTick(() => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
+    if (animationRun !== ringAnimationRun) return
+    scheduleRingFrame(() => {
+      if (animationRun !== ringAnimationRun) return
+      ringDelayTimer = setTimeout(() => {
+        ringDelayTimer = null
+        if (animationRun !== ringAnimationRun) return
         ringAnimated.value = true
 
         // Animate percentage numbers
@@ -578,13 +607,14 @@ function triggerRingAnimation(items: RingItem[]) {
         const targets = items.map(item => item.isBalance ? 0 : item.pct)
 
         function tick() {
+          if (animationRun !== ringAnimationRun) return
           const elapsed = performance.now() - startTime
           const p = Math.min(elapsed / duration, 1)
           const ease = 1 - Math.pow(1 - p, 3)
           displayPcts.value = targets.map(target => Math.round(ease * target))
-          if (p < 1) requestAnimationFrame(tick)
+          if (p < 1) scheduleRingFrame(tick)
         }
-        requestAnimationFrame(tick)
+        scheduleRingFrame(tick)
       }, 50)
     })
   })
@@ -939,6 +969,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (resetTimer) clearInterval(resetTimer)
+  cancelRingAnimation()
 })
 </script>
 
