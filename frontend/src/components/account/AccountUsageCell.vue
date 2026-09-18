@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" v-if="showUsageWindows">
+  <div ref="rootRef" v-if="showUsageWindows" class="min-w-0 max-w-full">
     <!-- Anthropic OAuth and Setup Token accounts: fetch real usage data -->
     <template
       v-if="
@@ -571,7 +571,7 @@
   </div>
 
   <!-- Non-OAuth/Setup-Token accounts -->
-  <div ref="rootRef" v-else>
+  <div ref="rootRef" v-else class="min-w-0 max-w-full">
     <!-- Gemini API Key accounts: show quota info -->
     <AccountQuotaInfo v-if="account.platform === 'gemini'" :account="account" />
     <!-- Key/Bedrock accounts: show today stats + optional quota bars -->

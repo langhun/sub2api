@@ -13107,8 +13107,10 @@ watch(
 /* ============ 系统设置 Tab 导航 ============ */
 .settings-tabs-shell {
   @apply sticky z-20 -mx-1 rounded-2xl border border-white/80 bg-white/90 p-1.5 backdrop-blur-xl;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
+  overflow: hidden;
   top: 4.75rem;
   box-shadow:
     0 12px 28px rgb(15 23 42 / 0.07),
@@ -13117,6 +13119,7 @@ watch(
 
 .settings-tabs-scroll {
   @apply overflow-x-auto;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   -ms-overflow-style: none;
@@ -13128,7 +13131,7 @@ watch(
 }
 
 .settings-tabs {
-  @apply flex min-w-max items-center gap-1;
+  @apply flex min-w-max w-max items-center gap-1;
 }
 
 .settings-tab {
@@ -13137,7 +13140,7 @@ watch(
 
 @media (min-width: 768px) {
   .settings-tabs {
-    @apply min-w-full;
+    @apply min-w-full w-full;
   }
 
   .settings-tab {

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="min-h-screen"
+    class="min-h-screen min-w-0 max-w-full overflow-x-clip"
     :class="themeStyle === 'apple' ? 'bg-transparent' : 'bg-gray-50 dark:bg-dark-950'"
   >
     <!-- Default Background Decoration (non-apple) -->
@@ -11,7 +11,7 @@
 
     <!-- Main Content Area -->
     <div
-      class="relative min-h-screen transition-all duration-300"
+      class="relative min-h-screen min-w-0 max-w-full overflow-x-clip transition-all duration-300"
       style="position: relative; z-index: 10;"
       :class="[
         sidebarCollapsed
@@ -25,8 +25,8 @@
       <AppHeader />
 
       <!-- Main Content -->
-      <main class="px-4 pb-6 pt-7 md:px-6 lg:px-8 lg:pb-8 lg:pt-9">
-        <div class="flex w-full min-w-0 flex-col">
+      <main class="min-w-0 max-w-full px-4 pb-6 pt-7 md:px-6 lg:px-8 lg:pb-8 lg:pt-9">
+        <div class="flex w-full min-w-0 max-w-full flex-col">
           <slot />
         </div>
       </main>

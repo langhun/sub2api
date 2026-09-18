@@ -23,4 +23,10 @@ describe('TablePageLayout responsive table scrolling', () => {
       true
     )
   })
+
+  it('keeps mobile table sections and card values width-constrained', () => {
+    expect(componentSource).toContain('min-w-0 max-w-full flex-shrink-0')
+    expect(componentSource).toContain('.table-page-layout.mobile-mode .table-scroll-container :deep([data-field])')
+    expect(componentSource).toContain('overflow-wrap: anywhere')
+  })
 })

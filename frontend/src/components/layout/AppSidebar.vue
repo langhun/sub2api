@@ -992,6 +992,7 @@ onBeforeUnmount(() => {
 
 .sidebar-brand {
   min-width: 0;
+  overflow: hidden;
   flex: 1 1 auto;
   white-space: nowrap;
   transition:
