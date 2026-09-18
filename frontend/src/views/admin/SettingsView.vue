@@ -10943,7 +10943,7 @@ async function loadSettings() {
     form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
       settings.account_scheduling_thresholds,
     );
-    form.backend_mode_enabled = settings.backend_mode_enabled;
+    form.backend_mode_enabled = Boolean(settings.backend_mode_enabled);
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
     );

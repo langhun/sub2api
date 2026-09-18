@@ -7,7 +7,7 @@
     <div v-if="themeStyle !== 'apple'" class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
 
     <!-- Sidebar -->
-    <AppSidebar style="position: relative; z-index: 30;" />
+    <AppSidebar />
 
     <!-- Main Content Area -->
     <div

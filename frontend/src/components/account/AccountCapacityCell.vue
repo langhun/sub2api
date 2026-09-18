@@ -54,6 +54,7 @@ const currentConcurrency = computed(() => props.account.current_concurrency || 0
 const concurrencyClass = computed(() => {
   const current = currentConcurrency.value
   const max = props.account.concurrency
+  if (!Number.isFinite(max) || max <= 0) return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
   if (current >= max) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
   if (current > 0) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
   return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'

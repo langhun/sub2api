@@ -1,11 +1,13 @@
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   colorClass: string
   tooltip?: string
   current: string | number
-  max: string | number
+  max?: string | number
   suffix?: string
-}>()
+}>(), {
+  max: '—'
+})
 </script>
 
 <template>
