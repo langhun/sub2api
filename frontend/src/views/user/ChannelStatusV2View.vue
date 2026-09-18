@@ -1,11 +1,11 @@
 <template>
   <AppLayout>
-    <div class="space-y-6 pb-12">
+    <div class="min-w-0 space-y-6 pb-12">
       <!-- Ops-style elevated shell: title toolbar + filters (mirrors OpsDashboardHeader) -->
       <section
         class="card sticky top-0 z-20 !rounded-3xl !border-0 p-0 shadow-sm ring-1 ring-gray-900/5 backdrop-blur-sm dark:!bg-dark-800 dark:ring-dark-700 supports-[backdrop-filter]:bg-white/95 dark:supports-[backdrop-filter]:bg-dark-800/95"
       >
-        <header class="page-header mb-0 flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:px-6">
+        <header class="page-header mb-0 flex flex-wrap items-start justify-between gap-4 px-5 py-4 sm:px-6">
           <div class="min-w-0">
             <h1 class="page-title flex items-center gap-2 text-xl font-black text-gray-900 dark:text-white">
               <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
@@ -57,7 +57,7 @@
         <!-- First-upgrade silent backfill: show until 30d product window is covered -->
         <div
           v-if="bootstrapActive"
-          class="border-b border-blue-100 bg-blue-50/90 px-5 py-3 dark:border-blue-900/40 dark:bg-blue-950/40 sm:px-6"
+          class="bg-blue-50/75 px-5 py-3 dark:bg-blue-950/30 sm:px-6"
           role="status"
           aria-live="polite"
         >
@@ -108,8 +108,6 @@
             </button>
           </div>
 
-          <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-gray-200 dark:bg-dark-700 sm:block" aria-hidden="true"></span>
-
           <FilterMultiSelect
             v-model="filter.platforms"
             compact
@@ -140,8 +138,6 @@
           >
             {{ t('channelMonitorV2.clearFilters') }}
           </button>
-
-          <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-gray-200 dark:bg-dark-700 md:block" aria-hidden="true"></span>
 
           <Select
             v-model="matrixGroupBy"
@@ -270,7 +266,7 @@
       </div>
 
       <section class="card flex min-h-0 flex-col overflow-hidden !rounded-3xl !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
-        <div class="border-b border-gray-100 px-5 pt-4 dark:border-dark-700 sm:px-6">
+        <div class="px-5 pt-4 sm:px-6">
           <nav class="tabs w-full max-w-md sm:w-auto" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
             <button
               v-for="item in tabs"
@@ -342,7 +338,7 @@
             >
               <button
                 type="button"
-                class="grid w-full grid-cols-[minmax(100px,200px)_1fr_auto_auto] items-center gap-3 text-left"
+                class="grid min-w-0 w-full grid-cols-[minmax(0,1fr)_minmax(3.5rem,1fr)_auto_auto] items-center gap-3 text-left sm:grid-cols-[minmax(100px,200px)_1fr_auto_auto]"
                 @click="toggleError(row.category)"
               >
                 <span class="flex min-w-0 items-center gap-1.5 truncate text-gray-700 dark:text-gray-200">
@@ -362,7 +358,7 @@
                 >{{ formatPercent(row.rate) }}</small>
                 <Icon name="chevronDown" size="sm" :class="['text-gray-400 transition-transform', expandedErrors.has(row.category) ? 'rotate-180' : '']" />
               </button>
-              <div v-if="expandedErrors.has(row.category)" class="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-dark-700">
+              <div v-if="expandedErrors.has(row.category)" class="mt-3 space-y-2 pt-3">
                 <template v-if="isAdmin && (row.details || []).length">
                   <div
                     v-for="(detail, index) in row.details || []"

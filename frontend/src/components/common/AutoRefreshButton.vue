@@ -1,6 +1,7 @@
 <template>
   <div class="relative" ref="dropdownRef">
     <button
+      type="button"
       @click="showDropdown = !showDropdown"
       class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
       :title="t('common.autoRefresh.title')"
@@ -26,7 +27,8 @@
     >
       <div class="p-1.5">
         <button
-          @click="$emit('update:enabled', !enabled)"
+          type="button"
+          @click="toggleEnabled"
           class="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
         >
           <span>{{ t('common.autoRefresh.enable') }}</span>
@@ -38,7 +40,8 @@
         <button
           v-for="sec in intervals"
           :key="sec"
-          @click="$emit('update:interval', sec)"
+          type="button"
+          @click="selectInterval(sec)"
           class="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
         >
           <span>{{ t('common.autoRefresh.seconds', { n: sec }) }}</span>
@@ -55,14 +58,14 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-defineProps<{
+const props = defineProps<{
   enabled: boolean
   intervalSeconds: number
   countdown: number
   intervals: readonly number[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:enabled', value: boolean): void
   (e: 'update:interval', value: number): void
 }>()
@@ -77,6 +80,29 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
+function toggleEnabled() {
+  emit('update:enabled', !props.enabled)
+  showDropdown.value = false
+}
+
+function selectInterval(seconds: number) {
+  emit('update:interval', seconds)
+  showDropdown.value = false
+}
+
+function handleEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && showDropdown.value) {
+    event.preventDefault()
+    showDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
+})
 </script>

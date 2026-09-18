@@ -6,6 +6,7 @@
         class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-gradient-to-br from-black/70 via-black/60 to-black/70 p-4 pt-[8vh] backdrop-blur-md"
       >
         <div
+          data-glass-popover
           class="w-full max-w-[680px] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
           @click.stop
         >
@@ -65,6 +66,7 @@
           <div class="border-t border-gray-100 bg-gray-50/50 px-8 py-5 dark:border-dark-700 dark:bg-dark-900/30">
             <div class="flex items-center justify-end">
               <button
+                type="button"
                 @click="handleDismiss"
                 data-testid="announcement-popup-dismiss"
                 class="rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/30 transition-all hover:shadow-xl hover:scale-105"

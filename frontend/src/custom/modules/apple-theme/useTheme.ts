@@ -45,11 +45,12 @@ const injectedSettings = typeof window === 'undefined' ? undefined : window.__AP
 let defaultThemeMode = readDefaultMode(injectedSettings)
 const themeMode = ref<ThemeMode>(readStoredMode() ?? defaultThemeMode)
 const themeStyle = ref<ThemeStyle>(readThemeStyle(injectedSettings))
+const systemTheme = ref<'light' | 'dark'>(getSystemTheme())
 const browserTime = ref(Date.now())
 let timeRefreshTimer: number | undefined
 
 const effectiveMode = computed<'light' | 'dark'>(() => {
-  if (themeMode.value === 'auto') return getSystemTheme()
+  if (themeMode.value === 'auto') return systemTheme.value
   if (themeMode.value === 'time') return getTimeBasedTheme(new Date(browserTime.value))
   return themeMode.value
 })
@@ -67,12 +68,12 @@ function refreshBrowserTime(): void {
   browserTime.value = Date.now()
 }
 
-watch([themeMode, themeStyle], applyTheme, { immediate: true })
+watch([themeMode, themeStyle, effectiveMode], applyTheme, { immediate: true })
 
 if (typeof window !== 'undefined') {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  const onMediaChange = () => {
-    if (themeMode.value === 'auto') applyTheme()
+  const onMediaChange = (event: MediaQueryListEvent) => {
+    systemTheme.value = event.matches ? 'dark' : 'light'
   }
   if (typeof mediaQuery.addEventListener === 'function') mediaQuery.addEventListener('change', onMediaChange)
   else mediaQuery.addListener?.(onMediaChange)

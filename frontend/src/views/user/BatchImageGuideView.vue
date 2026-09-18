@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <TablePageLayout data-glass-content>
       <template #filters>
         <div class="flex flex-col gap-3">
           <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
@@ -37,7 +37,7 @@
 
           <div
             v-if="selectedJobIds.size"
-            class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-dark-700 dark:bg-dark-800"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white/55 px-3 py-2 shadow-sm dark:bg-dark-800/50"
           >
             <i18n-t
               keypath="batchImage.list.selectedJobs"

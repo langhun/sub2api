@@ -1,6 +1,7 @@
 <template>
   <div
     class="min-h-screen min-w-0 max-w-full overflow-x-clip"
+    :style="{ '--app-sidebar-width': sidebarWidth }"
     :class="themeStyle === 'apple' ? 'bg-transparent' : 'bg-gray-50 dark:bg-dark-950'"
   >
     <!-- Default Background Decoration (non-apple) -->
@@ -51,6 +52,10 @@ const authStore = useAuthStore()
 const { locale } = useI18n()
 const { themeStyle } = useTheme()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
+const sidebarWidth = computed(() => {
+  if (sidebarCollapsed.value) return '72px'
+  return locale.value === 'en' ? '232px' : '182px'
+})
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
 const { replayTour } = useOnboardingTour({

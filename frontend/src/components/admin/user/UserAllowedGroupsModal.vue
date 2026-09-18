@@ -3,11 +3,11 @@
     <div v-if="user" class="space-y-6">
       <!-- 用户信息头部 -->
       <div class="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary-50 to-primary-100 p-5 dark:from-primary-900/30 dark:to-primary-800/20">
-        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm dark:bg-dark-700">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-sm dark:bg-dark-700">
           <span class="text-2xl font-semibold text-primary-600 dark:text-primary-400">{{ user.email.charAt(0).toUpperCase() }}</span>
         </div>
-        <div class="flex-1">
-          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ user.email }}</p>
+        <div class="min-w-0 flex-1 break-words">
+          <p class="break-all text-lg font-semibold text-gray-900 dark:text-white">{{ user.email }}</p>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ t('admin.users.groupConfigHint', { email: user.email }) }}</p>
         </div>
       </div>
@@ -18,6 +18,11 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
+      </div>
+
+      <div v-else-if="loadError" role="alert" class="space-y-3 text-sm text-red-600 dark:text-red-400">
+        <p>{{ loadError }}</p>
+        <button type="button" class="btn btn-secondary" @click="load">{{ t('common.retry') }}</button>
       </div>
 
       <div v-else class="space-y-6">
@@ -37,7 +42,7 @@
                 ? 'border-primary-400 bg-primary-50/50 shadow-sm dark:border-primary-500 dark:bg-primary-900/20'
                 : 'border-gray-200 bg-white hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:hover:border-dark-500'"
             >
-              <div class="flex items-center gap-4">
+              <div class="flex flex-wrap items-center gap-4">
                 <!-- 复选框 -->
                 <div class="flex-shrink-0">
                   <label class="relative flex h-6 w-6 cursor-pointer items-center justify-center">
@@ -56,14 +61,14 @@
                 </div>
 
                 <!-- 分组信息 -->
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-base font-semibold text-gray-900 dark:text-white">{{ config.groupName }}</span>
+                <div class="min-w-0 flex-1 basis-36">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="break-all text-base font-semibold text-gray-900 dark:text-white">{{ config.groupName }}</span>
                     <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
                       {{ t('admin.groups.exclusive') }}
                     </span>
                   </div>
-                  <div class="mt-1.5 flex items-center gap-3 text-sm">
+                  <div class="mt-1.5 flex flex-wrap items-center gap-3 text-sm">
                     <span class="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
                       <PlatformIcon :platform="config.platform" size="xs" />
                       <span>{{ config.platform }}</span>
@@ -76,7 +81,7 @@
                 </div>
 
                 <!-- 专属倍率输入 -->
-                <div class="flex flex-shrink-0 items-center gap-3">
+                <div class="flex max-w-full flex-wrap items-center gap-3">
                   <label class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ t('admin.users.customRate') }}</label>
                   <input
                     type="number"
@@ -118,7 +123,7 @@
               :key="config.groupId"
               class="relative overflow-hidden rounded-xl border-2 border-green-200 bg-green-50/50 p-4 dark:border-green-800/50 dark:bg-green-900/10"
             >
-              <div class="flex items-center gap-4">
+              <div class="flex flex-wrap items-center gap-4">
                 <!-- 未开启限制时公开分组恒可用，此处仅作展示；开启后才是真实开关 -->
                 <div class="flex-shrink-0">
                   <input
@@ -139,11 +144,11 @@
                 </div>
 
                 <!-- 分组信息 -->
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-1 basis-36">
                   <div class="flex items-center gap-2">
-                    <span class="text-base font-semibold text-gray-900 dark:text-white">{{ config.groupName }}</span>
+                    <span class="break-all text-base font-semibold text-gray-900 dark:text-white">{{ config.groupName }}</span>
                   </div>
-                  <div class="mt-1.5 flex items-center gap-3 text-sm">
+                  <div class="mt-1.5 flex flex-wrap items-center gap-3 text-sm">
                     <span class="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
                       <PlatformIcon :platform="config.platform" size="xs" />
                       <span>{{ config.platform }}</span>
@@ -156,7 +161,7 @@
                 </div>
 
                 <!-- 专属倍率输入 -->
-                <div class="flex flex-shrink-0 items-center gap-3">
+                <div class="flex max-w-full flex-wrap items-center gap-3">
                   <label class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ t('admin.users.customRate') }}</label>
                   <input
                     type="number"
@@ -188,7 +193,7 @@
     <template #footer>
       <div class="flex justify-end gap-3">
         <button @click="$emit('close')" class="btn btn-secondary px-5">{{ t('common.cancel') }}</button>
-        <button @click="handleSave" :disabled="submitting" class="btn btn-primary px-6">
+        <button @click="handleSave" :disabled="!canSave" class="btn btn-primary px-6">
           <svg v-if="submitting" class="-ml-1 mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -201,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
@@ -230,6 +235,10 @@ const originalGroupRates = ref<Record<number, number>>({}) // 记录原始专属
 const loading = ref(false)
 const submitting = ref(false)
 const restrictPublicGroups = ref(false)
+const loadError = ref('')
+const loadedUserId = ref<number | null>(null)
+let loadSequence = 0
+const canSave = computed(() => props.show && !!props.user && loadedUserId.value === props.user.id && !loading.value && !loadError.value && !submitting.value)
 
 // 分离专属分组和公开分组
 const exclusiveGroups = computed(() => groups.value.filter((g) => g.is_exclusive))
@@ -238,26 +247,25 @@ const publicGroups = computed(() => groups.value.filter((g) => !g.is_exclusive))
 const exclusiveGroupConfigs = computed(() => groupConfigs.value.filter((c) => c.isExclusive))
 const publicGroupConfigs = computed(() => groupConfigs.value.filter((c) => !c.isExclusive))
 
-watch(
-  () => props.show,
-  (v) => {
-    if (v && props.user) {
-      load()
-    }
-  }
-)
-
 const load = async () => {
+  const user = props.user
+  if (!props.show || !user) return
+  const sequence = ++loadSequence
+  loadedUserId.value = null
+  loadError.value = ''
+  groups.value = []
+  groupConfigs.value = []
   loading.value = true
   try {
     const res = await adminAPI.groups.list(1, 1000)
+    if (sequence !== loadSequence) return
     // 只显示标准类型且活跃的分组
     groups.value = res.items.filter((g) => g.subscription_type === 'standard' && g.status === 'active')
 
     // 初始化配置
-    const userAllowedGroups = props.user?.allowed_groups || []
-    const userGroupRates = props.user?.group_rates || {}
-    restrictPublicGroups.value = props.user?.restrict_public_groups ?? false
+    const userAllowedGroups = user.allowed_groups || []
+    const userGroupRates = user.group_rates || {}
+    restrictPublicGroups.value = user.restrict_public_groups ?? false
 
     // 保存原始专属倍率，用于检测删除操作
     originalGroupRates.value = { ...userGroupRates }
@@ -274,12 +282,23 @@ const load = async () => {
       isSelected:
         g.is_exclusive || restrictPublicGroups.value ? userAllowedGroups.includes(g.id) : true,
     }))
+    loadedUserId.value = user.id
   } catch (error) {
+    if (sequence !== loadSequence) return
+    loadError.value = t('common.error')
     console.error('Failed to load groups:', error)
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
+
+watch([() => props.show, () => props.user?.id], ([show]) => {
+  ++loadSequence
+  loadedUserId.value = null
+  if (show && props.user) void load()
+}, { immediate: true })
+
+onUnmounted(() => { ++loadSequence })
 
 const toggleExclusiveGroup = (groupId: number) => {
   const config = groupConfigs.value.find((c) => c.groupId === groupId)
@@ -318,7 +337,7 @@ const updateCustomRate = (groupId: number, value: string) => {
 }
 
 const handleSave = async () => {
-  if (!props.user) return
+  if (!props.user || !canSave.value) return
   submitting.value = true
 
   try {

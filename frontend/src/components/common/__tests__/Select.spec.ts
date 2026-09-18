@@ -217,3 +217,36 @@ describe('Select remote search', () => {
     expect(labels).toEqual(['Alpha account'])
   })
 })
+
+describe('Select keyboard interaction', () => {
+  it('focuses a non-searchable dropdown and selects with arrows and Enter', async () => {
+    const wrapper = mount(Select, {
+      attachTo: document.body,
+      props: { modelValue: 'a', searchable: false, options: [
+        { value: 'a', label: 'Alpha' },
+        { value: 'heading', label: 'Heading', kind: 'group' },
+        { value: 'disabled', label: 'Disabled', disabled: true },
+        { value: 'b', label: 'Beta' },
+      ] },
+    })
+    unmountWrapper = () => wrapper.unmount()
+    await wrapper.get('button').trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+    const dropdown = document.querySelector<HTMLElement>('[role="listbox"]')!
+    expect(document.activeElement).toBe(dropdown)
+    dropdown.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }))
+    dropdown.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await nextTick()
+    expect(wrapper.emitted('update:modelValue')).toEqual([['b']])
+    expect(document.activeElement).toBe(wrapper.get('button').element)
+  })
+
+  it('closes a dropdown when disabled and does not reopen it using keyboard events', async () => {
+    const wrapper = mount(Select, { props: { modelValue: null, options: [{ value: 'a', label: 'Alpha' }] } })
+    unmountWrapper = () => wrapper.unmount()
+    await wrapper.get('button').trigger('click')
+    await wrapper.setProps({ disabled: true })
+    await wrapper.get('button').trigger('keydown', { key: 'ArrowDown' })
+    expect(document.querySelector('[role="listbox"]')).toBeNull()
+  })
+})

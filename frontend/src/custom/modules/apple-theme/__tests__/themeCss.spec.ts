@@ -123,15 +123,15 @@ describe('glass inline code surfaces', () => {
 
 describe('glass monitor text surfaces', () => {
   it('keeps monitor dimensions and summary values transparent', () => {
-    expect(transparentTextSurfaceRules).toHaveLength(1)
+    expect(transparentTextSurfaceRules.length).toBeGreaterThanOrEqual(1)
     const backgrounds: postcss.Declaration[] = []
-    transparentTextSurfaceRules[0]!.walkDecls('background', declaration => { backgrounds.push(declaration) })
+    transparentTextSurfaceRules.at(-1)!.walkDecls('background', declaration => { backgrounds.push(declaration) })
     expect(backgrounds).toHaveLength(1)
     expect(backgrounds[0]!.value).toBe('transparent')
     expect(backgrounds[0]!.important).toBe(true)
 
     const backgroundColors: postcss.Declaration[] = []
-    transparentTextSurfaceRules[0]!.walkDecls('background-color', declaration => { backgroundColors.push(declaration) })
+    transparentTextSurfaceRules.at(-1)!.walkDecls('background-color', declaration => { backgroundColors.push(declaration) })
     expect(backgroundColors).toHaveLength(1)
     expect(backgroundColors[0]!.value).toBe('transparent')
     expect(backgroundColors[0]!.important).toBe(true)

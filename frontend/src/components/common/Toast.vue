@@ -16,6 +16,7 @@
         <div
           v-for="toast in toasts"
           :key="toast.id"
+          data-glass-popover
           :class="[
             'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-lg shadow-lg',
             'bg-white dark:bg-dark-800',
@@ -54,6 +55,7 @@
 
               <!-- Close button -->
               <button
+                type="button"
                 @click="removeToast(toast.id)"
                 class="-m-1 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-300"
                 aria-label="Close notification"

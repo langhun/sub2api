@@ -3,7 +3,7 @@
     <div class="flex items-center justify-end gap-3 flex-wrap">
       <div
         role="tablist"
-        class="inline-flex p-0.5 rounded-xl bg-gray-100 dark:bg-dark-800 border border-gray-200/60 dark:border-dark-700/60 text-xs"
+        class="inline-flex rounded-xl bg-gray-100/70 p-0.5 text-xs dark:bg-dark-800/70"
       >
         <button
           v-for="opt in windowOptions"

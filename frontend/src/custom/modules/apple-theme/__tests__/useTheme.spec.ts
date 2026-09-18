@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { applyGlobalThemeSettings, getTimeBasedTheme, useTheme } from '../useTheme'
 
 describe('useTheme', () => {
@@ -63,5 +64,53 @@ describe('useTheme', () => {
 
     useTheme().setThemeMode('time')
     expect(localStorage.getItem('theme')).toBe('time')
+  })
+
+  it('reacts to system color changes in auto mode without overriding an explicit mode', async () => {
+    vi.useFakeTimers()
+    let onChange: ((event: MediaQueryListEvent) => void) | undefined
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: false,
+      addEventListener: (_type: string, handler: (event: MediaQueryListEvent) => void) => {
+        onChange = handler
+      },
+    })))
+    vi.resetModules()
+    try {
+      const module = await import('../useTheme')
+      module.applyGlobalThemeSettings({ enable_apple_theme: true, default_theme_mode: 'auto' })
+      const theme = module.useTheme()
+      expect(theme.effectiveMode.value).toBe('light')
+
+      onChange?.({ matches: true } as MediaQueryListEvent)
+      await nextTick()
+      expect(theme.effectiveMode.value).toBe('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
+      expect(document.documentElement.dataset.theme).toBe('apple')
+      expect(document.documentElement.dataset.glass).toBe('true')
+
+      onChange?.({ matches: false } as MediaQueryListEvent)
+      await nextTick()
+      expect(theme.effectiveMode.value).toBe('light')
+      expect(document.documentElement.classList.contains('dark')).toBe(false)
+
+      theme.setThemeMode('light')
+      onChange?.({ matches: true } as MediaQueryListEvent)
+      await nextTick()
+      expect(theme.effectiveMode.value).toBe('light')
+      expect(document.documentElement.classList.contains('dark')).toBe(false)
+
+      theme.setThemeMode('auto')
+      await nextTick()
+      expect(theme.effectiveMode.value).toBe('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
+    } finally {
+      vi.clearAllTimers()
+      vi.unstubAllGlobals()
+      localStorage.clear()
+      document.documentElement.className = ''
+      document.documentElement.removeAttribute('data-theme')
+      document.documentElement.removeAttribute('data-glass')
+    }
   })
 })

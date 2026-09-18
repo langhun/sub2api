@@ -197,7 +197,7 @@ export interface FluidShaderHandle {
   setParams: (params: FluidParams) => void
   /** Stir the fluid at normalized coordinates with a velocity burst (wakes). */
   stir: (x: number, y: number, vx: number, vy: number) => void
-  /** Stop the loop and release listeners. */
+  /** Stop the loop and release listeners and GPU resources. */
   dispose: () => void
 }
 
@@ -208,8 +208,11 @@ export interface FluidShaderHandle {
  * @returns the live handle.
  */
 export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams): FluidShaderHandle {
-  console.log('[FluidShader] Attaching to canvas:', canvas)
-
+  const inactiveHandle: FluidShaderHandle = {
+    setParams: () => {},
+    stir: () => {},
+    dispose: () => {},
+  }
   const gl = canvas.getContext('webgl2', {
     alpha: true,
     premultipliedAlpha: false,
@@ -217,15 +220,8 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   })
 
   if (gl === null) {
-    console.error('[FluidShader] WebGL2 context not available')
-    return {
-      setParams: () => {},
-      stir: () => {},
-      dispose: () => {},
-    }
+    return inactiveHandle
   }
-
-  console.log('[FluidShader] WebGL2 context created successfully')
 
   const compile = (type: number, source: string): WebGLShader | null => {
     const shader = gl.createShader(type)
@@ -234,6 +230,7 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     gl.compileShader(shader)
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       console.error('ambient-fluid fluid shader:', gl.getShaderInfoLog(shader))
+      gl.deleteShader(shader)
       return null
     }
     return shader
@@ -242,31 +239,39 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   const link = (fragment: string): WebGLProgram | null => {
     const vertex = compile(gl.VERTEX_SHADER, VERTEX_SHADER)
     const frag = compile(gl.FRAGMENT_SHADER, fragment)
-    if (vertex === null || frag === null) return null
+    if (vertex === null || frag === null) {
+      if (vertex) gl.deleteShader(vertex)
+      if (frag) gl.deleteShader(frag)
+      return null
+    }
     const program = gl.createProgram()
-    if (program === null) return null
+    if (program === null) {
+      gl.deleteShader(vertex)
+      gl.deleteShader(frag)
+      return null
+    }
     gl.attachShader(program, vertex)
     gl.attachShader(program, frag)
     gl.linkProgram(program)
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       console.error('ambient-fluid fluid link:', gl.getProgramInfoLog(program))
+      gl.deleteProgram(program)
+      gl.deleteShader(vertex)
+      gl.deleteShader(frag)
       return null
     }
+    gl.deleteShader(vertex)
+    gl.deleteShader(frag)
     return program
   }
 
   const flowProgram = link(FLOW_SHADER)
   const displayProgram = link(DISPLAY_SHADER)
   if (flowProgram === null || displayProgram === null) {
-    console.error('[FluidShader] Failed to link shaders')
-    return {
-      setParams: () => {},
-      stir: () => {},
-      dispose: () => {},
-    }
+    if (flowProgram) gl.deleteProgram(flowProgram)
+    if (displayProgram) gl.deleteProgram(displayProgram)
+    return inactiveHandle
   }
-
-  console.log('[FluidShader] Shaders compiled and linked successfully')
 
   const flow = {
     prev: gl.getUniformLocation(flowProgram, 'u_prev'),
@@ -301,6 +306,11 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   }
 
   const quadBuffer = gl.createBuffer()
+  if (quadBuffer === null) {
+    gl.deleteProgram(flowProgram)
+    gl.deleteProgram(displayProgram)
+    return inactiveHandle
+  }
   gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
 
@@ -312,25 +322,46 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   }
 
   interface FlowTarget { fbo: WebGLFramebuffer; tex: WebGLTexture }
-  const makeTarget = (width: number, height: number, initial?: Uint8Array): FlowTarget => {
+  const makeTarget = (width: number, height: number, initial: Uint8Array): FlowTarget | null => {
     const tex = gl.createTexture()
-    if (tex === null) throw new Error('ambient-fluid fluid: texture allocation failed')
+    if (tex === null) return null
     gl.bindTexture(gl.TEXTURE_2D, tex)
-    if (initial !== undefined) {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, initial)
-    } else {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
-    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, initial)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     const fbo = gl.createFramebuffer()
-    if (fbo === null) throw new Error('ambient-fluid fluid: framebuffer allocation failed')
+    if (fbo === null) {
+      gl.deleteTexture(tex)
+      return null
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0)
+    const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    if (!complete) {
+      gl.deleteFramebuffer(fbo)
+      gl.deleteTexture(tex)
+      return null
+    }
     return { fbo, tex }
+  }
+
+  const disposeTarget = (target: FlowTarget | null): void => {
+    if (!target) return
+    gl.deleteFramebuffer(target.fbo)
+    gl.deleteTexture(target.tex)
+  }
+
+  const makeInitialFlow = (width: number, height: number): Uint8Array => {
+    const initial = new Uint8Array(width * height * 4)
+    for (let i = 0; i < width * height; i += 1) {
+      initial[4 * i + 1] = 128
+      initial[4 * i + 2] = 128
+      initial[4 * i + 3] = 255
+    }
+    return initial
   }
 
   let width = 0
@@ -341,52 +372,75 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   let current: FluidParams = { ...params }
   const pointer = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0 }
   const dprCap = Math.min(window.devicePixelRatio || 1, 1.5)
-  width = Math.round(canvas.clientWidth * dprCap)
-  height = Math.round(canvas.clientHeight * dprCap)
+  width = Math.max(1, Math.round(canvas.clientWidth * dprCap))
+  height = Math.max(1, Math.round(canvas.clientHeight * dprCap))
   canvas.width = width
   canvas.height = height
-  flowWidth = Math.round(width / 4)
-  flowHeight = Math.round(height / 4)
+  flowWidth = Math.max(1, Math.round(width / 4))
+  flowHeight = Math.max(1, Math.round(height / 4))
 
-  const initial = new Uint8Array(flowWidth * flowHeight * 4)
-  for (let i = 0; i < flowWidth * flowHeight; i += 1) {
-    initial[4 * i] = 0
-    initial[4 * i + 1] = 128
-    initial[4 * i + 2] = 128
-    initial[4 * i + 3] = 255
-  }
+  const initial = makeInitialFlow(flowWidth, flowHeight)
   const targetA = makeTarget(flowWidth, flowHeight, initial)
   const targetB = makeTarget(flowWidth, flowHeight, initial)
+  if (targetA === null || targetB === null) {
+    disposeTarget(targetA)
+    disposeTarget(targetB)
+    gl.deleteBuffer(quadBuffer)
+    gl.deleteProgram(flowProgram)
+    gl.deleteProgram(displayProgram)
+    return inactiveHandle
+  }
+
+  let disposed = false
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  let reducedMotion = motionQuery.matches
 
   // Mouse input is disabled only for touch/coarse-pointer devices.
   // Windows desktop browsers still receive precise pointer interaction.
   const coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches
   const onMouseMove = (event: MouseEvent): void => {
+    if (disposed || reducedMotion) return
     const rect = canvas.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return
     pointer.x = (event.clientX - rect.left) / rect.width
     pointer.y = 1 - (event.clientY - rect.top) / rect.height
   }
   if (!coarse) window.addEventListener('mousemove', onMouseMove)
 
-  const start = performance.now()
-  let raf = 0
-  let previous = 0
+  let raf: number | undefined
+  let previous = performance.now()
+  let animationTime = 0
+  let lastFrame = -Infinity
   const step = 1000 / 30
 
-  const frame = (now: number): void => {
-    raf = requestAnimationFrame(frame)
-    if (now - previous < step) return
-    previous = now - ((now - previous) % step)
-
+  const resize = (): void => {
     const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
-    const nextWidth = Math.round(canvas.clientWidth * ratio)
-    const nextHeight = Math.round(canvas.clientHeight * ratio)
+    const nextWidth = Math.max(1, Math.round(canvas.clientWidth * ratio))
+    const nextHeight = Math.max(1, Math.round(canvas.clientHeight * ratio))
     if (nextWidth !== width || nextHeight !== height) {
       width = nextWidth
       height = nextHeight
       canvas.width = width
       canvas.height = height
     }
+    const nextFlowWidth = Math.max(1, Math.round(width / 4))
+    const nextFlowHeight = Math.max(1, Math.round(height / 4))
+    if (nextFlowWidth !== flowWidth || nextFlowHeight !== flowHeight) {
+      flowWidth = nextFlowWidth
+      flowHeight = nextFlowHeight
+      const initial = makeInitialFlow(flowWidth, flowHeight)
+      for (const target of [targetA, targetB]) {
+        gl.bindTexture(gl.TEXTURE_2D, target.tex)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, flowWidth, flowHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, initial)
+      }
+    }
+  }
+
+  const render = (now: number): void => {
+    if (disposed) return
+    resize()
+    if (!reducedMotion) animationTime += Math.max(0, now - previous)
+    previous = now
 
     const p = current
     const s = pointer
@@ -424,7 +478,7 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, write.tex)
     gl.uniform1i(display.flowmap, 0)
-    const time = (performance.now() - start) * 0.001 * (p.speed / 100)
+    const time = animationTime * 0.001 * (p.speed / 100)
     gl.uniform1f(display.time, time)
     gl.uniform1f(display.pixelRatio, window.devicePixelRatio || 1)
     gl.uniform2f(display.resolution, width, height)
@@ -451,11 +505,41 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
   }
 
+  const frame = (now: number): void => {
+    raf = undefined
+    if (disposed || reducedMotion) return
+    if (now - lastFrame >= step) {
+      lastFrame = now
+      render(now)
+    }
+    raf = requestAnimationFrame(frame)
+  }
+
+  const onMotionChange = (event: MediaQueryListEvent): void => {
+    if (disposed || reducedMotion === event.matches) return
+    reducedMotion = event.matches
+    if (raf !== undefined) cancelAnimationFrame(raf)
+    raf = undefined
+    previous = performance.now()
+    render(previous)
+    if (!reducedMotion) raf = requestAnimationFrame(frame)
+  }
+  if (typeof motionQuery.addEventListener === 'function') motionQuery.addEventListener('change', onMotionChange)
+  else motionQuery.addListener?.(onMotionChange)
+
+  const onResize = (): void => render(performance.now())
+  window.addEventListener('resize', onResize)
+  const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
+  resizeObserver?.observe(canvas)
+
   const handle: FluidShaderHandle = {
     setParams: (next: FluidParams) => {
+      if (disposed) return
       current = { ...next }
+      render(performance.now())
     },
     stir: (x: number, y: number, vx: number, vy: number) => {
+      if (disposed || reducedMotion) return
       // Damped stir: the brush glides toward the event point and the
       // velocity ramps up through a soft approach, so feedback reads as
       // water settling rather than a teleported kick.
@@ -465,17 +549,23 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
       pointer.svy += (vy - pointer.svy) * 0.3
     },
     dispose: () => {
-      cancelAnimationFrame(raf)
+      if (disposed) return
+      disposed = true
+      if (raf !== undefined) cancelAnimationFrame(raf)
       window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('resize', onResize)
+      if (typeof motionQuery.removeEventListener === 'function') motionQuery.removeEventListener('change', onMotionChange)
+      else motionQuery.removeListener?.(onMotionChange)
+      resizeObserver?.disconnect()
+      disposeTarget(targetA)
+      disposeTarget(targetB)
+      gl.deleteBuffer(quadBuffer)
+      gl.deleteProgram(flowProgram)
+      gl.deleteProgram(displayProgram)
     },
   }
 
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    frame(performance.now())
-    cancelAnimationFrame(raf)
-    return handle
-  }
-
-  raf = requestAnimationFrame(frame)
+  render(performance.now())
+  if (!reducedMotion) raf = requestAnimationFrame(frame)
   return handle
 }

@@ -6,7 +6,8 @@
       @click="toggle"
       :disabled="disabled"
       :aria-expanded="isOpen"
-      :aria-haspopup="true"
+      aria-haspopup="listbox"
+      :aria-controls="isOpen ? instanceId : undefined"
       :id="id"
       :aria-label="ariaLabel ?? 'Select option'"
       :aria-describedby="ariaDescribedby"
@@ -47,10 +48,12 @@
 
     <!-- Teleport dropdown to body to escape stacking context -->
     <Teleport to="body">
-      <Transition name="select-dropdown">
+      <Transition name="select-dropdown" :css="!disabled">
         <div
           v-if="isOpen"
           ref="dropdownRef"
+          :id="instanceId"
+          tabindex="-1"
           class="select-dropdown-portal"
           :class="[instanceId]"
           :style="dropdownStyle"
@@ -256,7 +259,7 @@ const getOptionLabel = (option: any): string => {
 
 const isOptionDisabled = (option: any): boolean => {
   if (typeof option === 'object' && option !== null) {
-    return !!option.disabled
+    return !!option.disabled || option.kind === 'group'
   }
   return false
 }
@@ -382,9 +385,7 @@ watch(isOpen, (open) => {
         : initialIdx
     }
 
-    if (isSearchable.value) {
-      nextTick(() => searchInputRef.value?.focus())
-    }
+    nextTick(() => (isSearchable.value ? searchInputRef.value : dropdownRef.value)?.focus())
     // Add scroll listener to update position
     window.addEventListener('scroll', updateTriggerRect, { capture: true, passive: true })
     window.addEventListener('resize', calculateDropdownPosition)
@@ -401,6 +402,15 @@ watch(isOpen, (open) => {
   }
 })
 
+watch(() => props.disabled, (disabled) => {
+  if (disabled) isOpen.value = false
+})
+
+watch(filteredOptions, () => {
+  if (!isOpen.value) return
+  focusedIndex.value = findNextEnabledIndex(0)
+})
+
 // 远程搜索：输入防抖后交给父组件请求（!isOpen 抑制关闭重置 searchQuery 触发的空 query）。
 watch(searchQuery, (query) => {
   if (!props.remote || !isOpen.value) return
@@ -412,6 +422,7 @@ watch(searchQuery, (query) => {
 })
 
 const selectOption = (option: any) => {
+  if (props.disabled || isOptionDisabled(option)) return
   const value = getOptionValue(option) ?? null
   emit('update:modelValue', value)
   emit('change', value, option)
@@ -427,6 +438,7 @@ const clearSelection = () => {
 
 // Keyboards
 const onTriggerKeyDown = () => {
+  if (props.disabled) return
   if (!isOpen.value) {
     isOpen.value = true
   }
@@ -453,10 +465,12 @@ const onDropdownKeyDown = (e: KeyboardEvent) => {
       break
     case 'Escape':
       e.preventDefault()
+      e.stopPropagation()
       isOpen.value = false
       triggerRef.value?.focus()
       break
     case 'Tab':
+      triggerRef.value?.focus()
       isOpen.value = false
       break
   }

@@ -11,6 +11,11 @@ const { showInfo, showSuccess, showError, fetchPublicSettings } = vi.hoisted(() 
   fetchPublicSettings: vi.fn(),
 }))
 
+const theme = vi.hoisted(() => ({
+  effectiveMode: { value: 'light' as 'light' | 'dark' },
+  toggleMode: vi.fn(),
+}))
+
 const messages: Record<string, string> = {
   'keyUsage.title': 'API Key Usage',
   'keyUsage.subtitle': 'Usage status',
@@ -104,12 +109,18 @@ vi.mock('@/stores', () => ({
   }),
 }))
 
+vi.mock('@/custom/modules/apple-theme/useTheme', () => ({
+  useTheme: () => theme,
+}))
+
 describe('KeyUsageView daily detail', () => {
   beforeEach(() => {
     showInfo.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
     fetchPublicSettings.mockReset()
+    theme.toggleMode.mockReset()
+    theme.effectiveMode.value = 'light'
     localStorage.clear()
 
     Object.defineProperty(window, 'matchMedia', {
@@ -211,6 +222,23 @@ describe('KeyUsageView daily detail', () => {
     expect(text).toContain('10')
     expect(text).toContain('$0.12')
 
+    wrapper.unmount()
+  })
+
+  it('delegates theme changes to the shared theme controller', async () => {
+    const wrapper = mount(KeyUsageView, {
+      global: {
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          LocaleSwitcher: true,
+          Icon: true,
+        },
+      },
+    })
+
+    await wrapper.get('button[title="Dark"]').trigger('click')
+    expect(theme.toggleMode).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('theme')).toBeNull()
     wrapper.unmount()
   })
 

@@ -15,7 +15,7 @@
         :disabled="!method.available"
         :aria-pressed="selected === method.type && method.available"
         :class="[
-          'payment-method relative flex min-h-20 min-w-0 items-start justify-start rounded-md border px-3.5 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+          'payment-method relative flex min-h-28 min-w-0 items-start justify-start rounded-md border px-3.5 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
           !method.available
             ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50 dark:border-dark-700 dark:bg-dark-800/50'
             : selected === method.type
@@ -30,27 +30,29 @@
             <span data-testid="payment-method-label" class="block w-full whitespace-normal break-words text-sm font-semibold leading-5">
               {{ methodLabel(method) }}
             </span>
-            <span
-              v-if="method.fee_rate > 0"
-              class="text-xs leading-4 text-gray-500 dark:text-gray-400"
-            >
-              {{ t('payment.fee') }} {{ method.fee_rate }}%
-            </span>
-            <span
-              v-if="method.minimum_amount != null && method.minimum_amount > 0"
-              data-testid="payment-method-limit-hint"
-              class="block w-full break-words text-xs leading-4"
-              :class="method.unavailable_reason === 'minimum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
-            >
-              {{ t('payment.minimumToUse', { amount: formatPaymentAmount(method.minimum_amount, method.currency) }) }}
-            </span>
-            <span
-              v-if="method.maximum_amount != null && method.maximum_amount > 0"
-              data-testid="payment-method-limit-hint"
-              class="block w-full break-words text-xs leading-4"
-              :class="method.unavailable_reason === 'maximum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
-            >
-              {{ t('payment.maximumToUse', { amount: formatPaymentAmount(method.maximum_amount, method.currency) }) }}
+            <span class="payment-method-details flex min-h-12 w-full flex-col justify-start">
+              <span
+                v-if="method.fee_rate > 0"
+                class="text-xs leading-4 text-gray-500 dark:text-gray-400"
+              >
+                {{ t('payment.fee') }} {{ method.fee_rate }}%
+              </span>
+              <span
+                v-if="method.minimum_amount != null && method.minimum_amount > 0"
+                data-testid="payment-method-limit-hint"
+                class="block w-full break-words text-xs leading-4"
+                :class="method.unavailable_reason === 'minimum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
+              >
+                {{ t('payment.minimumToUse', { amount: formatPaymentAmount(method.minimum_amount, method.currency) }) }}
+              </span>
+              <span
+                v-if="method.maximum_amount != null && method.maximum_amount > 0"
+                data-testid="payment-method-limit-hint"
+                class="block w-full break-words text-xs leading-4"
+                :class="method.unavailable_reason === 'maximum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
+              >
+                {{ t('payment.maximumToUse', { amount: formatPaymentAmount(method.maximum_amount, method.currency) }) }}
+              </span>
             </span>
           </span>
         </span>
@@ -147,6 +149,11 @@ function methodSelectedClass(type: string): string {
 <style scoped>
 .payment-method-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  grid-auto-rows: 1fr;
+  /* Keep method cards the same height while amount-limit hints appear/disappear. */
+  grid-auto-rows: minmax(7rem, 1fr);
+}
+
+.payment-method {
+  min-height: 7rem;
 }
 </style>

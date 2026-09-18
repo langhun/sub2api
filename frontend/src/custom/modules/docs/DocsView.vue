@@ -616,7 +616,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 .docs-related-links { @apply mt-3 flex flex-wrap gap-2; }
 .docs-related-links button { @apply inline-flex items-center gap-1 border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-dark-200 dark:hover:text-primary-400; border-radius: 6px; }
 
-.docs-markdown { @apply min-w-0 max-w-none overflow-x-hidden text-[15px] leading-7 text-gray-700 dark:text-dark-200; }
+.docs-markdown { @apply min-w-0 max-w-none overflow-x-visible text-[15px] leading-7 text-gray-700 dark:text-dark-200; }
 .docs-markdown :deep(h2) { @apply mb-3 mt-8 scroll-mt-24 text-lg font-semibold text-gray-900 first:mt-0 dark:text-white; }
 .docs-markdown :deep(h3) { @apply mb-2 mt-6 scroll-mt-24 text-base font-semibold text-gray-900 dark:text-white; }
 .docs-markdown :deep(p) { @apply my-3 break-words; }
@@ -627,7 +627,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 .docs-markdown :deep(code:not(pre code)) { @apply break-words bg-gray-100 px-1.5 py-0.5 font-mono text-[13px] text-gray-800 dark:bg-dark-800 dark:text-dark-100; border-radius: 4px; }
 .docs-markdown :deep(pre) { @apply relative my-4 max-w-full overflow-x-auto border border-gray-200 bg-gray-950 p-4 pt-11 font-mono text-[13px] leading-6 text-gray-100 dark:border-dark-600; border-radius: 6px; }
 .docs-markdown :deep(.docs-copy-button) { @apply absolute right-2 top-2 border border-gray-600 bg-gray-800 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-700; border-radius: 4px; }
-.docs-markdown :deep(table) { @apply my-5 block w-full overflow-x-auto border-collapse text-sm; }
+.docs-markdown :deep(table) { @apply my-5 block w-full max-w-full overflow-x-auto border-collapse text-sm; }
 .docs-markdown :deep(th), .docs-markdown :deep(td) { @apply min-w-32 border border-gray-200 px-3 py-2 text-left align-top dark:border-dark-600; }
 .docs-markdown :deep(th) { @apply bg-gray-50 font-semibold text-gray-900 dark:bg-dark-800 dark:text-white; }
 .docs-markdown :deep(.docs-figure) { @apply my-5; }

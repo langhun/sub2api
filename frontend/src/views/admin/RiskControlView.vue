@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="min-w-0 space-y-6" data-glass-content>
       <div v-if="loading" class="flex items-center justify-center py-16">
         <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-600"></div>
       </div>

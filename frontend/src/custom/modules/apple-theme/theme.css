@@ -5,6 +5,23 @@
 
 :root {
   --glass-blur: 14px;
+  --ui-bg: #f8fafc;
+  --ui-text: #1f2937;
+  --ui-muted: #6b7280;
+  --ui-primary: #2563eb;
+  --ui-primary-strong: #1d4ed8;
+  --ui-surface: rgb(255 255 255 / 92%);
+  --ui-surface-strong: rgb(255 255 255 / 98%);
+  --ui-surface-subtle: rgb(248 250 252 / 96%);
+  --ui-subglass: rgb(255 255 255 / 92%);
+  --ui-subglass-hover: #fff;
+  --ui-control-text: #1f2937;
+  --ui-control-muted: #6b7280;
+  --ui-border: #e5e7eb;
+  --ui-border-soft: #eef2f7;
+  --ui-border-render: #e5e7eb;
+  --ui-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+  --ui-blur: 0px;
 }
 
 /* ==========================================================================
@@ -44,7 +61,7 @@ html[data-glass]:not(.dark) {
 :root[data-glass].dark,
 html[data-theme="apple"].dark,
 html[data-glass].dark,
-html.dark {
+html[data-glass].dark {
   --ui-bg: #0c121b;
   --ui-text: #f5f5f7;
   --ui-muted: #b8b8c0;
@@ -152,7 +169,6 @@ html[data-glass] [class*="rounded-3xl"] {
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur)) !important;
   -webkit-backdrop-filter: blur(var(--ui-blur)) !important;
-  position: relative;
 }
 
 html[data-theme="apple"] .card-header,
@@ -290,14 +306,14 @@ html[data-theme="apple"] table,
 html[data-theme="apple"] thead,
 html[data-theme="apple"] tbody,
 html[data-theme="apple"] tfoot,
-html[data-theme="apple"] tr,
+html[data-theme="apple"] tr:not([aria-selected="true"], .is-selected, [data-selected="true"]),
 html[data-theme="apple"] th,
 html[data-theme="apple"] td,
 html[data-glass] table,
 html[data-glass] thead,
 html[data-glass] tbody,
 html[data-glass] tfoot,
-html[data-glass] tr,
+html[data-glass] tr:not([aria-selected="true"], .is-selected, [data-selected="true"]),
 html[data-glass] th,
 html[data-glass] td {
   background: transparent !important;
@@ -325,6 +341,26 @@ html[data-glass]:not(.dark) tbody tr:hover {
 html[data-theme="apple"].dark tbody tr:hover,
 html[data-glass].dark tbody tr:hover {
   background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Semantic selection remains visible after the global table transparency pass. */
+html[data-theme="apple"] tbody tr[aria-selected="true"],
+html[data-theme="apple"] tbody tr.is-selected,
+html[data-theme="apple"] tbody tr[data-selected="true"],
+html[data-glass] tbody tr[aria-selected="true"],
+html[data-glass] tbody tr.is-selected,
+html[data-glass] tbody tr[data-selected="true"] {
+  background: color-mix(in srgb, var(--ui-primary) 12%, transparent) !important;
+  color: var(--ui-text) !important;
+}
+
+html[data-theme="apple"].dark tbody tr[aria-selected="true"],
+html[data-theme="apple"].dark tbody tr.is-selected,
+html[data-theme="apple"].dark tbody tr[data-selected="true"],
+html[data-glass].dark tbody tr[aria-selected="true"],
+html[data-glass].dark tbody tr.is-selected,
+html[data-glass].dark tbody tr[data-selected="true"] {
+  background: color-mix(in srgb, var(--ui-primary) 20%, transparent) !important;
 }
 
 
@@ -434,6 +470,17 @@ html[data-glass] .select-trigger:focus {
   outline: none !important;
 }
 
+/* Error state must remain visible even though glass inputs have no hard border. */
+:is(html[data-theme="apple"], html[data-glass]) :is(.input-error, [aria-invalid="true"]) {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgb(239 68 68 / 20%) !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) :is(.input-error, [aria-invalid="true"]):focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgb(239 68 68 / 24%) !important;
+}
+
 /* ==========================================================================
    全站暗黑实色类名清洗
    ========================================================================== */
@@ -442,14 +489,13 @@ html[data-glass] .select-trigger:focus {
   [class^="dark:bg-gray-"], [class*=" dark:bg-gray-"],
   [class^="dark:bg-slate-"], [class*=" dark:bg-slate-"],
   [class~="dark:bg-black"]
-):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger)) {
+):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger, .dimension-cell, .summary-value, [role="switch"], [role="checkbox"], [role="radio"])) {
   background-color: var(--ui-surface) !important;
-  border-color: var(--ui-border-render) !important;
 }
 
 :is(html[data-theme="apple"], html[data-glass]):not(.dark) :is(
   .bg-white, [class^="bg-white/"], [class*=" bg-white/"]
-):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger, .sidebar-link-active)) {
+):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger, .sidebar-link-active, .dimension-cell, .summary-value, [role="switch"], [role="checkbox"], [role="radio"])) {
   background-color: var(--ui-surface) !important;
 }
 
@@ -458,8 +504,7 @@ html[data-glass] .select-trigger:focus {
 }
 
 /* 监控矩阵中的维度和数值只承载文字，不应被全局白底清洗成色块。 */
-:is(html[data-theme="apple"], html[data-glass]) .dimension-cell,
-:is(html[data-theme="apple"], html[data-glass]) .summary-value {
+:is(html[data-theme="apple"], html[data-glass]) :is(.dimension-cell, .summary-value) {
   background: transparent !important;
   background-color: transparent !important;
 }
@@ -493,12 +538,25 @@ html[data-glass] .select-trigger:focus {
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-text) 10%, transparent);
 }
 
+:is(html[data-theme="apple"], html[data-glass]) [data-glass-content] :is(.border-gray-100, .border-gray-200):not(input, textarea, select, [aria-invalid="true"], .input-error) {
+  border-color: color-mix(in srgb, var(--ui-text) 8%, transparent) !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) [data-glass-content] [role="switch"] > .bg-white {
+  background: #fff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(html[data-theme="apple"], html[data-glass]) [data-glass-ambient] {
+    animation: none !important;
+  }
+}
+
 /* ==========================================================================
    下拉菜单与弹窗
    ========================================================================== */
 :is(html[data-theme="apple"], html[data-glass]) .card:has(:is([role="listbox"], .date-picker-dropdown, .dropdown-menu)) {
   z-index: 20;
-  position: relative !important;
 }
 
 html[data-theme="apple"] .dropdown,

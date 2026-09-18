@@ -2,7 +2,8 @@
   <AppLayout>
     <div
       data-testid="profile-shell"
-      class="mx-auto max-w-[950px] space-y-6"
+      class="mx-auto min-w-0 max-w-[950px] space-y-6"
+      data-glass-content
     >
       <ProfileInfoCard
         :user="user"
@@ -24,7 +25,7 @@
       />
       <div
         v-if="customSupportContactEntries.length === 0 && contactInfo"
-        class="card border-primary-200 bg-primary-50 p-6 dark:bg-primary-900/20"
+        class="card bg-primary-50/70 p-6 dark:bg-primary-900/20"
       >
         <div class="flex items-center gap-4">
           <div class="rounded-xl bg-primary-100 p-3 text-primary-600">

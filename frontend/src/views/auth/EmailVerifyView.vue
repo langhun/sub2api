@@ -140,8 +140,8 @@
         <!-- Resend Code -->
         <div class="text-center">
           <button
-            v-if="countdown > 0"
             type="button"
+            v-if="countdown > 0"
             disabled
             class="cursor-not-allowed text-sm text-gray-400 dark:text-dark-500"
           >
@@ -169,6 +169,7 @@
     <!-- Footer -->
     <template #footer>
       <button
+        type="button"
         @click="handleBack"
         class="flex items-center gap-2 text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-gray-300"
       >

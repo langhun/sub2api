@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6" data-glass-content>
+    <div class="min-w-0 space-y-6" data-glass-content>
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <LoadingSpinner />

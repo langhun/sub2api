@@ -4,14 +4,14 @@
       <!-- User header: two-row layout with full user info -->
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <!-- Row 1: avatar + email/username/created_at (left) + current balance (right) -->
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <span class="text-lg font-medium text-primary-700 dark:text-primary-300">
               {{ user.email.charAt(0).toUpperCase() }}
             </span>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <p class="truncate font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
               <span v-if="user.deleted_at" class="flex-shrink-0 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
                 {{ t('admin.usage.userDeletedBadge') }}
@@ -36,7 +36,7 @@
           </div>
         </div>
         <!-- Row 2: notes + total recharged -->
-        <div class="mt-2.5 flex items-center justify-between border-t border-gray-200/60 pt-2.5 dark:border-dark-600/60">
+        <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/60 pt-2.5 dark:border-dark-600/60">
           <p class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="user.notes || ''">
             <template v-if="user.notes">{{ t('admin.users.notes') }}: {{ user.notes }}</template>
             <template v-else>&nbsp;</template>
@@ -48,11 +48,11 @@
       </div>
 
       <!-- Type filter + Action buttons -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <Select
           v-model="typeFilter"
           :options="typeOptions"
-          class="w-56"
+          class="w-full sm:w-56"
           @change="loadHistory(1)"
         />
         <!-- Deposit button - matches menu style -->
@@ -86,6 +86,10 @@
       </div>
 
       <!-- Empty state -->
+      <div v-else-if="loadError" role="alert" class="space-y-3 py-8 text-center text-sm text-red-600 dark:text-red-400">
+        <p>{{ loadError }}</p>
+        <button type="button" class="btn btn-secondary" @click="loadHistory(currentPage)">{{ t('common.retry') }}</button>
+      </div>
       <div v-else-if="history.length === 0" class="py-8 text-center">
         <p class="text-sm text-gray-500">{{ t('admin.users.noBalanceHistory') }}</p>
       </div>
@@ -97,9 +101,9 @@
           :key="item.id"
           class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800"
         >
-          <div class="flex items-start justify-between">
+          <div class="flex flex-wrap items-start justify-between gap-3">
             <!-- Left: type icon + description -->
-            <div class="flex items-start gap-3">
+            <div class="flex min-w-0 flex-1 basis-40 items-start gap-3">
               <div
                 :class="[
                   'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
@@ -108,7 +112,7 @@
               >
                 <Icon :name="getIconName(item)" size="sm" :class="getIconColor(item)" />
               </div>
-              <div>
+              <div class="min-w-0 break-words">
                 <p class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ getItemTitle(item) }}
                 </p>
@@ -172,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { customLedgerDisplay } from '@/custom/registry'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
@@ -193,6 +197,8 @@ const total = ref(0)
 const totalRecharged = ref(0)
 const pageSize = 15
 const typeFilter = ref('')
+const loadError = ref('')
+let loadSequence = 0
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 
@@ -208,17 +214,11 @@ const typeOptions = computed(() => [
   { value: 'subscription', label: t('admin.users.typeSubscription') }
 ])
 
-// Watch modal open
-watch(() => props.show, (v) => {
-  if (v && props.user) {
-    typeFilter.value = ''
-    loadHistory(1)
-  }
-})
-
 const loadHistory = async (page: number) => {
-  if (!props.user) return
+  if (!props.show || !props.user) return
+  const sequence = ++loadSequence
   loading.value = true
+  loadError.value = ''
   currentPage.value = page
   try {
     const res = await adminAPI.users.getUserBalanceHistory(
@@ -227,15 +227,29 @@ const loadHistory = async (page: number) => {
       pageSize,
       typeFilter.value || undefined
     )
+    if (sequence !== loadSequence) return
     history.value = res.items || []
     total.value = res.total || 0
     totalRecharged.value = res.total_recharged || 0
   } catch (error) {
+    if (sequence !== loadSequence) return
+    loadError.value = t('common.error')
     console.error('Failed to load balance history:', error)
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
+
+watch([() => props.show, () => props.user?.id], ([show]) => {
+  ++loadSequence
+  history.value = []
+  total.value = 0
+  totalRecharged.value = 0
+  typeFilter.value = ''
+  if (show && props.user) void loadHistory(1)
+}, { immediate: true })
+
+onUnmounted(() => { ++loadSequence })
 
 // Helper: check if admin type
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'

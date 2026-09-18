@@ -29,8 +29,8 @@
     </h3>
 
     <!-- Description -->
-    <p class="empty-state-description">
-      {{ description }}
+    <p v-if="displayDescription" class="empty-state-description">
+      {{ displayDescription }}
     </p>
 
     <!-- Action -->
@@ -75,6 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const displayTitle = computed(() => props.title || t('common.noData'))
+const displayDescription = computed(() => props.description || props.message || '')
 
 defineEmits(['action'])
 </script>

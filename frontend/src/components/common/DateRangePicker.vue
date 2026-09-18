@@ -3,6 +3,8 @@
     <button
       type="button"
       @click="toggle"
+      :aria-expanded="isOpen"
+      aria-haspopup="dialog"
       :class="['date-picker-trigger', isOpen && 'date-picker-trigger-open']"
     >
       <span class="date-picker-icon">
@@ -27,6 +29,7 @@
           <button
             v-for="preset in presets"
             :key="preset.value"
+            type="button"
             @click="selectPreset(preset)"
             :class="['date-picker-preset', isPresetActive(preset) && 'date-picker-preset-active']"
           >
@@ -66,7 +69,7 @@
 
         <!-- Apply button -->
         <div class="date-picker-actions">
-          <button @click="apply" class="date-picker-apply">
+          <button type="button" @click="apply" class="date-picker-apply">
             {{ t('dates.apply') }}
           </button>
         </div>
@@ -286,6 +289,7 @@ const handleClickOutside = (event: MouseEvent) => {
 
 const handleEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && isOpen.value) {
+    event.preventDefault()
     isOpen.value = false
   }
 }
@@ -357,6 +361,23 @@ onUnmounted(() => {
   @apply shadow-lg shadow-black/10 dark:shadow-black/30;
   @apply overflow-hidden;
   @apply min-w-[320px];
+  max-width: calc(100vw - 1rem);
+}
+
+@media (max-width: 639px) {
+  .date-picker-dropdown {
+    left: auto;
+    right: 0;
+    min-width: min(320px, calc(100vw - 1rem));
+  }
+
+  .date-picker-custom {
+    flex-wrap: wrap;
+  }
+
+  .date-picker-separator {
+    display: none;
+  }
 }
 
 .date-picker-presets {

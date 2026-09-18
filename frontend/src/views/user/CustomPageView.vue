@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="custom-page-layout">
+    <div class="custom-page-layout min-w-0" data-glass-content>
       <div class="card flex-1 min-h-0 overflow-hidden">
         <div v-if="loading" class="flex h-full items-center justify-center py-12">
           <div

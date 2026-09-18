@@ -1,7 +1,10 @@
 <template>
   <div class="relative" ref="dropdownRef">
     <button
+      type="button"
       @click="toggleDropdown"
+      :aria-expanded="isOpen"
+      aria-haspopup="listbox"
       :disabled="switching"
       class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
       :title="currentLocale?.name"
@@ -24,6 +27,7 @@
         <button
           v-for="locale in availableLocales"
           :key="locale.code"
+          type="button"
           :disabled="switching"
           @click="selectLocale(locale.code)"
           class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
@@ -81,12 +85,21 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+function handleEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && isOpen.value) {
+    event.preventDefault()
+    isOpen.value = false
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
 })
 </script>
 

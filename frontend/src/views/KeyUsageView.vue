@@ -426,6 +426,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { buildGatewayUrl } from '@/api/client'
 import { formatDateLocalInput } from '@/utils/format'
 import { sanitizeUrl } from '@/utils/url'
+import { useTheme } from '@/custom/modules/apple-theme/useTheme'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -438,14 +439,13 @@ const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
 const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 
-// ==================== Theme (same as HomeView) ====================
+// ==================== Theme (shared with the app shell) ====================
 
-const isDark = ref(document.documentElement.classList.contains('dark'))
+const { effectiveMode, toggleMode } = useTheme()
+const isDark = computed(() => effectiveMode.value === 'dark')
 
 function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  toggleMode()
 }
 
 const currentYear = computed(() => new Date().getFullYear())
@@ -918,14 +918,6 @@ async function queryKey() {
 
 // ==================== Lifecycle ====================
 
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  }
-}
-
 function formatResetTime(resetAt: string | null | undefined): string {
   if (!resetAt) return ''
   const diff = new Date(resetAt).getTime() - now.value.getTime()
@@ -939,7 +931,6 @@ function formatResetTime(resetAt: string | null | undefined): string {
 }
 
 onMounted(() => {
-  initTheme()
   if (!appStore.publicSettingsLoaded) {
     appStore.fetchPublicSettings()
   }

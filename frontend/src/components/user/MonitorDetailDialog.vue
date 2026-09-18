@@ -13,7 +13,7 @@
     </div>
     <div v-else class="overflow-x-auto">
       <table class="w-full text-left text-sm">
-        <thead class="border-b border-gray-200 dark:border-dark-700">
+        <thead>
           <tr class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
             <th class="py-2 pr-3">{{ t('channelStatus.detailColumns.model') }}</th>
             <th class="py-2 pr-3">{{ t('channelStatus.detailColumns.latestStatus') }}</th>
@@ -28,7 +28,6 @@
           <tr
             v-for="m in detail.models"
             :key="m.model"
-            class="border-b border-gray-100 dark:border-dark-800"
           >
             <td class="py-2 pr-3 font-medium text-gray-900 dark:text-gray-100">{{ formatMonitorModel(m.model) }}</td>
             <td class="py-2 pr-3">

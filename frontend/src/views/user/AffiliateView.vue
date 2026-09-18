@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="space-y-6" data-glass-content>
       <div v-if="loading" class="flex justify-center py-12">
         <div
           class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
@@ -51,7 +51,7 @@
           <div class="mt-5 grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('affiliate.yourCode') }}</p>
-              <div class="flex flex-col items-stretch gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-700 dark:bg-dark-900 sm:flex-row sm:items-center">
+              <div class="flex min-w-0 flex-col items-stretch gap-2 rounded-xl bg-gray-50/70 px-3 py-2 dark:bg-dark-900/40 sm:flex-row sm:items-center">
                 <code class="min-w-0 break-all text-sm font-semibold text-gray-900 dark:text-white sm:flex-1 sm:truncate">{{ detail.aff_code }}</code>
                 <button class="btn btn-secondary btn-sm w-full sm:w-auto sm:shrink-0" @click="copyCode">
                   <Icon name="copy" size="sm" />
@@ -62,7 +62,7 @@
 
             <div class="space-y-2">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('affiliate.inviteLink') }}</p>
-              <div class="flex flex-col items-stretch gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-700 dark:bg-dark-900 sm:flex-row sm:items-center">
+              <div class="flex min-w-0 flex-col items-stretch gap-2 rounded-xl bg-gray-50/70 px-3 py-2 dark:bg-dark-900/40 sm:flex-row sm:items-center">
                 <code class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300 sm:flex-1 sm:truncate">{{ inviteLink }}</code>
                 <button class="btn btn-secondary btn-sm w-full sm:w-auto sm:shrink-0" @click="copyInviteLink">
                   <Icon name="copy" size="sm" />
@@ -72,7 +72,7 @@
             </div>
           </div>
 
-          <div class="mt-5 rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-900/40 dark:bg-primary-900/20">
+          <div class="mt-5 rounded-xl bg-primary-50/70 p-4 dark:bg-primary-900/20">
             <p class="text-sm font-medium text-primary-800 dark:text-primary-200">{{ t('affiliate.tips.title') }}</p>
             <ul class="mt-2 space-y-1 text-sm text-primary-700 dark:text-primary-300">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
@@ -106,13 +106,13 @@
 
         <div class="card p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.invitees.title') }}</h3>
-          <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400">
+          <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl bg-gray-50/60 p-6 text-center text-sm text-gray-500 dark:bg-dark-900/30 dark:text-dark-400">
             {{ t('affiliate.invitees.empty') }}
           </div>
           <div v-else class="mt-4 overflow-x-auto">
             <table class="w-full min-w-[560px] text-left text-sm">
               <thead>
-                <tr class="border-b border-gray-200 text-gray-500 dark:border-dark-700 dark:text-dark-400">
+                <tr class="text-gray-500 dark:text-dark-400">
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.email') }}</th>
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.username') }}</th>
                   <th class="px-3 py-2 font-medium text-right">{{ t('affiliate.invitees.columns.rebate') }}</th>
@@ -123,7 +123,7 @@
                 <tr
                   v-for="item in detail.invitees"
                   :key="item.user_id"
-                  class="border-b border-gray-100 last:border-b-0 dark:border-dark-800"
+                  class="last:border-b-0"
                 >
                   <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>

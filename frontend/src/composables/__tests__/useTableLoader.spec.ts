@@ -1,25 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useTableLoader } from '@/composables/useTableLoader'
 
-// Mock @vueuse/core 的 useDebounceFn
-vi.mock('@vueuse/core', () => ({
-  useDebounceFn: (fn: Function, ms: number) => {
-    let timer: ReturnType<typeof setTimeout> | null = null
-    const debounced = (...args: any[]) => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => fn(...args), ms)
-    }
-    debounced.cancel = () => { if (timer) clearTimeout(timer) }
-    return debounced
-  },
-}))
+let runUnmount: (() => void) | undefined
 
 // Mock Vue 的 onUnmounted（composable 外使用时会报错）
 vi.mock('vue', async () => {
   const actual = await vi.importActual('vue')
   return {
     ...actual,
-    onUnmounted: vi.fn(),
+    onUnmounted: vi.fn((callback: () => void) => {
+      runUnmount = callback
+    }),
   }
 })
 
@@ -31,6 +22,7 @@ describe('useTableLoader', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
+    runUnmount = undefined
   })
 
   afterEach(() => {
@@ -227,6 +219,50 @@ describe('useTableLoader', () => {
 
       // 第二次请求的结果生效
       expect(fetchFn).toHaveBeenCalledTimes(2)
+    })
+
+    it('忽略被取消请求晚到的响应', async () => {
+      const resolvers: Array<(value: any) => void> = []
+      const fetchFn = vi.fn(
+        () => new Promise((resolve) => {
+          resolvers.push(resolve)
+        })
+      )
+      const { load, items } = useTableLoader({ fetchFn })
+
+      const first = load()
+      const second = load()
+      resolvers[0]({ items: [{ id: 'stale' }], total: 1, pages: 1 })
+      await first
+      expect(items.value).toEqual([])
+
+      resolvers[1]({ items: [{ id: 'current' }], total: 1, pages: 1 })
+      await second
+      expect(items.value).toEqual([{ id: 'current' }])
+    })
+
+    it('卸载后取消防抖并忽略晚到响应', async () => {
+      const resolveFetch: { current?: (value: any) => void } = {}
+      const fetchFn = vi.fn(
+        () => new Promise((resolve) => {
+          resolveFetch.current = resolve
+        })
+      )
+      const { debouncedReload } = useTableLoader({ fetchFn })
+
+      debouncedReload()
+      runUnmount?.()
+      vi.advanceTimersByTime(1000)
+      expect(fetchFn).not.toHaveBeenCalled()
+
+      const { load, items, loading } = useTableLoader({ fetchFn })
+      const pending = load()
+      expect(loading.value).toBe(true)
+      runUnmount?.()
+      expect(loading.value).toBe(false)
+      resolveFetch.current?.({ items: [{ id: 'late' }], total: 1, pages: 1 })
+      await pending
+      expect(items.value).toEqual([])
     })
   })
 

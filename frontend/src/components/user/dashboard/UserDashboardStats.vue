@@ -147,10 +147,10 @@
         data-testid="platform-card"
         :data-platform="item.platform"
         :class="[
-          'rounded-lg border p-3',
+          'rounded-lg bg-gray-50/45 p-3 dark:bg-dark-900/25',
           item.isOther
-            ? 'border-dashed border-gray-300 bg-gray-50 dark:border-dark-500 dark:bg-dark-700/30'
-            : 'border-gray-200 dark:border-dark-600'
+            ? 'bg-gray-50/65 dark:bg-dark-700/30'
+            : ''
         ]"
       >
         <div class="flex items-center justify-between">
@@ -181,7 +181,7 @@
         </div>
 
         <!-- Quota 区：仅当 quota 配置存在、非 __other__ 且至少有一个窗口配了 limit 时显示 -->
-        <div v-if="hasAnyLimit(item.quota) && !item.isOther" class="mt-3 space-y-1.5 border-t border-gray-200 pt-2 dark:border-dark-700">
+        <div v-if="hasAnyLimit(item.quota) && !item.isOther" class="mt-3 space-y-1.5 pt-2">
           <p class="text-[10px] uppercase tracking-wide text-gray-400">
             {{ t('dashboard.platformQuota.title') }}
           </p>

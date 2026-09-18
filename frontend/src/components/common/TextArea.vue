@@ -1,12 +1,15 @@
 <template>
-  <div class="w-full">
-    <label v-if="label" :for="id" class="input-label mb-1.5 block">
+  <div class="w-full" :class="$attrs.class" :style="$attrs.style as any">
+    <label v-if="label" :for="inputId" class="input-label mb-1.5 block">
       {{ label }}
       <span v-if="required" class="text-red-500">*</span>
     </label>
     <div class="relative">
       <textarea
-        :id="id"
+        v-bind="inputAttrs()"
+        :id="inputId"
+        :aria-invalid="error ? true : undefined"
+        :aria-describedby="[inputAttrs()['aria-describedby'], error || hint ? `${inputId}-description` : undefined].filter(Boolean).join(' ') || undefined"
         ref="textAreaRef"
         :value="modelValue"
         :disabled="disabled"
@@ -26,17 +29,22 @@
       ></textarea>
     </div>
     <!-- Hint / Error Text -->
-    <p v-if="error" class="input-error-text mt-1.5">
+    <p v-if="error" :id="`${inputId}-description`" class="input-error-text mt-1.5">
       {{ error }}
     </p>
-    <p v-else-if="hint" class="input-hint mt-1.5">
+    <p v-else-if="hint" :id="`${inputId}-description`" class="input-hint mt-1.5">
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useAttrs, useId } from 'vue'
+
+defineOptions({ inheritAttrs: false })
+const attrs = useAttrs()
+const generatedId = useId()
+const inputAttrs = () => Object.fromEntries(Object.entries(attrs).filter(([key]) => key !== 'class' && key !== 'style'))
 
 interface Props {
   modelValue: string | null | undefined
@@ -66,6 +74,7 @@ const emit = defineEmits<{
 }>()
 
 const textAreaRef = ref<HTMLTextAreaElement | null>(null)
+const inputId = computed(() => props.id || generatedId)
 const placeholderText = computed(() => props.placeholder || '')
 
 const onInput = (event: Event) => {

@@ -29,7 +29,7 @@
         </p>
 
         <!-- Client Tabs -->
-        <div v-if="clientTabs.length" class="overflow-x-auto border-b border-gray-200 dark:border-dark-700">
+        <div v-if="clientTabs.length" class="overflow-x-auto">
           <nav class="-mb-px flex min-w-max gap-4 sm:gap-6" aria-label="Client">
             <button
               v-for="tab in clientTabs"
@@ -54,7 +54,7 @@
         <!-- Codex Authentication Mode -->
         <div
           v-if="showCodexAuthMode"
-          class="rounded-lg border border-gray-200 p-3 dark:border-dark-700"
+          class="rounded-lg bg-gray-50/55 p-3 dark:bg-dark-900/35"
         >
           <div class="mb-2">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
@@ -111,7 +111,7 @@
         </div>
 
         <!-- OS/Shell Tabs -->
-        <div v-if="showShellTabs" class="overflow-x-auto border-b border-gray-200 dark:border-dark-700">
+        <div v-if="showShellTabs" class="overflow-x-auto">
           <nav class="-mb-px flex min-w-max gap-4" aria-label="Tabs">
             <button
               v-for="tab in currentTabs"
@@ -147,7 +147,7 @@
             </p>
             <div class="bg-gray-900 dark:bg-dark-900 rounded-xl overflow-hidden">
               <!-- Code Header -->
-              <div class="flex items-center justify-between px-4 py-2 bg-gray-800 dark:bg-dark-800 border-b border-gray-700 dark:border-dark-700">
+              <div class="flex items-center justify-between bg-gray-800 px-4 py-2 dark:bg-dark-800">
                 <span class="min-w-0 truncate text-xs text-gray-400 font-mono">{{ file.path }}</span>
                 <button
                   type="button"
@@ -175,7 +175,7 @@
         <section
           v-if="showCodexModelCatalog"
           data-testid="codex-model-catalog"
-          class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800/50"
+          class="overflow-hidden rounded-lg bg-gray-50/55 dark:bg-dark-800/50"
         >
           <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0">
@@ -219,13 +219,13 @@
           </div>
           <p
             v-if="codexModelManifestState === 'ready'"
-            class="border-t border-gray-200 px-4 py-2 text-xs text-emerald-700 dark:border-dark-700 dark:text-emerald-300"
+            class="px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300"
           >
             {{ t('keys.useKeyModal.codexModelCatalog.modelsCount', { count: codexModelManifestModelCount }) }}
           </p>
           <p
             v-else-if="codexModelManifestState === 'error'"
-            class="border-t border-red-200 px-4 py-2 text-xs text-red-700 dark:border-red-900 dark:text-red-300"
+            class="px-4 py-2 text-xs text-red-700 dark:text-red-300"
           >
             {{ t('keys.useKeyModal.codexModelCatalog.errorDescription') }}
           </p>

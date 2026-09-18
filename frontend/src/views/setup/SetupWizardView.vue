@@ -91,18 +91,6 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between rounded-xl border border-gray-200 p-3 dark:border-dark-700">
-            <div>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t("setup.redis.enableTls") }}
-              </p>
-              <p class="text-xs text-gray-500 dark:text-dark-400">
-                {{ t("setup.redis.enableTlsHint") }}
-              </p>
-            </div>
-            <Toggle v-model="formData.redis.enable_tls" />
-          </div>
-
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label class="input-label">{{ t('setup.database.username') }}</label>
@@ -149,6 +137,7 @@
           </div>
 
           <button
+            type="button"
             @click="testDatabaseConnection"
             :disabled="testingDb"
             class="btn btn-secondary w-full"
@@ -259,6 +248,7 @@
           </div>
 
           <button
+            type="button"
             @click="testRedisConnection"
             :disabled="testingRedis"
             class="btn btn-secondary w-full"
@@ -445,6 +435,7 @@
         <!-- Navigation Buttons -->
         <div class="mt-8 flex justify-between">
           <button
+            type="button"
             v-if="currentStep > 0 && !installSuccess"
             @click="currentStep--"
             class="btn btn-secondary"
@@ -455,6 +446,7 @@
           <div v-else></div>
 
           <button
+            type="button"
             v-if="currentStep < 3"
             @click="nextStep"
             :disabled="!canProceed"
@@ -465,6 +457,7 @@
           </button>
 
           <button
+            type="button"
             v-else-if="!installSuccess"
             @click="performInstall"
             :disabled="installing"
@@ -499,7 +492,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { testDatabase, testRedis, install, type InstallRequest } from '@/api/setup'
 import { buildGatewayUrl } from '@/api/client'
@@ -529,6 +522,30 @@ const redisConnected = ref(false)
 const installing = ref(false)
 const confirmPassword = ref('')
 const serviceReady = ref(false)
+let disposed = false
+const restartController = new AbortController()
+const restartWaits = new Map<ReturnType<typeof setTimeout>, (active: boolean) => void>()
+
+function waitForRestart(delay: number): Promise<boolean> {
+  if (disposed) return Promise.resolve(false)
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      restartWaits.delete(timer)
+      resolve(!disposed)
+    }, delay)
+    restartWaits.set(timer, resolve)
+  })
+}
+
+onUnmounted(() => {
+  disposed = true
+  restartController.abort()
+  for (const [timer, resolve] of restartWaits) {
+    clearTimeout(timer)
+    resolve(false)
+  }
+  restartWaits.clear()
+})
 
 // Default server port
 const getCurrentPort = (): number => {
@@ -568,6 +585,9 @@ const formData = reactive<InstallRequest>({
   }
 })
 
+watch(() => formData.database, () => { dbConnected.value = false }, { deep: true, flush: 'sync' })
+watch(() => formData.redis, () => { redisConnected.value = false }, { deep: true, flush: 'sync' })
+
 const canProceed = computed(() => {
   switch (currentStep.value) {
     case 0:
@@ -590,9 +610,10 @@ async function testDatabaseConnection() {
   errorMessage.value = ''
   dbConnected.value = false
 
+  const testedConfig = { ...formData.database }
   try {
-    await testDatabase(formData.database)
-    dbConnected.value = true
+    await testDatabase(testedConfig)
+    dbConnected.value = JSON.stringify(testedConfig) === JSON.stringify(formData.database)
   } catch (error: unknown) {
     const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     errorMessage.value =
@@ -607,9 +628,10 @@ async function testRedisConnection() {
   errorMessage.value = ''
   redisConnected.value = false
 
+  const testedConfig = { ...formData.redis }
   try {
-    await testRedis(formData.redis)
-    redisConnected.value = true
+    await testRedis(testedConfig)
+    redisConnected.value = JSON.stringify(testedConfig) === JSON.stringify(formData.redis)
   } catch (error: unknown) {
     const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     errorMessage.value =
@@ -632,6 +654,7 @@ async function performInstall() {
 
   try {
     await install(formData)
+    if (disposed) return
     installSuccess.value = true
     // Start polling for service restart
     waitForServiceRestart()
@@ -650,7 +673,7 @@ async function waitForServiceRestart() {
   const interval = 1000 // 1 second between attempts
 
   // Wait a moment for the service to start restarting
-  await new Promise((resolve) => setTimeout(resolve, 3000))
+  if (!(await waitForRestart(3000))) return
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -658,18 +681,18 @@ async function waitForServiceRestart() {
       // Service might return 404 or connection refused while restarting
       const response = await fetch(buildGatewayUrl('/setup/status'), {
         method: 'GET',
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: restartController.signal
       })
 
       if (response.ok) {
         const data = await response.json()
+        if (disposed) return
         // If needs_setup is false, service has restarted in normal mode
         if (data.data && !data.data.needs_setup) {
           serviceReady.value = true
           // Redirect to login page after a short delay
-          setTimeout(() => {
-            window.location.href = '/login'
-          }, 1500)
+          if (await waitForRestart(1500)) window.location.href = '/login'
           return
         }
       }
@@ -677,7 +700,7 @@ async function waitForServiceRestart() {
       // Service not ready or network error during restart, continue polling
     }
 
-    await new Promise((resolve) => setTimeout(resolve, interval))
+    if (!(await waitForRestart(interval))) return
   }
 
   // If we reach here, service didn't restart in time

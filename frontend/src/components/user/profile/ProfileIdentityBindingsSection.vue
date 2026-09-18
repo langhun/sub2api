@@ -2,7 +2,7 @@
   <div :class="props.embedded ? 'space-y-4' : 'card overflow-hidden'">
     <div
       v-if="!props.embedded"
-      class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+      class="px-6 py-4"
     >
       <h2 class="text-lg font-medium text-gray-900 dark:text-white">
         {{ t('profile.authBindings.title') }}
@@ -12,7 +12,7 @@
       </p>
     </div>
 
-    <div :class="props.embedded ? 'space-y-4' : 'divide-y divide-gray-100 dark:divide-dark-700'">
+    <div :class="props.embedded ? 'space-y-4' : 'space-y-1'">
       <div v-if="props.embedded">
         <p class="text-sm font-semibold text-gray-900 dark:text-white">
           {{ t('profile.authBindings.title') }}
@@ -284,8 +284,8 @@ const compact = computed(() => props.compact)
 const rowClass = computed(() =>
   props.embedded
     ? compact.value
-      ? 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/40'
-      : 'rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30'
+      ? 'rounded-2xl bg-white/50 p-4 shadow-sm dark:bg-dark-900/40'
+      : 'rounded-2xl bg-gray-50/45 p-4 dark:bg-dark-900/30'
     : 'px-6 py-5'
 )
 const emailBound = computed(() => getBindingStatus('email'))

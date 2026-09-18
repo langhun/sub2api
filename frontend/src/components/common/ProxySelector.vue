@@ -65,11 +65,16 @@
         </div>
 
         <!-- Options list -->
-        <div class="select-options">
+        <div class="select-options" role="listbox" :aria-label="t('admin.accounts.proxy')">
           <!-- No Proxy option -->
           <div
             @click="selectOption(null)"
+            role="option"
+            tabindex="0"
+            :aria-selected="modelValue === null"
             :class="['select-option', modelValue === null && 'select-option-selected']"
+            @keydown.enter.prevent="selectOption(null)"
+            @keydown.space.prevent="selectOption(null)"
           >
             <span class="select-option-label">{{ t('admin.accounts.noProxy') }}</span>
             <Icon v-if="modelValue === null" name="check" size="sm" class="text-primary-500" />
@@ -80,7 +85,12 @@
             v-for="proxy in filteredProxies"
             :key="proxy.id"
             @click="selectOption(proxy.id)"
+            role="option"
+            tabindex="0"
+            :aria-selected="modelValue === proxy.id"
             :class="['select-option', modelValue === proxy.id && 'select-option-selected']"
+            @keydown.enter.prevent="selectOption(proxy.id)"
+            @keydown.space.prevent="selectOption(proxy.id)"
           >
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">

@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="min-w-0 space-y-6" data-glass-content>
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
         <div
@@ -28,12 +28,11 @@
         <div
           v-for="subscription in subscriptions"
           :key="subscription.id"
-          class="overflow-hidden rounded-2xl border bg-white dark:bg-dark-800"
-          :class="platformBorderClass(subscription.group?.platform || '')"
+          class="min-w-0 overflow-hidden rounded-2xl bg-white/50 dark:bg-dark-800/50"
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between border-b border-gray-100 p-4 dark:border-dark-700"
+            class="flex min-w-0 items-start justify-between gap-3 p-4"
           >
             <div class="flex items-center gap-3">
               <div :class="['h-1.5 w-1.5 shrink-0 rounded-full', platformAccentDotClass(subscription.group?.platform || '')]" />
@@ -258,7 +257,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
-import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
+import { platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
 import {
   getExpirationDateRelation,
   getRemainingDurationParts,

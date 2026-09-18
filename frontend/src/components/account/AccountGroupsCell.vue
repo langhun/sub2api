@@ -36,7 +36,7 @@
         <div
           v-if="showPopover"
           ref="popoverRef"
-          class="fixed z-50 min-w-48 max-w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+          class="fixed z-50 w-[min(24rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-dark-600 dark:bg-dark-800"
           :style="popoverStyle"
         >
           <div class="mb-2 flex items-center justify-between">
@@ -44,6 +44,7 @@
               {{ t('admin.accounts.groupCountTotal', { count: groups.length }) }}
             </span>
             <button
+              type="button"
               @click="showPopover = false"
               class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-300"
             >

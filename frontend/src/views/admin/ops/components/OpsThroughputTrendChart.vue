@@ -34,13 +34,14 @@ const emit = defineEmits<{
 const throughputChartRef = ref<ChartComponentRef | null>(null)
 watch(
   () => props.timeRange,
-  () => {
-    setTimeout(() => {
+  (_range, _previous, onCleanup) => {
+    const timer = setTimeout(() => {
       const chart: any = throughputChartRef.value?.chart
       if (chart && typeof chart.resetZoom === 'function') {
         chart.resetZoom()
       }
     }, 100)
+    onCleanup(() => clearTimeout(timer))
   }
 )
 
@@ -175,7 +176,7 @@ function downloadChart() {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
+  <div class="flex h-full min-w-0 flex-col rounded-3xl bg-white p-6 shadow-sm ring-0 dark:bg-dark-800">
     <div
       data-testid="throughput-chart-header"
       class="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
@@ -196,7 +197,7 @@ function downloadChart() {
         <template v-if="!props.fullscreen">
           <button
             type="button"
-            class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
+            class="inline-flex shrink-0 items-center rounded-lg border-0 bg-gray-100/70 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-200/70 disabled:opacity-50 dark:bg-dark-900/60 dark:text-gray-300 dark:hover:bg-dark-800/70"
             :disabled="state !== 'ready'"
             :title="t('admin.ops.requestDetails.title')"
             @click="emit('openDetails')"
@@ -205,7 +206,7 @@ function downloadChart() {
           </button>
           <button
             type="button"
-            class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
+            class="inline-flex shrink-0 items-center rounded-lg border-0 bg-gray-100/70 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-200/70 disabled:opacity-50 dark:bg-dark-900/60 dark:text-gray-300 dark:hover:bg-dark-800/70"
             :disabled="state !== 'ready'"
             :title="t('admin.ops.charts.resetZoomHint')"
             @click="resetZoom"
@@ -214,7 +215,7 @@ function downloadChart() {
           </button>
           <button
             type="button"
-            class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
+            class="inline-flex shrink-0 items-center rounded-lg border-0 bg-gray-100/70 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-200/70 disabled:opacity-50 dark:bg-dark-900/60 dark:text-gray-300 dark:hover:bg-dark-800/70"
             :disabled="state !== 'ready'"
             :title="t('admin.ops.charts.downloadChartHint')"
             @click="downloadChart"
@@ -231,7 +232,7 @@ function downloadChart() {
         v-for="g in props.topGroups"
         :key="g.group_id"
         type="button"
-        class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-200 dark:hover:bg-dark-800"
+        class="inline-flex items-center gap-2 rounded-full border-0 bg-gray-100/70 px-3 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-200/70 dark:bg-dark-900/60 dark:text-gray-200 dark:hover:bg-dark-800/70"
         @click="emit('selectGroup', g.group_id)"
       >
         <span class="max-w-[180px] truncate">{{ g.group_name || `#${g.group_id}` }}</span>
@@ -244,7 +245,7 @@ function downloadChart() {
         v-for="p in props.byPlatform"
         :key="p.platform"
         type="button"
-        class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-200 dark:hover:bg-dark-800"
+        class="inline-flex items-center gap-2 rounded-full border-0 bg-gray-100/70 px-3 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-200/70 dark:bg-dark-900/60 dark:text-gray-200 dark:hover:bg-dark-800/70"
         @click="emit('selectPlatform', p.platform)"
       >
         <span class="uppercase">{{ p.platform }}</span>

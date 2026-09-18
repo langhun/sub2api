@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-4">
+    <div class="min-w-0 space-y-4" data-glass-content>
       <!-- Filters -->
       <div class="card p-4">
         <div class="flex flex-wrap items-center gap-3">

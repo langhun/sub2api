@@ -3,7 +3,7 @@ import { mount, RouterLinkStub } from '@vue/test-utils'
 
 import HomeView from '../HomeView.vue'
 
-const { appStore, authStore } = vi.hoisted(() => ({
+const { appStore, authStore, theme } = vi.hoisted(() => ({
   appStore: {
     cachedPublicSettings: {} as Record<string, unknown>,
     siteName: 'Fallback site',
@@ -18,6 +18,10 @@ const { appStore, authStore } = vi.hoisted(() => ({
     user: null as { email?: string } | null,
     checkAuth: vi.fn(),
   },
+  theme: {
+    effectiveMode: { value: 'light' as 'light' | 'dark' },
+    toggleMode: vi.fn(),
+  },
 }))
 
 vi.mock('@/stores', () => ({
@@ -27,6 +31,10 @@ vi.mock('@/stores', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => appStore,
+}))
+
+vi.mock('@/custom/modules/apple-theme/useTheme', () => ({
+  useTheme: () => theme,
 }))
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -73,6 +81,8 @@ describe('HomeView compact mode', () => {
     authStore.user = null
     authStore.checkAuth.mockClear()
     appStore.fetchPublicSettings.mockClear()
+    theme.toggleMode.mockClear()
+    theme.effectiveMode.value = 'light'
     localStorage.clear()
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
   })
@@ -180,5 +190,13 @@ describe('HomeView compact mode', () => {
     })
 
     expect(modelPlazaDestination(wrapper)).toBeUndefined()
+  })
+
+  it('delegates theme changes to the shared theme controller', async () => {
+    const wrapper = mountHome({ compact_home_enabled: true })
+    await wrapper.get('button[title="home.switchToDark"]').trigger('click')
+
+    expect(theme.toggleMode).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('theme')).toBeNull()
   })
 })

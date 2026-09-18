@@ -36,7 +36,7 @@
         v-else
         v-for="(channel, chIdx) in rows"
         :key="`${channel.name}-${chIdx}`"
-        class="border-b-2 border-gray-200 last:border-b-0 dark:border-dark-600"
+        class="border-b border-gray-100/70 last:border-b-0 dark:border-dark-700/50"
       >
         <tr
           v-for="(section, secIdx) in channel.platforms"
@@ -184,7 +184,7 @@
         v-else
         v-for="(channel, chIdx) in rows"
         :key="`mobile-${channel.name}-${chIdx}`"
-        class="border-b-2 border-gray-200 px-4 py-4 last:border-b-0 dark:border-dark-600"
+        class="border-b border-gray-100/70 px-4 py-4 last:border-b-0 dark:border-dark-700/50"
       >
         <header class="mb-3 min-w-0">
           <h3 class="break-words text-sm font-semibold text-gray-900 dark:text-white">

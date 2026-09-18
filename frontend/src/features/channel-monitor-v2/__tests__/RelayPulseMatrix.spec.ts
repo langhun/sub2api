@@ -136,6 +136,11 @@ describe('RelayPulseMatrix', () => {
     expect(cells[1].classes().some((c) => c.startsWith('health-score'))).toBe(true)
     expect(cells[2].classes()).toContain('health-unknown')
 
+    // Summary cells inherit the matrix glass surface. An opaque white block
+    // here becomes a visible strip in the Apple theme, especially in dark mode.
+    expect(wrapper.find('.dimension-cell').classes()).not.toContain('bg-white')
+    expect(wrapper.find('.summary-value').classes()).not.toContain('bg-white')
+
     // No click-to-open modal
     await cells[0].trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)

@@ -2,6 +2,7 @@
   <div>
     <!-- 铃铛按钮 -->
     <button
+      type="button"
       @click="openModal"
       class="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-all hover:bg-gray-100 hover:scale-105 dark:text-gray-400 dark:hover:bg-dark-800"
       :class="{ 'text-blue-600 dark:text-blue-400': totalUnreadCount > 0 }"
@@ -27,6 +28,7 @@
           @click="closeModal"
         >
           <div
+            data-glass-popover
             class="w-full max-w-[620px] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
             @click.stop
           >
@@ -50,6 +52,7 @@
                 <div class="flex items-center gap-2">
                   <button
                     v-if="unreadCount > 0"
+                    type="button"
                     @click="markAllAsRead"
                     :disabled="loading"
                     class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:shadow-xl disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
@@ -57,6 +60,7 @@
                     {{ t('announcements.markAllRead') }}
                   </button>
                   <button
+                    type="button"
                     @click="closeModal"
                     class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/50 text-gray-500 backdrop-blur-sm transition-all hover:bg-white hover:text-gray-700 dark:bg-dark-700/50 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-gray-300"
                     :aria-label="t('common.close')"
@@ -189,6 +193,7 @@
           @click="closeDetail"
         >
           <div
+            data-glass-popover
             class="w-full max-w-[780px] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
             @click.stop
           >
@@ -250,6 +255,7 @@
 
                 <!-- Close button -->
                 <button
+                  type="button"
                   @click="closeDetail"
                   class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/50 text-gray-500 backdrop-blur-sm transition-all hover:bg-white hover:text-gray-700 hover:shadow-lg dark:bg-dark-700/50 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-gray-300"
                   :aria-label="t('common.close')"
@@ -286,6 +292,7 @@
                 </div>
                 <div class="flex items-center gap-3">
                   <button
+                    type="button"
                     @click="closeDetail"
                     class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:shadow dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600"
                   >
@@ -293,6 +300,7 @@
                   </button>
                   <button
                     v-if="!selectedAnnouncement.read_at"
+                    type="button"
                     @click="markAsReadAndClose(selectedAnnouncement.id)"
                     class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:scale-105"
                   >

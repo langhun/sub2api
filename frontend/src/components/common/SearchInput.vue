@@ -4,10 +4,13 @@
       <Icon name="search" size="md" class="text-gray-400" />
     </div>
     <input
+      :id="id"
       :value="modelValue"
       type="text"
       class="input pl-10"
       :placeholder="placeholder"
+      :disabled="disabled"
+      :aria-label="ariaLabel || placeholder"
       @input="handleInput"
     />
   </div>
@@ -21,9 +24,13 @@ const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
   debounceMs?: number
+  id?: string
+  ariaLabel?: string
+  disabled?: boolean
 }>(), {
   placeholder: 'Search...',
-  debounceMs: 300
+  debounceMs: 300,
+  disabled: false
 })
 
 const emit = defineEmits<{
@@ -36,6 +43,7 @@ const debouncedEmitSearch = useDebounceFn((value: string) => {
 }, props.debounceMs)
 
 const handleInput = (event: Event) => {
+  if (props.disabled) return
   const value = (event.target as HTMLInputElement).value
   emit('update:modelValue', value)
   debouncedEmitSearch(value)

@@ -91,7 +91,7 @@
                 @keyup.enter="handleSubmitInvitation"
               />
             </div>
-            <button
+            <button type="button"
               class="btn btn-primary w-full"
               :disabled="isSubmitting || !invitationCode.trim()"
               @click="handleSubmitInvitation"
@@ -108,7 +108,7 @@
             <p class="text-sm text-gray-700 dark:text-gray-300">
               {{ t('auth.oauthFlow.reviewProfileBeforeContinue', { providerName }) }}
             </p>
-            <button class="btn btn-primary w-full" :disabled="isSubmitting" @click="handleContinueLogin">
+            <button type="button" class="btn btn-primary w-full" :disabled="isSubmitting" @click="handleContinueLogin">
               {{ isSubmitting ? t('common.processing') : t('auth.continue') }}
             </button>
           </template>
@@ -130,14 +130,14 @@
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-2">
-                  <button
+                  <button type="button"
                     class="btn btn-secondary w-full"
                     :disabled="isSubmitting"
                     @click="switchToBindLoginMode()"
                   >
                     {{ t('auth.oauthFlow.bindExistingAccount') }}
                   </button>
-                  <button
+                  <button type="button"
                     class="btn btn-primary w-full"
                     :disabled="isSubmitting"
                     @click="switchToCreateAccountMode"
@@ -186,7 +186,7 @@
                 :disabled="isSubmitting"
                 @keyup.enter="handleBindLogin"
               />
-              <button
+              <button type="button"
                 data-testid="oidc-bind-login-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || !bindLoginEmail.trim() || !bindLoginPassword"
@@ -194,7 +194,7 @@
               >
                 {{ isSubmitting ? t('common.processing') : t('auth.oauthFlow.logInAndBind') }}
               </button>
-              <button
+              <button type="button"
                 v-if="canReturnToCreateAccount"
                 class="btn btn-secondary w-full"
                 :disabled="isSubmitting"
@@ -226,7 +226,7 @@
                 :disabled="isSubmitting"
                 @keyup.enter="handleSubmitTotpChallenge"
               />
-              <button
+              <button type="button"
                 data-testid="oidc-bind-login-totp-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || totpCode.trim().length !== 6"

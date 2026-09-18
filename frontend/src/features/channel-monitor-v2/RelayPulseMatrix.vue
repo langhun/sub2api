@@ -53,31 +53,31 @@
           <div
             v-for="entry in alignedRows"
             :key="rowKey(entry.row)"
-            class="matrix-row border-b border-gray-100/80 dark:border-dark-700/60"
+            class="matrix-row"
             :class="showThroughput ? 'matrix-row--with-tps' : ''"
           >
-            <div class="dimension-cell flex min-w-0 items-center gap-2 bg-white dark:bg-dark-800" :title="rowLabel(entry.row)">
+            <div class="dimension-cell flex min-w-0 items-center gap-2" :title="rowLabel(entry.row)">
               <span :class="['status-dot', cellClass(entry.row.health, entry.row.metrics.request_count)]"></span>
               <strong class="truncate text-xs font-semibold text-gray-800 dark:text-gray-100">{{ rowLabel(entry.row) }}</strong>
             </div>
-            <strong class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300">
+            <strong class="summary-value text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300">
               {{ successRate(entry.row.metrics) }}
             </strong>
             <strong
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300"
               :title="latencyPrivacy(entry.row.metrics.ttft)"
             >
               {{ formatMs(entry.row.metrics.ttft.p50_ms) }}
             </strong>
             <strong
               v-if="showThroughput"
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300"
               :title="exactTps(entry.row.metrics.tpm)"
             >
               {{ formatTps(entry.row.metrics.tpm) }}
             </strong>
             <strong
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300"
             >
               {{ formatPercent(entry.row.metrics.cache_rate) }}
             </strong>

@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-4">
+    <div class="w-full min-w-0 space-y-4" data-glass-content>
       <!-- Filters -->
       <div class="card p-4">
         <div class="flex flex-wrap items-center gap-3">
@@ -17,7 +17,7 @@
       <!-- Table -->
       <OrderTable :orders="orders" :loading="loading" :show-order-id="false">
         <template #actions="{ row }">
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
             <button @click="openOrderDetail(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-600">
               <Icon name="eye" size="sm" />
               <span>{{ t('common.view') }}</span>

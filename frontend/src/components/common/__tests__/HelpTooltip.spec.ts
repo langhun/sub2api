@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
@@ -14,6 +14,7 @@ function getTooltipElement(): HTMLDivElement {
 describe('HelpTooltip', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+    vi.restoreAllMocks()
   })
 
   it('keeps the existing hover interaction by default', async () => {
@@ -105,6 +106,24 @@ describe('HelpTooltip', () => {
     await nextTick()
     expect(tooltip.style.display).toBe('none')
 
+    wrapper.unmount()
+  })
+
+  it('keeps a fixed tooltip within the viewport without adding document scroll offsets', async () => {
+    const wrapper = mount(HelpTooltip, { attachTo: document.body, props: { content: 'Details' } })
+    const trigger = wrapper.get('.group')
+    vi.spyOn(trigger.element, 'getBoundingClientRect').mockReturnValue({ top: 5, bottom: 21, left: 0, width: 16 } as DOMRect)
+    const tooltip = getTooltipElement()
+    Object.defineProperty(tooltip, 'offsetWidth', { value: 256 })
+    Object.defineProperty(tooltip, 'offsetHeight', { value: 100 })
+    await trigger.trigger('focus')
+    await nextTick()
+    expect(tooltip.style.left).toBe('8px')
+    expect(tooltip.style.top).toBe('29px')
+    expect(trigger.attributes('aria-describedby')).toBe(tooltip.id)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+    await nextTick()
+    expect(tooltip.style.display).toBe('none')
     wrapper.unmount()
   })
 })

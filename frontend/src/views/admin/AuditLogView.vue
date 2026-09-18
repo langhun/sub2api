@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <TablePageLayout data-glass-content>
       <!-- Filters -->
       <template #filters>
         <div class="card p-4 sm:p-6">

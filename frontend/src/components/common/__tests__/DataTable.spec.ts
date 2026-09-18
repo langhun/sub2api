@@ -302,11 +302,15 @@ describe('DataTable', () => {
     await wrapper.setProps({ selectedKeys: selectedAll as number[] })
     const rowCheckboxes = wrapper.findAll<HTMLInputElement>('[data-test="select-row"]')
     expect(rowCheckboxes.every((checkbox) => checkbox.element.checked)).toBe(true)
+    expect(wrapper.findAll('tbody tr[aria-selected="true"]')).toHaveLength(2)
 
     await rowCheckboxes[0].setValue(false)
 
     expect(wrapper.emitted('update:selectedKeys')?.at(-1)?.[0]).toEqual([99, 2])
     expect(wrapper.emitted('selectionChange')?.at(-1)?.[0]).toEqual([99, 2])
+    await wrapper.setProps({ selectedKeys: [99, 2] })
+    expect(wrapper.get('tr[data-row-id="1"]').attributes('aria-selected')).toBe('false')
+    expect(wrapper.get('tr[data-row-id="2"]').attributes('aria-selected')).toBe('true')
   })
 
   it('keeps the single usage field shrinkable in a 320px mobile card', () => {
@@ -356,5 +360,7 @@ describe('DataTable', () => {
     await wrapper.get('[data-test="select-all-mobile"]').setValue(true)
 
     expect(wrapper.emitted('update:selectedKeys')?.at(-1)?.[0]).toEqual([99, 1, 2])
+    await wrapper.setProps({ selectedKeys: [99, 2] })
+    expect(wrapper.findAll('[data-selected="true"]')).toHaveLength(1)
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -20,6 +20,8 @@ export interface OpsRequestDetailsPreset {
 interface Props {
   modelValue: boolean
   timeRange: string
+  customStartTime?: string | null
+  customEndTime?: string | null
   preset: OpsRequestDetailsPreset
   platform?: string
   groupId?: number | null
@@ -44,6 +46,8 @@ const items = ref<OpsRequestDetail[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+let requestSequence = 0
+onUnmounted(() => { requestSequence += 1 })
 
 const close = () => emit('update:modelValue', false)
 
@@ -56,12 +60,18 @@ function formatLatency(row: OpsRequestDetail): string {
 }
 
 const rangeLabel = computed(() => {
+  if (props.timeRange === 'custom' && props.customStartTime && props.customEndTime) {
+    return `${formatDateTime(props.customStartTime)} - ${formatDateTime(props.customEndTime)}`
+  }
   const minutes = parseTimeRangeMinutes(props.timeRange)
   if (minutes >= 60) return t('admin.ops.requestDetails.rangeHours', { n: Math.round(minutes / 60) })
   return t('admin.ops.requestDetails.rangeMinutes', { n: minutes })
 })
 
 function buildTimeParams(): Pick<OpsRequestDetailsParams, 'start_time' | 'end_time'> {
+  if (props.timeRange === 'custom' && props.customStartTime && props.customEndTime) {
+    return { start_time: props.customStartTime, end_time: props.customEndTime }
+  }
   const minutes = parseTimeRangeMinutes(props.timeRange)
   const endTime = new Date()
   const startTime = new Date(endTime.getTime() - minutes * 60 * 1000)
@@ -73,6 +83,7 @@ function buildTimeParams(): Pick<OpsRequestDetailsParams, 'start_time' | 'end_ti
 
 const fetchData = async () => {
   if (!props.modelValue) return
+  const sequence = ++requestSequence
   loading.value = true
   try {
     const params: OpsRequestDetailsParams = {
@@ -91,15 +102,17 @@ const fetchData = async () => {
     if (typeof props.preset.max_duration_ms === 'number') params.max_duration_ms = props.preset.max_duration_ms
 
     const res = await opsAPI.listRequestDetails(params)
+    if (sequence !== requestSequence) return
     items.value = res.items || []
     total.value = res.total || 0
   } catch (e: any) {
+    if (sequence !== requestSequence) return
     console.error('[OpsRequestDetailsModal] Failed to fetch request details', e)
     appStore.showError(e?.message || t('admin.ops.requestDetails.failedToLoad'))
     items.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (sequence === requestSequence) loading.value = false
   }
 }
 
@@ -111,6 +124,9 @@ watch(
       page.value = 1
       pageSize.value = 10
       fetchData()
+    } else {
+      requestSequence += 1
+      loading.value = false
     }
   }
 )
@@ -118,6 +134,8 @@ watch(
 watch(
   () => [
     props.timeRange,
+    props.customStartTime,
+    props.customEndTime,
     props.platform,
     props.groupId,
     props.preset.kind,

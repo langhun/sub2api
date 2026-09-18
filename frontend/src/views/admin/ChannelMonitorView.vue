@@ -17,7 +17,7 @@
               : t('channelMonitorV2.admin.descriptionV2')
           }}
         </p>
-        <div class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+        <div class="mt-4 pt-4">
           <div
             class="tabs inline-flex w-full max-w-xl flex-wrap sm:w-auto"
             role="tablist"
@@ -49,7 +49,7 @@
 
       <MonitorSettingsPanel v-if="adminMonitorTab === 'v2'" />
 
-      <TablePageLayout v-else>
+      <TablePageLayout v-else data-glass-content>
       <template #filters>
         <MonitorFiltersBar
           v-model:search="searchQuery"

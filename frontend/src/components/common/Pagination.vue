@@ -23,9 +23,9 @@
       </button>
     </div>
 
-    <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+    <div class="hidden min-w-0 gap-3 sm:flex sm:flex-1 sm:flex-wrap sm:items-center sm:justify-between">
       <!-- Desktop pagination info -->
-      <div class="flex items-center space-x-4">
+      <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         <p class="text-sm text-gray-700 dark:text-gray-300">
           {{ t('pagination.showing') }}
           <span class="font-medium">{{ fromItem }}</span>
@@ -166,7 +166,7 @@ const toItem = computed(() => {
 const pageSizeSelectOptions = computed(() => {
   const options = Array.from(
     new Set([
-      ...getConfiguredTablePageSizeOptions(),
+      ...props.pageSizeOptions,
       normalizeTablePageSize(props.pageSize)
     ])
   ).sort((a, b) => a - b)
@@ -177,7 +177,7 @@ const pageSizeSelectOptions = computed(() => {
   }))
 })
 
-const jumpPage = ref('')
+const jumpPage = ref<string | number>('')
 
 const visiblePages = computed(() => {
   const pages: (number | string)[] = []
@@ -232,7 +232,7 @@ const handlePageSizeChange = (value: string | number | boolean | null) => {
 }
 
 const submitJump = () => {
-  const value = jumpPage.value.trim()
+  const value = String(jumpPage.value).trim()
   if (!value) return
   const pageNum = Number.parseInt(value, 10)
   if (Number.isNaN(pageNum)) return

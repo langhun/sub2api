@@ -2,6 +2,7 @@
   <div v-if="subscriptionFeatureEnabled && hasActiveSubscriptions" class="relative" ref="containerRef">
     <!-- Mini Progress Display -->
     <button
+      type="button"
       @click="toggleTooltip"
       class="flex cursor-pointer items-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
       :title="t('subscriptionProgress.viewDetails')"

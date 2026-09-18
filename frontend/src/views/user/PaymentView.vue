@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-5">
+    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-5" data-glass-content>
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
@@ -1290,6 +1290,10 @@ onMounted(async () => {
 .recharge-action button {
   min-height: 3.25rem;
   overflow-wrap: anywhere;
+}
+
+.recharge-action {
+  align-self: stretch;
 }
 
 @media (min-width: 1024px) {

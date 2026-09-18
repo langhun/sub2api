@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, nextTick } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useId, useTemplateRef, nextTick } from 'vue'
 
 const props = withDefaults(defineProps<{
   content?: string
@@ -11,6 +11,8 @@ const props = withDefaults(defineProps<{
 })
 
 const show = ref(false)
+const tooltipId = useId()
+const placement = ref<'top' | 'bottom'>('top')
 const triggerRef = useTemplateRef<HTMLElement>('trigger')
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip')
 const tooltipStyle = ref({ top: '0px', left: '0px' })
@@ -65,8 +67,9 @@ function onDocumentClick(event: MouseEvent) {
 }
 
 function onDocumentKeydown(event: KeyboardEvent) {
-  if (props.trigger !== 'click') return
-  if (event.key === 'Escape') {
+  if (show.value && event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
     closeTooltip()
   }
 }
@@ -80,9 +83,17 @@ function updatePosition() {
   const el = triggerRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
+  const tooltip = tooltipRef.value
+  if (!tooltip) return
+  const padding = 8
+  const width = Math.min(tooltip.offsetWidth, window.innerWidth - padding * 2)
+  const height = tooltip.offsetHeight
+  const above = rect.top - height - padding
+  placement.value = above >= padding ? 'top' : 'bottom'
+  const top = placement.value === 'top' ? above : rect.bottom + padding
   tooltipStyle.value = {
-    top: `${rect.top + window.scrollY}px`,
-    left: `${rect.left + rect.width / 2 + window.scrollX}px`,
+    top: `${Math.min(Math.max(padding, top), Math.max(padding, window.innerHeight - height - padding))}px`,
+    left: `${Math.min(Math.max(padding, rect.left + rect.width / 2 - width / 2), Math.max(padding, window.innerWidth - width - padding))}px`,
   }
 }
 
@@ -105,6 +116,12 @@ onBeforeUnmount(() => {
   <div
     ref="trigger"
     class="group relative ml-1 inline-flex items-center align-middle"
+    tabindex="0"
+    :aria-describedby="show ? tooltipId : undefined"
+    @focus="onEnter"
+    @blur="props.trigger === 'hover' && closeTooltip()"
+    @keydown.enter.prevent="props.trigger === 'click' && (show ? closeTooltip() : openTooltip())"
+    @keydown.space.prevent="props.trigger === 'click' && (show ? closeTooltip() : openTooltip())"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
     @click="onClick"
@@ -131,13 +148,15 @@ onBeforeUnmount(() => {
       <!-- before: 伪元素向下延伸一段透明区域，盖住提示框与触发图标之间的空隙，让指针能连续移入提示框。 -->
       <div
         ref="tooltip"
+        :id="tooltipId"
         v-show="show"
         role="tooltip"
         :class="[
-          'fixed z-[99999] -translate-x-1/2 -translate-y-full rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 selection:bg-primary-200 selection:text-gray-900 before:absolute before:inset-x-0 before:top-full before:h-3 dark:bg-gray-800 dark:selection:bg-primary-200 dark:selection:text-gray-900',
+          'fixed z-[99999] max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 selection:bg-primary-200 selection:text-gray-900 before:absolute before:inset-x-0 before:h-3 dark:bg-gray-800 dark:selection:bg-primary-200 dark:selection:text-gray-900',
+          placement === 'top' ? 'before:top-full' : 'before:bottom-full',
           props.widthClass,
         ]"
-        :style="{ top: `calc(${tooltipStyle.top} - 8px)`, left: tooltipStyle.left }"
+        :style="tooltipStyle"
         @mouseleave="onTooltipLeave"
       >
         <button
@@ -152,7 +171,7 @@ onBeforeUnmount(() => {
           </svg>
         </button>
         <slot>{{ content }}</slot>
-        <div class="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-800"></div>
+        <div class="absolute left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-800" :class="placement === 'top' ? '-bottom-1' : '-top-1'"></div>
       </div>
     </Teleport>
   </div>

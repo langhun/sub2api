@@ -125,11 +125,15 @@ const dropdownStyle = computed<CSSProperties>(() => {
   if (!trigger) return {}
   const rect = trigger.getBoundingClientRect()
   const padding = 8
-  const viewportRight = Math.max(padding, window.innerWidth - padding)
-  const left = Math.min(Math.max(padding, rect.left), viewportRight)
-  const availableWidth = Math.max(0, viewportRight - left)
   const preferredMinWidth = Math.max(200, rect.width)
-  const minWidth = Math.min(preferredMinWidth, availableWidth)
+  const viewportWidth = Math.max(0, window.innerWidth - padding * 2)
+  const minWidth = Math.min(preferredMinWidth, viewportWidth)
+  // Keep the portal fully inside the viewport. The previous clamp allowed
+  // `left` to equal the right edge, producing a zero-width menu on narrow
+  // screens when the trigger was the last toolbar control.
+  const maxLeft = Math.max(padding, window.innerWidth - padding - minWidth)
+  const left = Math.min(Math.max(padding, rect.left), maxLeft)
+  const availableWidth = Math.max(0, window.innerWidth - padding - left)
   return {
     position: 'fixed' as const,
     left: `${left}px`,
@@ -172,11 +176,12 @@ function positionDropdown() {
   if (!trigger || !dropdown) return
   const rect = trigger.getBoundingClientRect()
   const padding = 8
-  const viewportRight = Math.max(padding, window.innerWidth - padding)
-  const left = Math.min(Math.max(padding, rect.left), viewportRight)
-  const availableWidth = Math.max(0, viewportRight - left)
   const preferredMinWidth = Math.max(200, rect.width)
-  const minWidth = Math.min(preferredMinWidth, availableWidth)
+  const viewportWidth = Math.max(0, window.innerWidth - padding * 2)
+  const minWidth = Math.min(preferredMinWidth, viewportWidth)
+  const maxLeft = Math.max(padding, window.innerWidth - padding - minWidth)
+  const left = Math.min(Math.max(padding, rect.left), maxLeft)
+  const availableWidth = Math.max(0, window.innerWidth - padding - left)
   dropdown.style.left = `${left}px`
   dropdown.style.top = `${rect.bottom + 4}px`
   dropdown.style.minWidth = `${minWidth}px`

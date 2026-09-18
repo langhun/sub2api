@@ -87,4 +87,39 @@ describe('Ops request latency details', () => {
     expect(wrapper.text()).not.toContain('800 ms')
     wrapper.unmount()
   })
+
+  it('queries the selected custom window instead of the latest hour', async () => {
+    const wrapper = await openDetails('duration_desc')
+    await wrapper.setProps({
+      timeRange: 'custom',
+      customStartTime: '2026-09-01T00:00:00Z',
+      customEndTime: '2026-09-02T00:00:00Z',
+    })
+    await flushPromises()
+    expect(listRequestDetails).toHaveBeenLastCalledWith(expect.objectContaining({
+      start_time: '2026-09-01T00:00:00Z',
+      end_time: '2026-09-02T00:00:00Z',
+    }))
+    await wrapper.setProps({ customEndTime: '2026-09-03T00:00:00Z' })
+    await flushPromises()
+    expect(listRequestDetails).toHaveBeenLastCalledWith(expect.objectContaining({ end_time: '2026-09-03T00:00:00Z' }))
+    wrapper.unmount()
+  })
+
+  it('ignores a response from an older filter selection', async () => {
+    const wrapper = await openDetails('duration_desc')
+    let resolveOld!: (value: unknown) => void
+    listRequestDetails.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+    await wrapper.setProps({ platform: 'openai' })
+    listRequestDetails.mockResolvedValueOnce({
+      items: [{ kind: 'success', created_at: '2026-09-10T00:00:00Z', duration_ms: 44444 }], total: 1,
+    })
+    await wrapper.setProps({ platform: 'anthropic' })
+    await flushPromises()
+    resolveOld({ items: [{ kind: 'success', created_at: '2026-09-10T00:00:00Z', duration_ms: 33333 }], total: 1 })
+    await flushPromises()
+    expect(wrapper.text()).toContain('44444 ms')
+    expect(wrapper.text()).not.toContain('33333 ms')
+    wrapper.unmount()
+  })
 })

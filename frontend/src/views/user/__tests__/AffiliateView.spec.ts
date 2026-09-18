@@ -73,6 +73,8 @@ describe('AffiliateView', () => {
 
     await flushPromises()
 
+    expect(wrapper.find('[data-glass-content]').exists()).toBe(true)
+
     const values = wrapper.findAll('code')
     expect(values).toHaveLength(2)
     for (const value of values) {
@@ -88,6 +90,7 @@ describe('AffiliateView', () => {
         'sm:flex-row',
         'sm:items-center',
       ]))
+      expect(value.element.parentElement?.className).not.toMatch(/border-(gray|dark)-/)
     }
 
     const copyButtons = wrapper.findAll('button').filter((button) =>

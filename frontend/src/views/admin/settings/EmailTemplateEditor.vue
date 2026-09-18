@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div class="card min-w-0" data-glass-content>
     <div
       class="flex flex-col gap-3 border-b border-gray-100 px-6 py-4 dark:border-dark-700 lg:flex-row lg:items-start lg:justify-between"
     >

@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="w-full min-w-0 space-y-6">
+    <div class="w-full min-w-0 space-y-6" data-glass-content>
       <!-- Current Balance Card -->
       <div class="card overflow-hidden">
         <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
@@ -82,7 +82,7 @@
       <transition name="fade">
         <div
           v-if="redeemResult"
-          class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+          class="card bg-emerald-50/70 dark:bg-emerald-900/20"
         >
           <div class="p-6">
             <div class="flex items-start gap-4">
@@ -136,7 +136,7 @@
       <transition name="fade">
         <div
           v-if="errorMessage"
-          class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
+          class="card bg-red-50/70 dark:bg-red-900/20"
         >
           <div class="p-6">
             <div class="flex items-start gap-4">
@@ -164,7 +164,7 @@
 
       <!-- Information Card -->
       <div
-        class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
+        class="card bg-primary-50/70 dark:bg-primary-900/20"
       >
         <div class="p-6">
           <div class="flex items-start gap-4">
@@ -207,7 +207,7 @@
 
       <!-- Recent Activity -->
       <div class="card">
-        <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+        <div class="px-6 py-4">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ t('redeem.recentActivity') }}
           </h2>

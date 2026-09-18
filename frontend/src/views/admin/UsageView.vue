@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="usage-dashboard-shell space-y-6" data-glass-content>
+    <div class="usage-dashboard-shell min-w-0 space-y-6" data-glass-content>
       <UsageStatsCards :stats="usageStats" />
       <!-- Charts Section -->
       <div class="space-y-4">
@@ -229,6 +229,7 @@ const inboundEndpointStats = ref<EndpointStat[]>([])
 const upstreamEndpointStats = ref<EndpointStat[]>([])
 const endpointPathStats = ref<EndpointStat[]>([])
 const endpointStatsLoading = ref(false)
+let initialChartTimer: number | undefined
 let abortController: AbortController | null = null; let exportAbortController: AbortController | null = null
 let chartReqSeq = 0
 let statsReqSeq = 0
@@ -870,14 +871,20 @@ onMounted(() => {
   loadLogs()
   loadStats()
   loadModelStats(modelDistributionSource.value, true)
-  window.setTimeout(() => {
+  initialChartTimer = window.setTimeout(() => {
+    initialChartTimer = undefined
     void loadChartData()
   }, 120)
   loadSavedColumns()
   loadSavedErrColumns()
   document.addEventListener('click', handleColumnClickOutside)
 })
-onUnmounted(() => { abortController?.abort(); exportAbortController?.abort(); document.removeEventListener('click', handleColumnClickOutside) })
+onUnmounted(() => {
+  window.clearTimeout(initialChartTimer)
+  abortController?.abort()
+  exportAbortController?.abort()
+  document.removeEventListener('click', handleColumnClickOutside)
+})
 
 watch(modelDistributionSource, (source) => {
   void loadModelStats(source)

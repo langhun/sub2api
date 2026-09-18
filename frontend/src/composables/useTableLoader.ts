@@ -1,5 +1,4 @@
 import { ref, reactive, onUnmounted, toRaw } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
 import type { BasePaginationResponse, FetchOptions } from '@/types'
 import { getPersistedPageSize, setPersistedPageSize } from './usePersistedPageSize'
 
@@ -35,12 +34,14 @@ export function useTableLoader<T, P extends Record<string, any>>(options: TableL
   })
 
   let abortController: AbortController | null = null
+  let disposed = false
 
   const isAbortError = (error: any) => {
     return error?.name === 'AbortError' || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError'
   }
 
   const load = async () => {
+    if (disposed) return
     if (abortController) {
       abortController.abort()
     }
@@ -56,29 +57,44 @@ export function useTableLoader<T, P extends Record<string, any>>(options: TableL
         { signal: currentController.signal }
       )
 
+      // Fetch adapters may ignore AbortSignal or settle after cancellation.
+      if (disposed || currentController.signal.aborted || abortController !== currentController) return
+
       items.value = response.items || []
       pagination.total = response.total || 0
       pagination.pages = response.pages || 0
     } catch (error) {
+      if (disposed || currentController.signal.aborted || abortController !== currentController) return
       if (!isAbortError(error)) {
         console.error('Table load error:', error)
         throw error
       }
     } finally {
       if (abortController === currentController) {
+        abortController = null
         loading.value = false
       }
     }
   }
 
   const reload = () => {
+    if (disposed) return
     pagination.page = 1
     return load()
   }
 
-  const debouncedReload = useDebounceFn(reload, debounceMs)
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+  const debouncedReload = () => {
+    if (disposed) return
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null
+      void reload()
+    }, debounceMs)
+  }
 
   const handlePageChange = (page: number) => {
+    if (disposed) return
     // 确保页码在有效范围内
     const validPage = Math.max(1, Math.min(page, pagination.pages || 1))
     pagination.page = validPage
@@ -86,6 +102,7 @@ export function useTableLoader<T, P extends Record<string, any>>(options: TableL
   }
 
   const handlePageSizeChange = (size: number) => {
+    if (disposed) return
     pagination.page_size = size
     pagination.page = 1
     setPersistedPageSize(size)
@@ -93,7 +110,14 @@ export function useTableLoader<T, P extends Record<string, any>>(options: TableL
   }
 
   onUnmounted(() => {
+    disposed = true
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+      debounceTimer = null
+    }
     abortController?.abort()
+    abortController = null
+    loading.value = false
   })
 
   return {

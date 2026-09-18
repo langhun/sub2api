@@ -91,7 +91,7 @@
                 @keyup.enter="handleSubmitInvitation"
               />
             </div>
-            <button
+            <button type="button"
               class="btn btn-primary w-full"
               :disabled="isSubmitting || !invitationCode.trim()"
               @click="handleSubmitInvitation"
@@ -184,7 +184,7 @@
             <p class="text-sm text-gray-700 dark:text-gray-300">
               {{ t('auth.oauthFlow.reviewProfileBeforeContinue', { providerName }) }}
             </p>
-            <button class="btn btn-primary w-full" :disabled="isSubmitting" @click="handleContinueLogin">
+            <button type="button" class="btn btn-primary w-full" :disabled="isSubmitting" @click="handleContinueLogin">
               {{ isSubmitting ? t('common.processing') : t('auth.continue') }}
             </button>
           </template>
@@ -201,7 +201,7 @@
               @submit="handleCreateAccount"
               @switch-to-bind="switchToBindLoginMode"
             />
-            <button
+            <button type="button"
               v-if="showBackToChooser"
               class="btn btn-secondary w-full"
               :disabled="isSubmitting"
@@ -259,7 +259,7 @@
                 :disabled="isSubmitting"
                 @keyup.enter="handleBindLogin"
               />
-              <button
+              <button type="button"
                 data-testid="wechat-bind-login-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || !bindLoginEmail.trim() || !bindLoginPassword"
@@ -268,7 +268,7 @@
                 {{ isSubmitting ? t('common.processing') : t('auth.oauthFlow.logInAndBind') }}
               </button>
             </div>
-            <button
+            <button type="button"
               v-if="showBackToChooser"
               class="btn btn-secondary w-full"
               :disabled="isSubmitting"
@@ -299,7 +299,7 @@
                 :disabled="isSubmitting"
                 @keyup.enter="handleSubmitTotpChallenge"
               />
-              <button
+              <button type="button"
                 data-testid="wechat-bind-login-totp-submit"
                 class="btn btn-primary w-full"
                 :disabled="isSubmitting || totpCode.trim().length !== 6"

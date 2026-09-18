@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-4">
+    <div class="min-w-0 space-y-4" data-glass-content>
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2">
         <button @click="loadPlans" :disabled="plansLoading" class="btn btn-secondary" :title="t('common.refresh')">

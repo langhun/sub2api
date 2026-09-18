@@ -200,6 +200,14 @@ describe('admin UsageView route filters', () => {
     vi.useRealTimers()
   })
 
+  it('cancels the deferred chart request when leaving the page', async () => {
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(200)
+    expect(getSnapshotV2).not.toHaveBeenCalled()
+  })
+
   it('shows the routed user while applying user_id to usage requests', async () => {
     routeQuery.user_id = '42'
     getById.mockResolvedValue({ id: 42, email: 'route-user@test.com' })

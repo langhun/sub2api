@@ -92,6 +92,7 @@ describe('ProfileView', () => {
 
     expect(wrapper.findAll('.stat-card')).toHaveLength(0)
     expect(wrapper.get('[data-testid="profile-shell"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="profile-shell"]').attributes('data-glass-content')).toBe('')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-info-card')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-password-form')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-totp-card')

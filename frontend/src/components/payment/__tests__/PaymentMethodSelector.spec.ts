@@ -107,4 +107,16 @@ describe('PaymentMethodSelector', () => {
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('select')).toEqual([['alipay']])
   })
+
+  it('reserves detail space so changing amount limits does not resize method cards', () => {
+    const wrapper = mount(PaymentMethodSelector, {
+      props: {
+        selected: 'alipay',
+        methods: [{ type: 'alipay', fee_rate: 0, available: true }],
+      },
+    })
+
+    expect(wrapper.get('button').classes()).toContain('min-h-28')
+    expect(wrapper.get('.payment-method-details').classes()).toContain('min-h-12')
+  })
 })
