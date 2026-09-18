@@ -79,7 +79,8 @@ func TestServiceRefundExpiredReturnsOnlyLockedRemainingAmount(t *testing.T) {
 
 func TestExpiryWorkerSkipsWhenPeerOwnsLease(t *testing.T) {
 	expire := &expiryStub{}
-	worker := NewExpiryWorker(ExpiryWorkerDependencies{Expire: expire, Leases: leaseCoordinator{acquired: false}}).(*expiryWorker)
+	worker, ok := NewExpiryWorker(ExpiryWorkerDependencies{Expire: expire, Leases: leaseCoordinator{acquired: false}}).(*expiryWorker)
+	require.True(t, ok)
 
 	worker.runOnce(context.Background())
 

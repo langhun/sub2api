@@ -72,7 +72,7 @@ func (l databaseLease) Release(ctx context.Context) error {
 	if l.conn == nil {
 		return nil
 	}
-	defer l.conn.Close()
+	defer func() { _ = l.conn.Close() }()
 	if _, err := l.conn.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", l.lockID); err != nil {
 		return fmt.Errorf("release advisory lease: %w", err)
 	}

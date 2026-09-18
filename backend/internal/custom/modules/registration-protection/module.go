@@ -91,7 +91,7 @@ func (m *Module) list(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to load registration risk profiles"})
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]riskListItem, 0)
 	for rows.Next() {
 		var item riskListItem

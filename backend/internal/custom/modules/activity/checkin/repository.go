@@ -92,7 +92,7 @@ func (r *entRepository) LockAccount(ctx context.Context, userID int64) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err

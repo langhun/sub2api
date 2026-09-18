@@ -29,7 +29,7 @@ func (r *Repository) Create(ctx context.Context, ticket Ticket, body string) (*T
 	if err != nil {
 		return nil, fmt.Errorf("begin support ticket: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var activeTickets int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM custom_support_tickets WHERE user_id = $1 AND status <> 'closed'`, ticket.UserID).Scan(&activeTickets); err != nil {
 		return nil, fmt.Errorf("count user support tickets: %w", err)
@@ -66,7 +66,7 @@ func (r *Repository) CreateAdmin(ctx context.Context, ticket Ticket, adminID int
 	if err != nil {
 		return nil, fmt.Errorf("begin admin support ticket: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var targetUserID int64
 	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id = $1 AND status = 'active' AND deleted_at IS NULL FOR UPDATE`, ticket.UserID).Scan(&targetUserID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -130,7 +130,7 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Ticket, int
 	if err != nil {
 		return nil, 0, fmt.Errorf("list support tickets: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]Ticket, 0)
 	for rows.Next() {
 		var item Ticket
@@ -171,7 +171,7 @@ func (r *Repository) Detail(ctx context.Context, publicID string, userID *int64,
 	if err != nil {
 		return nil, fmt.Errorf("list ticket messages: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result.Messages = make([]Message, 0)
 	for rows.Next() {
 		var m Message
@@ -194,7 +194,7 @@ func (r *Repository) AddReply(ctx context.Context, input ReplyInput) (*Ticket, e
 	if err != nil {
 		return nil, fmt.Errorf("begin ticket reply: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var ticket Ticket
 	if err := scanTicket(tx.QueryRowContext(ctx, `SELECT id, public_id, user_id, category, subject, status, priority, last_reply_by, last_activity_at, resolved_at, closed_at, created_at, updated_at FROM custom_support_tickets WHERE public_id = $1 FOR UPDATE`, input.PublicID), &ticket); errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -273,7 +273,7 @@ func (r *Repository) update(ctx context.Context, publicID string, actorID int64,
 	if err != nil {
 		return nil, fmt.Errorf("begin ticket update: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var t Ticket
 	if err := scanTicket(tx.QueryRowContext(ctx, `SELECT id, public_id, user_id, category, subject, status, priority, last_reply_by, last_activity_at, resolved_at, closed_at, created_at, updated_at FROM custom_support_tickets WHERE public_id=$1 FOR UPDATE`, publicID), &t); errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

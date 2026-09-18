@@ -337,7 +337,7 @@ func (s *RiskStore) AllowTrialCost(ctx context.Context, userID int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, userID); err != nil {
 		return err
 	}
@@ -410,8 +410,4 @@ func normalizeNetwork(value string) (string, bool) {
 		return "", false
 	}
 	return strings.Join(chunks[:4], ":") + "::/64", true
-}
-
-func normalizeNetworkLabel(value string) string {
-	return strings.TrimSpace(value)
 }

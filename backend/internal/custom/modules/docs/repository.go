@@ -35,7 +35,7 @@ func (r *Repository) List(ctx context.Context, slug, locale string, viewerUserID
 	if err != nil {
 		return nil, fmt.Errorf("list documentation revisions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result := &Revisions{History: make([]Revision, 0)}
 	for rows.Next() {
 		var revision Revision
@@ -80,7 +80,7 @@ func (r *Repository) Create(ctx context.Context, input CreateInput) (*Revision, 
 	if err != nil {
 		return nil, fmt.Errorf("begin documentation revision: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var currentID sql.NullInt64
 	err = tx.QueryRowContext(ctx, `SELECT id FROM custom_docs_revisions WHERE slug = $1 AND locale = $2 AND status = 'approved' ORDER BY id DESC LIMIT 1 FOR UPDATE`, input.Slug, input.Locale).Scan(&currentID)
@@ -120,7 +120,7 @@ func (r *Repository) Revert(ctx context.Context, slug, locale string, revisionID
 	if err != nil {
 		return nil, fmt.Errorf("begin documentation revert: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var source Revision
 	err = tx.QueryRowContext(ctx, `SELECT id, slug, locale, content FROM custom_docs_revisions WHERE id = $1 AND slug = $2 AND locale = $3 AND status = 'approved'`, revisionID, slug, locale).Scan(&source.ID, &source.Slug, &source.Locale, &source.Content)
 	if errors.Is(err, sql.ErrNoRows) {

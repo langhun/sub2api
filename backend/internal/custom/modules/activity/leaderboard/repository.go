@@ -133,7 +133,7 @@ func (r *Repository) ListConsumptionLeaderboard(ctx context.Context, query contr
 	if err != nil {
 		return contract.LeaderboardPage{}, fmt.Errorf("query consumption: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries := make([]contract.LeaderboardEntry, 0)
 	rank := offset
@@ -208,7 +208,7 @@ func (r *Repository) ListCheckinLeaderboard(ctx context.Context, query contract.
 	if err != nil {
 		return contract.LeaderboardPage{}, fmt.Errorf("query checkin: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries := make([]contract.LeaderboardEntry, 0)
 	rank := offset
@@ -274,7 +274,7 @@ func (r *Repository) getCheckinCounts(ctx context.Context, userIDs []int64) (map
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var userID int64
 		var count int

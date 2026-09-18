@@ -114,4 +114,14 @@ describe('support ticket detail polling', () => {
     expect(result).toBe(current)
     expect(current.messages?.map((message) => message.id)).toEqual([1, 2])
   })
+
+  it('preserves the conversation when a send response omits messages', () => {
+    const current = ticket()
+    const messages = current.messages
+    const next = ticket({ status: 'waiting_user', messages: undefined })
+    expect(mergeSupportTicket(current, next)).toBe(current)
+    expect(current.status).toBe('waiting_user')
+    expect(current.messages).toBe(messages)
+    expect(current.messages?.[0]?.body).toBe('Need help')
+  })
 })

@@ -201,8 +201,7 @@ WHERE user_id = $1
 			}
 		}
 
-		mainAfter := mainBalance
-		dgAfter := dgBalance
+		var mainAfter, dgAfter float64
 
 		switch plan.Direction {
 		case GameExchangeBalanceToDG:

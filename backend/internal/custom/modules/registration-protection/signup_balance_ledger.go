@@ -89,7 +89,7 @@ func (l *SignupBalanceLedger) ListSignupBalanceHistory(ctx context.Context, user
 	if err != nil {
 		return nil, 0, fmt.Errorf("list signup balance ledger: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	items := make([]service.RedeemCode, 0)
 	for rows.Next() {

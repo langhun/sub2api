@@ -14,7 +14,7 @@ import (
 func TestSignupBalanceLedgerRecordsAndListsImmutableGrant(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ledger := NewSignupBalanceLedger(db)
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO custom_signup_balance_ledger")).WithArgs(int64(71), 1.0, "email").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(9)))
@@ -39,7 +39,7 @@ func TestSignupBalanceLedgerRecordsAndListsImmutableGrant(t *testing.T) {
 func TestSignupBalanceLedgerRejectsConflictingGrant(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ledger := NewSignupBalanceLedger(db)
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO custom_signup_balance_ledger")).WithArgs(int64(72), 1.0, "email").WillReturnRows(sqlmock.NewRows([]string{"id"}))

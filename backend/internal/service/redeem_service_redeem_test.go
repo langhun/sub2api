@@ -14,32 +14,6 @@ type redeemGenerateRepo struct {
 	created []RedeemCode
 }
 
-type redeemGenerateSettingRepo struct {
-	values map[string]string
-}
-
-func (r *redeemGenerateSettingRepo) Get(context.Context, string) (*Setting, error) {
-	return nil, ErrSettingNotFound
-}
-
-func (r *redeemGenerateSettingRepo) GetValue(context.Context, string) (string, error) {
-	return "", ErrSettingNotFound
-}
-
-func (r *redeemGenerateSettingRepo) Set(context.Context, string, string) error { return nil }
-
-func (r *redeemGenerateSettingRepo) GetMultiple(context.Context, []string) (map[string]string, error) {
-	return r.values, nil
-}
-
-func (r *redeemGenerateSettingRepo) SetMultiple(context.Context, map[string]string) error { return nil }
-
-func (r *redeemGenerateSettingRepo) GetAll(context.Context) (map[string]string, error) {
-	return r.values, nil
-}
-
-func (r *redeemGenerateSettingRepo) Delete(context.Context, string) error { return nil }
-
 func (r *redeemGenerateRepo) CreateBatch(_ context.Context, codes []RedeemCode) error {
 	r.created = append(r.created, codes...)
 	return nil

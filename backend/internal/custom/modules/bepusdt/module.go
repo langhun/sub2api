@@ -126,7 +126,7 @@ func (p *Provider) CreatePayment(ctx context.Context, req payment.CreatePaymentR
 	if err != nil {
 		return nil, fmt.Errorf("bepusdt create: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var out createResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("bepusdt response: %w", err)
@@ -159,7 +159,7 @@ func (p *Provider) CancelPayment(ctx context.Context, tradeNo string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode/100 != 2 {
 		return fmt.Errorf("bepusdt cancel status %s", res.Status)
 	}

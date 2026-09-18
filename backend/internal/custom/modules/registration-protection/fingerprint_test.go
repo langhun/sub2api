@@ -34,7 +34,7 @@ func TestFingerprintHashNormalizesMetadataWithoutPersistingRawUserAgent(t *testi
 
 func TestStoreBeginCommitFirstRegistration(t *testing.T) {
 	db, mock := newFingerprintSQLMock(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	store := NewStore(db)
 	hash, ok := FingerprintHash("203.0.113.10", "Mozilla/5.0")
 	require.True(t, ok)
@@ -65,7 +65,7 @@ func TestStoreBeginCommitFirstRegistration(t *testing.T) {
 
 func TestStoreExistingFingerprintIsBlockedAndRecorded(t *testing.T) {
 	db, mock := newFingerprintSQLMock(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	store := NewStore(db)
 	hash, ok := FingerprintHash("203.0.113.11", "Mozilla/5.0")
 	require.True(t, ok)
@@ -95,7 +95,7 @@ func TestStoreExistingFingerprintIsBlockedAndRecorded(t *testing.T) {
 
 func TestStoreAbortReleasesReservationAndCommitIsIdempotent(t *testing.T) {
 	db, mock := newFingerprintSQLMock(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	store := NewStore(db)
 	hash, ok := FingerprintHash("203.0.113.12", "Mozilla/5.0")
 	require.True(t, ok)
@@ -119,7 +119,7 @@ func TestStoreAbortReleasesReservationAndCommitIsIdempotent(t *testing.T) {
 
 func TestStoreMissingMetadataIsNoOp(t *testing.T) {
 	db, mock := newFingerprintSQLMock(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	store := NewStore(db)
 	reservation, err := store.Begin(context.Background(), BeginInput{ClientIP: "203.0.113.13"})
 	require.NoError(t, err)

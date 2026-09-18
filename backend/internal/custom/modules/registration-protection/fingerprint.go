@@ -127,7 +127,7 @@ func (s *Store) Begin(ctx context.Context, input BeginInput) (*Reservation, erro
 	if err != nil {
 		return nil, fmt.Errorf("begin registration fingerprint reservation: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var exists bool
 	if err := tx.QueryRowContext(ctx, `
@@ -210,10 +210,9 @@ func (s *Store) Commit(ctx context.Context, reservation *Reservation, userID int
 		reservation.resetFinished()
 		return CommitResult{}, fmt.Errorf("begin registration fingerprint commit: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if reservation.reservationToken != "" {
-		var deleted int64
 		result, err := tx.ExecContext(ctx, `
 			DELETE FROM custom_registration_fingerprint_reservations
 			WHERE fingerprint_hash = $1 AND reservation_token = $2`, reservation.fingerprintHash, reservation.reservationToken)
@@ -221,16 +220,13 @@ func (s *Store) Commit(ctx context.Context, reservation *Reservation, userID int
 			reservation.resetFinished()
 			return CommitResult{}, fmt.Errorf("consume registration fingerprint reservation: %w", err)
 		}
-		deleted, err = result.RowsAffected()
+		_, err = result.RowsAffected()
 		if err != nil {
 			reservation.resetFinished()
 			return CommitResult{}, fmt.Errorf("read consumed registration fingerprint reservation: %w", err)
 		}
-		if deleted == 0 {
-			// Expired/aborted reservations are still allowed to commit as a
-			// repeat if another registration has since claimed the fingerprint.
-			// If no history exists, this commit remains the first event.
-		}
+		// Zero deleted rows are allowed for expired/aborted reservations.
+		// The history upsert below determines whether this is a repeat.
 	}
 
 	var count int64
