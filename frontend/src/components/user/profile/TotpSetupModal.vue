@@ -175,7 +175,6 @@ import { totpAPI } from '@/api'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import type { TotpSetupResponse } from '@/types'
 import QRCode from 'qrcode'
-import { extractApiErrorMessage } from '@/utils/apiError'
 
 const emit = defineEmits<{
   close: []
