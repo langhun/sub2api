@@ -364,6 +364,7 @@ import ModelDistributionChart from '@/components/charts/ModelDistributionChart.v
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { isPreviewAdminMode } from '@/utils/devPreview'
+import { useTheme } from '@/custom/modules/apple-theme/useTheme'
 
 import {
   Chart as ChartJS,
@@ -438,9 +439,8 @@ const granularityOptions = computed(() => [
 ])
 
 // Dark mode detection
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
+const { effectiveMode } = useTheme()
+const isDarkMode = computed(() => effectiveMode.value === 'dark')
 
 // Chart colors
 const chartColors = computed(() => ({

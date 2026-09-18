@@ -18,6 +18,7 @@ import type { ChartState } from '../types'
 import { formatHistoryLabel, sumNumbers } from '../utils/opsFormatters'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useTheme } from '@/custom/modules/apple-theme/useTheme'
 
 ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler)
 
@@ -34,7 +35,8 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 
-const isDarkMode = computed(() => document.documentElement.classList.contains('dark'))
+const { effectiveMode } = useTheme()
+const isDarkMode = computed(() => effectiveMode.value === 'dark')
 const colors = computed(() => ({
   red: '#ef4444',
   redAlpha: '#ef444420',
