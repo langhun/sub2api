@@ -29,4 +29,10 @@ describe('TablePageLayout responsive table scrolling', () => {
     expect(componentSource).toContain('.table-page-layout.mobile-mode .table-scroll-container :deep([data-field])')
     expect(componentSource).toContain('overflow-wrap: anywhere')
   })
+
+  it('does not keep the desktop viewport height on mobile', () => {
+    expect(componentSource).toContain('.table-page-layout.mobile-mode {')
+    expect(componentSource).toContain('height: auto;')
+    expect(componentSource).toContain('min-height: 0;')
+  })
 })

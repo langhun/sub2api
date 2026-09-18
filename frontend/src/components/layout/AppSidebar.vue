@@ -1070,6 +1070,7 @@ onBeforeUnmount(() => {
 
 .sidebar-label {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1078,17 +1079,19 @@ onBeforeUnmount(() => {
     max-width 0.2s ease,
     opacity 0.12s ease,
     transform 0.12s ease;
-  max-width: 12rem;
+  max-width: none;
 }
 
 .sidebar-label-flex {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
 .sidebar-label-collapsed {
+  flex-basis: 0;
   max-width: 0;
   opacity: 0;
   transform: translateX(-4px);

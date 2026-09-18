@@ -555,8 +555,12 @@
   .sidebar-header {
     @apply h-16 px-6;
     @apply flex items-center gap-3;
+    position: relative;
+    z-index: 1;
     min-width: 0;
-    overflow: hidden;
+    /* VersionBadge renders its panel below the header. Clipping here makes
+       the panel unusable, especially in the admin sidebar. */
+    overflow: visible;
     @apply border-b border-gray-100 dark:border-dark-800;
     transition:
       padding 0.2s ease,

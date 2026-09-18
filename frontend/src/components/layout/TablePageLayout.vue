@@ -96,6 +96,13 @@ onUnmounted(() => {
   @apply h-auto max-w-full overflow-hidden border-none bg-transparent shadow-none;
 }
 
+.table-page-layout.mobile-mode {
+  /* The desktop viewport calculation must not constrain stacked mobile
+     filters, cards, and pagination. Let the document grow naturally. */
+  height: auto;
+  min-height: 0;
+}
+
 .table-page-layout.mobile-mode .layout-section-scrollable {
   @apply min-h-fit w-full min-w-0 max-w-full flex-none;
 }

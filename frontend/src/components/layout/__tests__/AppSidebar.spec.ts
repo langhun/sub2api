@@ -59,7 +59,16 @@ describe('AppSidebar header styles', () => {
     expect(sidebarHeaderBlockMatch).not.toBeNull()
     expect(sidebarBrandBlockMatch).not.toBeNull()
     expect(sidebarHeaderBlockMatch?.[0]).not.toContain('@apply overflow-hidden;')
+    expect(sidebarHeaderBlockMatch?.[0]).toContain('overflow: visible;')
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
+  })
+})
+
+describe('AppSidebar label sizing', () => {
+  it('lets labels use the available width before truncating', () => {
+    expect(componentSource).toContain('flex: 1 1 auto;')
+    expect(componentSource).toContain('max-width: none;')
+    expect(componentSource).toContain('flex-basis: 0;')
   })
 })
 
