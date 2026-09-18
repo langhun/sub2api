@@ -11,11 +11,11 @@
           <Icon name="menu" size="md" />
         </button>
 
-        <div v-if="!hideHeaderTitle" class="hidden lg:block">
-          <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div v-if="!hideHeaderTitle" class="hidden min-w-0 max-w-[45%] lg:block">
+          <h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
           </h1>
-          <p v-if="pageDescription" class="text-xs text-gray-500 dark:text-dark-400">
+          <p v-if="pageDescription" class="truncate text-xs text-gray-500 dark:text-dark-400">
             {{ pageDescription }}
           </p>
         </div>
