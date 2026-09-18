@@ -16,7 +16,14 @@ function latestMessageID(ticket: SupportTicket): number | undefined {
 
 export function mergeSupportTicket(current: SupportTicket, next: SupportTicket): SupportTicket {
   const currentMessages = current.messages ?? []
-  const nextMessages = next.messages ?? []
+  // Message-send/update responses may omit the conversation; never clear the
+  // visible thread just because the response is a partial ticket payload.
+  const nextMessages = next.messages
+  if (!Array.isArray(nextMessages)) {
+    Object.assign(current, next)
+    current.messages = currentMessages
+    return current
+  }
   const sharedPrefix = currentMessages.length <= nextMessages.length
     && currentMessages.every((message, index) => message.id === nextMessages[index]?.id)
 
