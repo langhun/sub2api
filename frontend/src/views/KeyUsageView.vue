@@ -559,6 +559,14 @@ function triggerRingAnimation(items: RingItem[]) {
   ringAnimated.value = false
   displayPcts.value = items.map(() => 0)
 
+  // Non-browser environments (SSR and jsdom) do not provide RAF. Finish the
+  // animation state immediately instead of scheduling a callback that cannot run.
+  if (typeof requestAnimationFrame !== 'function') {
+    ringAnimated.value = true
+    displayPcts.value = items.map(item => (item.isBalance ? 0 : Math.round(item.pct)))
+    return
+  }
+
   nextTick(() => {
     requestAnimationFrame(() => {
       setTimeout(() => {
