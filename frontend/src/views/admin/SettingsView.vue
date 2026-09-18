@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-6">
+    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-6" data-glass-content>
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <div
@@ -13140,11 +13140,11 @@ watch(
 
 @media (min-width: 768px) {
   .settings-tabs {
-    @apply min-w-full w-full;
+    @apply min-w-full w-max;
   }
 
   .settings-tab {
-    @apply min-w-0 flex-1 basis-0 overflow-hidden px-2 text-[13px];
+    @apply min-w-max flex-1 px-3 text-[13px];
   }
 
   .settings-tab-icon {

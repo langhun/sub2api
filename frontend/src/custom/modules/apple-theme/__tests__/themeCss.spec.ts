@@ -7,12 +7,73 @@ const themeCss = readFileSync(resolve(__dirname, '../theme.css'), 'utf8')
 const inlineCodeRules: postcss.Rule[] = []
 const transparentTextSurfaceRules: postcss.Rule[] = []
 const usageTooltipRules: postcss.Rule[] = []
+const denseContentRules: postcss.Rule[] = []
 postcss.parse(themeCss).walkRules((rule) => {
   if (rule.selector.includes('code:not(pre code)')) inlineCodeRules.push(rule)
   if (rule.selector.includes('.dimension-cell') && rule.selector.includes('.summary-value')) {
     transparentTextSurfaceRules.push(rule)
   }
   if (rule.selector.includes('.usage-detail-tooltip-panel')) usageTooltipRules.push(rule)
+  if (rule.selector.includes('[data-glass-content]')) denseContentRules.push(rule)
+})
+
+describe('dense glass content', () => {
+  function matchingDeclarations(element: Element, property: string) {
+    const values: string[] = []
+    for (const rule of denseContentRules) {
+      if (element.matches(rule.selector)) {
+        rule.walkDecls(property, declaration => { values.push(declaration.value) })
+      }
+    }
+    return values
+  }
+
+  it('limits white layering to content while retaining stronger floating surfaces', () => {
+    document.documentElement.dataset.theme = 'apple'
+    document.body.innerHTML = '<header></header><main data-glass-content><div class="card"><div class="card"></div></div></main><div role="listbox"></div>'
+    const content = document.querySelector('main')!
+    const surface = matchingDeclarations(content, '--ui-surface').at(-1)!
+    const innerSurface = matchingDeclarations(document.querySelector('.card .card')!, 'background').at(-1)!
+    const alpha = (value: string) => Number(value.match(/\/\s*(\d+)%/)![1]) / 100
+    // Combined white opacity should stay below 50%, even with an inner panel.
+    expect(1 - (1 - alpha(surface)) * (1 - alpha(innerSurface))).toBeLessThan(0.5)
+    expect(matchingDeclarations(content, '--ui-surface-strong')).toEqual([])
+    for (const outside of document.querySelectorAll('header, [role="listbox"]')) {
+      expect(matchingDeclarations(outside, '--ui-surface')).toEqual([])
+    }
+    document.documentElement.classList.add('dark')
+    expect(matchingDeclarations(content, '--ui-surface')).toEqual([])
+  })
+
+  it.each([false, true])('uses theme text for labels and solid switch thumbs in dark=%s', (dark) => {
+    document.documentElement.dataset.theme = 'apple'
+    document.documentElement.classList.toggle('dark', dark)
+    document.body.innerHTML = '<main data-glass-content><label class="input-label">User</label><button role="switch" aria-checked="false"><span class="bg-white"></span></button><button role="switch" aria-checked="true"><span class="bg-white"></span></button></main>'
+    expect(matchingDeclarations(document.querySelector('label')!, 'color').at(-1)).toBe('var(--ui-control-text)')
+    for (const thumb of document.querySelectorAll('button > span')) {
+      expect(matchingDeclarations(thumb, 'background').at(-1)).toBe('#fff')
+    }
+    expect(matchingDeclarations(document.querySelector('[aria-checked="false"]')!, 'background')).not.toEqual([])
+    expect(matchingDeclarations(document.querySelector('[aria-checked="true"]')!, 'background')).toEqual([])
+  })
+
+  it('does not apply content overrides to the default theme', () => {
+    document.documentElement.dataset.theme = 'default'
+    document.body.innerHTML = '<main data-glass-content><label class="input-label">User</label><button role="switch" aria-checked="false"><span class="bg-white"></span></button></main>'
+    for (const element of document.querySelectorAll('main, main *')) {
+      expect(denseContentRules.some(rule => element.matches(rule.selector))).toBe(false)
+    }
+  })
+
+  it('keeps focus, hover and disabled state styles out of the page-specific input material', () => {
+    postcss.parse(themeCss).walkRules(rule => {
+      if (!rule.selector.includes('.usage-dashboard-shell')) return
+      if (!/\.(input|select-trigger)\b|\sselect\b/.test(rule.selector)) return
+      const stateProperties: string[] = []
+      rule.walkDecls(/^(box-shadow|outline|opacity)$/, decl => { stateProperties.push(decl.prop) })
+      expect(stateProperties).toEqual([])
+    })
+  })
 })
 
 afterEach(() => {

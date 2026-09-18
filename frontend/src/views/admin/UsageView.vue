@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="usage-dashboard-shell space-y-6">
+    <div class="usage-dashboard-shell space-y-6" data-glass-content>
       <UsageStatsCards :stats="usageStats" />
       <!-- Charts Section -->
       <div class="space-y-4">

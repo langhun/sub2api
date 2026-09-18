@@ -24,6 +24,9 @@
         </div>
         <button
           type="button"
+          role="switch"
+          :aria-checked="form.enable_apple_theme"
+          :aria-label="t('custom.appleTheme.enableLabel')"
           :class="[
             'switch',
             form.enable_apple_theme && 'switch-active'

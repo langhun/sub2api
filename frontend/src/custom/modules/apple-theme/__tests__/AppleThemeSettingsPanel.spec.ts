@@ -25,7 +25,11 @@ describe('AppleThemeSettingsPanel', () => {
       },
     })
 
-    await wrapper.find('button.switch').trigger('click')
+    const toggle = wrapper.get('[role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-label')).toBe('custom.appleTheme.enableLabel')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('true')
 
     expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({
       enable_apple_theme: true,
