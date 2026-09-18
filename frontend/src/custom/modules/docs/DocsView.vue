@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="docs-page">
+    <div class="docs-page" data-glass-content>
       <header class="docs-page-header">
         <div class="flex items-center gap-3">
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">

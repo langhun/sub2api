@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="support-tickets-page w-full min-w-0 space-y-4">
+    <div class="support-tickets-page w-full min-w-0 space-y-4" data-glass-content>
       <header v-if="!ticket" class="flex min-h-0 justify-end">
         <button v-if="ticket" class="btn btn-secondary self-start sm:self-auto" type="button" @click="goToList">
           <Icon name="arrowLeft" size="sm" />

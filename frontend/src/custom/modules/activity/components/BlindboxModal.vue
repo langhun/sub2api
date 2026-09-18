@@ -208,7 +208,7 @@ async function copyCode(code: string) {
 .blindbox-card {
   position: relative;
   z-index: 1;
-  width: 360px;
+  width: min(360px, calc(100vw - 2rem));
   animation: card-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -322,11 +322,14 @@ html.dark .blindbox-invite-section {
 
 .blindbox-invite-code-row {
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
 }
 
 .blindbox-invite-code {
+  min-width: 0;
+  max-width: 100%;
   font-size: 13px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   word-break: break-all;
@@ -337,6 +340,15 @@ html.dark .blindbox-invite-section {
   padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid #e5e7eb;
+}
+
+@media (max-width: 420px) {
+  .blindbox-card-inner { padding: 28px 20px 22px; }
+  .blindbox-prize-name { max-width: 100%; font-size: 20px; overflow-wrap: anywhere; }
+  .blindbox-invite-code-row { align-items: stretch; flex-wrap: wrap; justify-content: center; }
+  .blindbox-invite-code { flex: 1 1 10rem; }
+  .blindbox-copy-btn { flex: 0 0 auto; }
+  .blindbox-close-btn { width: 100%; padding-inline: 20px; }
 }
 
 html.dark .blindbox-invite-code {

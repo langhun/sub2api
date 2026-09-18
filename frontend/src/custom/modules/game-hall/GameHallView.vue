@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-6xl space-y-6">
+    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-6" data-glass-content>
       <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('gameHall.title') }}</h1>

@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl space-y-5">
+    <div class="mx-auto w-full min-w-0 max-w-4xl space-y-5" data-glass-content>
       <section
         class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 px-6 py-7 text-white shadow-lg shadow-rose-500/15 sm:px-8"
       >
@@ -97,7 +97,7 @@
                   {{ t('redpacket.remaining', { remaining: packet.remaining_count, total: packet.total_count }) }} · {{ t('redpacket.validUntil', { date: dateTime(packet.expire_at) }) }}
                 </span>
               </span>
-              <span class="w-36 shrink-0 text-right sm:w-44">
+              <span class="min-w-20 w-auto shrink-0 text-right sm:w-44">
                 <strong class="block truncate text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400 sm:text-xl" :title="money(packet.total_amount)">{{ money(packet.total_amount) }}</strong>
                 <span class="mt-0.5 block truncate text-xs text-gray-400 dark:text-dark-500">{{ t('redpacket.remainingAmount') }} {{ money(packet.remaining_amount) }}</span>
               </span>

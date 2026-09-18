@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="w-full min-w-0 space-y-6">
+    <div class="w-full min-w-0 space-y-6" data-glass-content>
       <div
         v-if="checkinStore.statusError"
         class="card flex flex-col gap-3 border border-red-200 p-4 dark:border-red-900/60 sm:flex-row sm:items-center sm:justify-between"
@@ -122,7 +122,7 @@
                 </svg>
                 <span class="font-semibold">{{ t('checkin.streakDays', { days: checkinStore.streakDays }) }}</span>
               </div>
-              <div class="flex gap-2">
+              <div class="flex flex-wrap gap-2">
                 <template v-if="checkinStore.canCheckin">
                   <button v-if="checkinStore.normalEnabled" type="button" :disabled="checkinStore.loading" class="checkin-btn checkin-btn-normal" @click="submitNormal">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -670,6 +670,9 @@ html.dark .badge-legendary { background-color: #451a03; color: #fbbf24; }
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .checkin-btn { flex: 1 1 9rem; justify-content: center; padding-inline: 0.75rem; }
 }
 .checkin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .checkin-btn-normal { background: linear-gradient(135deg, #f59e0b, #d97706); }
