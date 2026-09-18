@@ -25,8 +25,7 @@ describe('PaymentMethodSelector', () => {
     })
 
     const grid = wrapper.get('[data-testid="payment-method-grid"]')
-    expect(grid.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3']))
-    expect(grid.classes()).not.toContain('sm:flex')
+    expect(grid.classes()).toContain('payment-method-grid')
 
     const buttons = wrapper.findAll('button')
     expect(buttons).toHaveLength(methods.length)
@@ -93,5 +92,19 @@ describe('PaymentMethodSelector', () => {
 
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="payment-method-limit-hint"]').text()).toContain('¥20.00')
+  })
+
+  it('keeps limit information present across amount changes and prevents disabled selection', async () => {
+    const method = { type: 'alipay', fee_rate: 0, available: false, minimum_amount: 20, maximum_amount: 500, unavailable_reason: 'minimum' as const }
+    const wrapper = mount(PaymentMethodSelector, { props: { selected: 'alipay', methods: [method] } })
+    const hints = wrapper.findAll('[data-testid="payment-method-limit-hint"]').map(hint => hint.text())
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toBeUndefined()
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('false')
+    await wrapper.setProps({ methods: [{ ...method, available: true, unavailable_reason: undefined }] })
+    expect(wrapper.findAll('[data-testid="payment-method-limit-hint"]').map(hint => hint.text())).toEqual(hints)
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toEqual([['alipay']])
   })
 })

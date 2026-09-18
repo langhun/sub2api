@@ -5,7 +5,7 @@
     </label>
     <div
       data-testid="payment-method-grid"
-      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      class="payment-method-grid grid gap-3"
     >
       <button
         v-for="method in sortedMethods"
@@ -13,8 +13,9 @@
         type="button"
         :title="methodLabel(method)"
         :disabled="!method.available"
+        :aria-pressed="selected === method.type && method.available"
         :class="[
-          'relative flex min-h-20 min-w-0 items-start justify-start rounded-md border px-3.5 py-2.5 text-left transition-colors',
+          'payment-method relative flex min-h-20 min-w-0 items-start justify-start rounded-md border px-3.5 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
           !method.available
             ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50 dark:border-dark-700 dark:bg-dark-800/50'
             : selected === method.type
@@ -23,29 +24,31 @@
         ]"
         @click="method.available && emit('select', method.type)"
       >
-        <span class="flex w-full min-w-0 items-start gap-2.5 pr-4">
+        <span class="flex w-full min-w-0 items-start gap-2.5 pr-3">
           <img :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 shrink-0 object-contain" />
-          <span class="flex min-w-0 flex-col items-start leading-none">
-            <span data-testid="payment-method-label" class="block w-full whitespace-normal break-words text-base font-semibold leading-tight">
+          <span class="flex min-w-0 flex-1 flex-col items-start gap-1">
+            <span data-testid="payment-method-label" class="block w-full whitespace-normal break-words text-sm font-semibold leading-5">
               {{ methodLabel(method) }}
             </span>
             <span
               v-if="method.fee_rate > 0"
-              class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
+              class="text-xs leading-4 text-gray-500 dark:text-gray-400"
             >
               {{ t('payment.fee') }} {{ method.fee_rate }}%
             </span>
             <span
-              v-if="!method.available && method.unavailable_reason === 'minimum' && method.minimum_amount != null"
+              v-if="method.minimum_amount != null && method.minimum_amount > 0"
               data-testid="payment-method-limit-hint"
-              class="mt-1 block w-full text-xs leading-4 text-amber-700 dark:text-amber-300"
+              class="block w-full break-words text-xs leading-4"
+              :class="method.unavailable_reason === 'minimum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
             >
               {{ t('payment.minimumToUse', { amount: formatPaymentAmount(method.minimum_amount, method.currency) }) }}
             </span>
             <span
-              v-else-if="!method.available && method.unavailable_reason === 'maximum' && method.maximum_amount != null"
+              v-if="method.maximum_amount != null && method.maximum_amount > 0"
               data-testid="payment-method-limit-hint"
-              class="mt-1 block w-full text-xs leading-4 text-amber-700 dark:text-amber-300"
+              class="block w-full break-words text-xs leading-4"
+              :class="method.unavailable_reason === 'maximum' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'"
             >
               {{ t('payment.maximumToUse', { amount: formatPaymentAmount(method.maximum_amount, method.currency) }) }}
             </span>
@@ -140,3 +143,10 @@ function methodSelectedClass(type: string): string {
   return 'border-primary-500 bg-primary-50 text-gray-900 shadow-sm dark:bg-primary-950 dark:text-gray-100'
 }
 </script>
+
+<style scoped>
+.payment-method-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  grid-auto-rows: 1fr;
+}
+</style>

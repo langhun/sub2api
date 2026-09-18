@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-6xl space-y-5">
+    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-5">
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
@@ -52,24 +52,24 @@
             <div v-if="enabledMethods.length === 0" class="rounded-lg border border-gray-200 bg-white py-16 text-center shadow-card dark:border-dark-700 dark:bg-dark-800">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
-            <section v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card dark:border-dark-700 dark:bg-dark-800/80">
+            <section v-else class="recharge-panel overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card dark:border-dark-700 dark:bg-dark-800/80">
               <header class="px-5 pb-7 pt-8 sm:px-10 lg:px-11">
                 <h2 class="text-2xl font-bold text-gray-950 dark:text-white">{{ t('payment.rechargeTitle') }}</h2>
                 <p class="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('payment.rechargeSubtitle') }}</p>
               </header>
-              <div class="mx-5 border-t border-gray-200 dark:border-dark-700 sm:mx-10 lg:mx-11"></div>
+              <div class="recharge-divider mx-5 border-t border-gray-200 dark:border-dark-700 sm:mx-10 lg:mx-11"></div>
 
               <div class="px-5 py-8 sm:px-10 lg:px-11">
                 <div class="recharge-workspace">
-                  <div class="recharge-fields space-y-10">
+                  <div class="recharge-fields space-y-6">
                   <AmountInput
                     v-model="amount"
                     :amounts="[10, 20, 50, 100, 200, 500]"
                     :min="globalMinAmount"
                     :max="globalMaxAmount"
                     :currency="selectedCurrency"
+                    :error="amountError"
                   />
-                  <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
                   <PaymentMethodSelector
                     :methods="methodOptions"
                     :selected="selectedMethod"
@@ -82,7 +82,7 @@
                     <Icon name="creditCard" size="sm" class="text-primary-600 dark:text-primary-400" />
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">{{ t('payment.orderSummary') }}</h3>
                   </div>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.summaryAccount', { username: user?.username || '' }) }}</p>
+                  <p class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">{{ t('payment.summaryAccount', { username: user?.username || '' }) }}</p>
 
                   <div class="mt-7 space-y-4 text-sm">
                     <div class="flex items-center justify-between gap-4">
@@ -104,13 +104,16 @@
                       :amount="validAmount"
                       :base-credit="creditedAmount"
                     />
-                    <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
+                    <div class="recharge-total border-t border-gray-200 pt-4 dark:border-dark-700">
                       <div class="flex items-end justify-between gap-4">
                         <span class="font-semibold text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
                         <span data-testid="summary-total-amount" class="text-2xl font-bold tabular-nums text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
                       </div>
                     </div>
                   </div>
+                  <p v-if="balanceRechargeMultiplier !== 1" class="mt-4 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                    {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                  </p>
 
                   </aside>
 
@@ -132,21 +135,6 @@
                   </button>
                   </div>
                 </div>
-                <div v-if="feeRate > 0" class="flex justify-between">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                  <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
-                </div>
-                <div v-if="feeRate > 0" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                  <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
-                </div>
-                <div v-if="balanceRechargeMultiplier !== 1" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
-                  <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
-                </div>
-                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                  {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
-                </p>
               </div>
             </section>
           </template>
@@ -1270,6 +1258,8 @@ onMounted(async () => {
 <style scoped>
 .recharge-workspace {
   display: grid;
+  min-width: 0;
+  align-items: start;
   grid-template-areas:
     'fields'
     'summary'
@@ -1279,24 +1269,37 @@ onMounted(async () => {
 
 .recharge-fields {
   grid-area: fields;
+  min-width: 0;
 }
 
 .recharge-summary {
   grid-area: summary;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recharge-summary .tabular-nums {
+  text-align: right;
 }
 
 .recharge-action {
   grid-area: action;
+  min-width: 0;
+}
+
+.recharge-action button {
+  min-height: 3.25rem;
+  overflow-wrap: anywhere;
 }
 
 @media (min-width: 1024px) {
   .recharge-workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 45%);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
     grid-template-areas:
       'fields summary'
       'action summary';
-    column-gap: 3rem;
-    row-gap: 2.25rem;
+    column-gap: 2rem;
+    row-gap: 1.5rem;
   }
 }
 </style>

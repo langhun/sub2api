@@ -374,6 +374,9 @@ describe('PaymentView recharge workspace', () => {
     expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
     expect(wrapper.text()).not.toContain('payment.rechargeRatePreview')
     expect(wrapper.text()).not.toContain('payment.rechargeRateTitle')
+    for (const label of ['payment.fee', 'payment.actualPay', 'payment.creditedBalance']) {
+      expect(wrapper.findAll('span').filter(span => span.text().startsWith(label))).toHaveLength(1)
+    }
   })
 
   it('evaluates method limits against the recharge amount, not the fee-inclusive pay amount', async () => {
@@ -445,8 +448,7 @@ describe('PaymentView recharge workspace', () => {
       minimum_amount: 20,
       currency: 'CNY',
     })])
-    expect(wrapper.text()).toContain('最低充值 ¥20.00 可使用')
-    expect(wrapper.text()).not.toContain('payment.amountNoMethod')
+    expect(wrapper.getComponent(AmountInput).props('error')).toBe('最低充值 ¥20.00 可使用')
   })
 })
 

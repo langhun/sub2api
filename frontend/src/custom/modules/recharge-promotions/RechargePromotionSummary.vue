@@ -1,24 +1,16 @@
 <template>
-  <div v-if="showSummary" class="rounded-lg border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm dark:border-emerald-900/70 dark:bg-emerald-950/20">
-    <p class="font-medium text-emerald-800 dark:text-emerald-200">{{ t('rechargePromotion.condition') }}</p>
-    <div v-if="loading" class="mt-2 text-xs text-emerald-700/80 dark:text-emerald-300/80">{{ t('common.loading') }}</div>
-    <template v-else-if="preview?.active">
-      <div class="mt-3 space-y-2">
-        <div class="flex justify-between gap-4 text-gray-700 dark:text-gray-200">
-          <span>{{ t('rechargePromotion.baseCredit') }}</span>
-          <span class="font-medium tabular-nums">${{ preview.base_credit.toFixed(2) }}</span>
-        </div>
-        <div class="flex justify-between gap-4 text-emerald-800 dark:text-emerald-200">
-          <span>{{ t('rechargePromotion.bonusCredit') }}</span>
-          <span class="font-semibold tabular-nums">+${{ preview.bonus_credit.toFixed(2) }}</span>
-        </div>
-        <div class="flex justify-between gap-4 border-t border-emerald-200 pt-2 font-semibold text-emerald-900 dark:border-emerald-900/70 dark:text-emerald-100">
-          <span>{{ t('rechargePromotion.finalCredit') }}</span>
-          <span class="tabular-nums">${{ preview.final_credit.toFixed(2) }}</span>
-        </div>
+  <div class="recharge-promotion text-sm" :aria-busy="loading">
+    <div class="space-y-4">
+      <div class="flex justify-between gap-4 text-emerald-800 dark:text-emerald-200">
+        <span>{{ t('rechargePromotion.bonusCredit') }}</span>
+        <span data-testid="promotion-bonus" class="font-semibold tabular-nums">{{ bonusText }}</span>
       </div>
-    </template>
-    <p v-else class="mt-2 text-xs text-emerald-800/90 dark:text-emerald-200/90">{{ inactiveMessage }}</p>
+      <div class="flex justify-between gap-4 font-semibold text-gray-900 dark:text-gray-100">
+        <span>{{ t('rechargePromotion.finalCredit') }}</span>
+        <span data-testid="promotion-final" class="tabular-nums">{{ finalText }}</span>
+      </div>
+    </div>
+    <p class="promotion-status mt-2 text-xs leading-4 text-gray-500 dark:text-gray-400" role="status">{{ statusMessage }}</p>
   </div>
 </template>
 
@@ -31,6 +23,7 @@ const props = defineProps<{ amount: number; baseCredit: number }>()
 const { t } = useI18n()
 const preview = ref<RechargePromotionPreview | null>(null)
 const loading = ref(false)
+const failed = ref(false)
 let requestSequence = 0
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let disposed = false
@@ -38,6 +31,15 @@ let disposed = false
 const previewDebounceMs = 250
 
 const showSummary = computed(() => props.amount > 0 && props.baseCredit > 0)
+// Keep the same rows while fetching; an unresolved bonus must not look confirmed.
+const bonusText = computed(() => loading.value || failed.value ? '\u2014' : `+$${(preview.value?.active ? preview.value.bonus_credit : 0).toFixed(2)}`)
+const finalText = computed(() => loading.value || failed.value ? '\u2014' : `$${(preview.value?.active ? preview.value.final_credit : props.baseCredit).toFixed(2)}`)
+const statusMessage = computed(() => {
+  if (!showSummary.value) return t('payment.enterAmount')
+  if (loading.value) return t('common.loading')
+  if (failed.value) return t('rechargePromotion.loadFailed')
+  return preview.value?.active ? t('rechargePromotion.condition') : inactiveMessage.value
+})
 const inactiveMessage = computed(() => {
   switch (preview.value?.ineligible_reason) {
     case 'disabled': return t('rechargePromotion.disabled')
@@ -59,6 +61,7 @@ function schedulePreview(amount: number, baseCredit: number) {
   const sequence = ++requestSequence
   clearPendingPreview()
   preview.value = null
+  failed.value = false
   loading.value = false
   if (amount <= 0 || baseCredit <= 0) return
 
@@ -70,6 +73,7 @@ function schedulePreview(amount: number, baseCredit: number) {
       if (!disposed && sequence === requestSequence) preview.value = response.data
     } catch {
       // Preview is advisory. A failed preview must never block upstream checkout.
+      if (!disposed && sequence === requestSequence) failed.value = true
     } finally {
       if (!disposed && sequence === requestSequence) loading.value = false
     }
@@ -86,3 +90,10 @@ onBeforeUnmount(() => {
   clearPendingPreview()
 })
 </script>
+
+<style scoped>
+.promotion-status {
+  min-height: 3rem;
+  overflow-wrap: anywhere;
+}
+</style>

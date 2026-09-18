@@ -1,8 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { createI18n } from 'vue-i18n'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import RechargePromotionSummary from '../RechargePromotionSummary.vue'
 import { rechargePromotionsAPI } from '../api'
+
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 vi.mock('../api', () => ({
   rechargePromotionsAPI: {
@@ -15,13 +16,6 @@ const preview = vi.mocked(rechargePromotionsAPI.preview)
 function mountSummary(amount = 10, baseCredit = 10) {
   return mount(RechargePromotionSummary, {
     props: { amount, baseCredit },
-    global: {
-      plugins: [createI18n({
-        legacy: false,
-        locale: 'en',
-        messages: { en: { common: { loading: 'Loading' }, rechargePromotion: {} } },
-      })],
-    },
   })
 }
 
@@ -76,5 +70,42 @@ describe('RechargePromotionSummary', () => {
 
     await vi.advanceTimersByTimeAsync(250)
     expect(preview).not.toHaveBeenCalled()
+  })
+
+  it('retains summary rows for empty, loading, eligible and ineligible amounts', async () => {
+    const wrapper = mountSummary(0, 0)
+    expect(wrapper.get('[data-testid="promotion-final"]').text()).toBe('$0.00')
+    await wrapper.setProps({ amount: 10, baseCredit: 10 })
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[data-testid="promotion-bonus"]').text()).toBe('\u2014')
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    expect(wrapper.get('[data-testid="promotion-bonus"]').text()).toBe('+$1.00')
+    expect(wrapper.get('[data-testid="promotion-final"]').text()).toBe('$11.00')
+
+    preview.mockResolvedValueOnce({ data: { active: false, ineligible_reason: 'minimum_amount', minimum_amount: 100 } } as never)
+    await wrapper.setProps({ amount: 20, baseCredit: 20 })
+    expect(wrapper.get('[data-testid="promotion-final"]').text()).toBe('\u2014')
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    expect(wrapper.get('[data-testid="promotion-bonus"]').text()).toBe('+$0.00')
+    expect(wrapper.get('[data-testid="promotion-final"]').text()).toBe('$20.00')
+    expect(wrapper.get('[role="status"]').text()).toBe('rechargePromotion.minimumAmount')
+  })
+
+  it('does not present a failed or stale preview as a confirmed credit', async () => {
+    let resolveFirst!: (value: never) => void
+    preview.mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve }))
+    const wrapper = mountSummary()
+    await vi.advanceTimersByTimeAsync(250)
+    preview.mockRejectedValueOnce(new Error('offline'))
+    await wrapper.setProps({ amount: 20, baseCredit: 20 })
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    resolveFirst({ data: { active: true, bonus_credit: 99, final_credit: 109 } } as never)
+    await flushPromises()
+    expect(wrapper.get('[data-testid="promotion-final"]').text()).toBe('\u2014')
+    expect(wrapper.get('[role="status"]').text()).toBe('rechargePromotion.loadFailed')
+    expect(wrapper.attributes('aria-busy')).toBe('false')
   })
 })

@@ -1,6 +1,6 @@
 /* ==========================================================================
    Apple Liquid Glass (液态玻璃) 设计系统
-   100% 提取并对齐 api.daigua.icu 线上生产环境真实计算属性
+   玻璃材质与控件主题
    ========================================================================== */
 
 :root {
@@ -8,7 +8,7 @@
 }
 
 /* ==========================================================================
-   浅色模式 (Light Mode) - 100% 对齐 api.daigua.icu
+   浅色模式 (Light Mode)
    ========================================================================== */
 :root[data-theme="apple"]:not(.dark),
 :root[data-glass]:not(.dark),
@@ -38,7 +38,7 @@ html[data-glass]:not(.dark) {
 }
 
 /* ==========================================================================
-   深色模式 (Dark Mode) - 100% 对齐 api.daigua.icu
+   深色模式 (Dark Mode)
    ========================================================================== */
 :root[data-theme="apple"].dark,
 :root[data-glass].dark,
@@ -1000,4 +1000,67 @@ html[data-glass].dark .usage-dashboard-shell .table-wrapper .table-body {
 html[data-theme="apple"] .usage-dashboard-shell .usage-filters ~ div [class*="border-b"],
 html[data-glass] .usage-dashboard-shell .usage-filters ~ div [class*="border-b"] {
   border-bottom-color: transparent !important;
+}
+
+/* Checkout keeps one glass surface; inner summaries use spacing, not nested frames. */
+:is(html[data-theme="apple"], html[data-glass]) .recharge-panel {
+  background: var(--ui-surface) !important;
+  border-color: transparent !important;
+  border-radius: 14px;
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(var(--ui-blur));
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .recharge-divider,
+:is(html[data-theme="apple"], html[data-glass]) .recharge-total {
+  border-color: transparent !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .recharge-summary {
+  background: var(--ui-subglass) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) :is(.amount-preset, .payment-method) {
+  background: var(--ui-subglass) !important;
+  border-color: transparent !important;
+  color: var(--ui-control-text) !important;
+  box-shadow: none !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) :is(.amount-preset, .payment-method):hover:not(:disabled) {
+  background: var(--ui-subglass-hover) !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) :is(.amount-preset, .payment-method)[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ui-primary) 14%, var(--ui-subglass)) !important;
+  color: var(--ui-primary) !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .payment-method:disabled {
+  opacity: 0.65;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .chart-segments {
+  background: var(--ui-subglass) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .chart-segments > button {
+  color: var(--ui-control-muted) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .chart-segments > button[aria-pressed="true"] {
+  color: var(--ui-primary) !important;
+  background: var(--ui-subglass-hover) !important;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 6%) !important;
+}
+
+.chart-segments > button:focus-visible {
+  outline: 2px solid var(--ui-primary, #14b8a6);
+  outline-offset: 2px;
 }

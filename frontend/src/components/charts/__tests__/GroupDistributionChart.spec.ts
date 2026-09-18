@@ -35,6 +35,20 @@ vi.mock('vue-chartjs', () => ({
 }))
 
 describe('GroupDistributionChart', () => {
+  it('exposes the active metric and emits changes from the segment controls', async () => {
+    const wrapper = mount(GroupDistributionChart, {
+      props: { groupStats: [], showMetricToggle: true, metric: 'tokens' },
+    })
+    const buttons = wrapper.findAll('.chart-segments button')
+    expect(buttons[0].attributes('aria-pressed')).toBe('true')
+    expect(buttons[1].attributes('aria-pressed')).toBe('false')
+    await buttons[1].trigger('click')
+    expect(wrapper.emitted('update:metric')).toEqual([['actual_cost']])
+    await wrapper.setProps({ metric: 'actual_cost' })
+    expect(buttons[0].attributes('aria-pressed')).toBe('false')
+    expect(buttons[1].attributes('aria-pressed')).toBe('true')
+  })
+
   const groupStats = [
     {
       group_id: 1,

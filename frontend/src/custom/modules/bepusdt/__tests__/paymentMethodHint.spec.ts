@@ -46,6 +46,7 @@ describe('BEpusdt payment method hint', () => {
     })
 
     expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
-    expect(wrapper.find('[data-testid="payment-method-limit-hint"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="payment-method-limit-hint"]').text()).toBe('最低充值 ¥20.00 可使用')
+    expect(wrapper.get('[data-testid="payment-method-limit-hint"]').classes()).not.toContain('text-amber-700')
   })
 })
