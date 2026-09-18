@@ -75,6 +75,9 @@ type migrationChecksumCompatibilityRule struct {
 // 规则必须同时匹配「迁移名 + 数据库 checksum + 当前文件 checksum」且两者都落在该迁移的已知版本集合内才会放行，
 // 避免放宽全局校验，也允许将误改的历史 migration 回滚为已发布版本而不要求人工修 checksum。
 var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibilityRule{
+	// These repairs only change invalid-date handling; already applied data is unchanged.
+	"177_migrate_legacy_checkin_records.sql":                  newMigrationChecksumCompatibilityRule("9da7d9437c61fa9bfbff23749eb9f8425f916018b383dedfae98dee70bf915d1", "e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c"),
+	"179_repair_legacy_checkin_migration.sql":                 newMigrationChecksumCompatibilityRule("01dd2ee58eba83dc416cb5af01d05b5930722e1a43aa463b5a666422a2842e92", "92d5a648bbe370122f6e486e123c5a13e49e7f68feb61171b70fb2ddab9df467"),
 	"054_drop_legacy_cache_columns.sql":                       newMigrationChecksumCompatibilityRule("82de761156e03876653e7a6a4eee883cd927847036f779b0b9f34c42a8af7a7d", "182c193f3359946cf094090cd9e57d5c3fd9abaffbc1e8fc378646b8a6fa12b4"),
 	"061_add_usage_log_request_type.sql":                      newMigrationChecksumCompatibilityRule("66207e7aa5dd0429c2e2c0fabdaf79783ff157fa0af2e81adff2ee03790ec65c", "08a248652cbab7cfde147fc6ef8cda464f2477674e20b718312faa252e0481c0", "222b4a09c797c22e5922b6b172327c824f5463aaa8760e4f621bc5c22e2be0f3"),
 	"109_auth_identity_compat_backfill.sql":                   newMigrationChecksumCompatibilityRule("0580b4602d85435edf9aca1633db580bb3932f26517f75134106f80275ec2ace", "551e498aa5616d2d91096e9d72cf9fb36e418ee22eacc557f8811cadbc9e20ee"),

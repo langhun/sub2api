@@ -8,6 +8,20 @@ CREATE TABLE IF NOT EXISTS legacy_checkin_migration_rejects (
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Invalid calendar dates must be audited without aborting the migration.
+CREATE OR REPLACE FUNCTION pg_temp.sub2api_legacy_checkin_date(value TEXT)
+RETURNS DATE LANGUAGE plpgsql STRICT AS $parse_date$
+BEGIN
+    IF value !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN value::date;
+EXCEPTION
+    WHEN datetime_field_overflow OR invalid_datetime_format THEN
+        RETURN NULL;
+END
+$parse_date$;
+
 DO $$
 BEGIN
     IF to_regclass('checkin_records') IS NULL THEN
@@ -20,11 +34,7 @@ BEGIN
         )
         SELECT id, user_id, checkin_date, 'invalid checkin_date; expected YYYY-MM-DD calendar date'
         FROM checkin_records
-        WHERE checkin_date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-           OR (
-               checkin_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-               AND to_char(to_date(checkin_date, 'YYYY-MM-DD'), 'YYYY-MM-DD') <> checkin_date
-           )
+        WHERE pg_temp.sub2api_legacy_checkin_date(checkin_date) IS NULL
         ON CONFLICT (legacy_id) DO NOTHING
     $rejects$;
 
@@ -41,13 +51,7 @@ BEGIN
             FROM checkins AS target
             JOIN checkin_records AS legacy
               ON target.user_id = legacy.user_id
-             AND target.checkin_date = CASE
-                    WHEN legacy.checkin_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
-                        CASE
-                            WHEN to_char(to_date(legacy.checkin_date, 'YYYY-MM-DD'), 'YYYY-MM-DD') = legacy.checkin_date
-                            THEN legacy.checkin_date::date
-                        END
-                 END
+             AND target.checkin_date = pg_temp.sub2api_legacy_checkin_date(legacy.checkin_date)
              AND target.created_at = legacy.checked_at
              AND target.reward_amount = legacy.reward_amount
             WHERE legacy.mode = 'lucky'

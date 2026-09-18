@@ -8,6 +8,20 @@ CREATE TABLE IF NOT EXISTS legacy_checkin_migration_rejects (
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Invalid calendar dates must be audited without aborting the migration.
+CREATE OR REPLACE FUNCTION pg_temp.sub2api_legacy_checkin_date(value TEXT)
+RETURNS DATE LANGUAGE plpgsql STRICT AS $parse_date$
+BEGIN
+    IF value !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN value::date;
+EXCEPTION
+    WHEN datetime_field_overflow OR invalid_datetime_format THEN
+        RETURN NULL;
+END
+$parse_date$;
+
 DO $$
 BEGIN
     IF to_regclass('checkin_records') IS NULL OR to_regclass('checkins') IS NULL THEN
@@ -20,11 +34,7 @@ BEGIN
         )
         SELECT id, user_id, checkin_date, 'invalid checkin_date; expected YYYY-MM-DD calendar date'
         FROM checkin_records
-        WHERE checkin_date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-           OR (
-               checkin_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-               AND to_char(to_date(checkin_date, 'YYYY-MM-DD'), 'YYYY-MM-DD') <> checkin_date
-           )
+        WHERE pg_temp.sub2api_legacy_checkin_date(checkin_date) IS NULL
         ON CONFLICT (legacy_id) DO NOTHING
     $rejects$;
 
@@ -33,15 +43,14 @@ BEGIN
             SELECT
                 id,
                 user_id,
-                checkin_date::date AS checkin_date,
+                pg_temp.sub2api_legacy_checkin_date(checkin_date) AS checkin_date,
                 reward_amount,
                 CASE WHEN mode = 'lucky' THEN 'luck' ELSE 'normal' END AS checkin_type,
                 CASE WHEN mode = 'lucky' THEN balance_before ELSE 0 END AS bet_amount,
                 CASE WHEN mode = 'lucky' THEN 1 + random_value ELSE 0 END AS multiplier,
                 checked_at
             FROM checkin_records
-            WHERE checkin_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-              AND to_char(to_date(checkin_date, 'YYYY-MM-DD'), 'YYYY-MM-DD') = checkin_date
+            WHERE pg_temp.sub2api_legacy_checkin_date(checkin_date) IS NOT NULL
         ),
         dated AS (
             SELECT

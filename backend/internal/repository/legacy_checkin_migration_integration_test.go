@@ -4,6 +4,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,30 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestLegacyCheckinMigrationDateParser(t *testing.T) {
+	for _, name := range []string{"177_migrate_legacy_checkin_records.sql", "179_repair_legacy_checkin_migration.sql"} {
+		t.Run(name, func(t *testing.T) {
+			tx := testTx(t)
+			ctx := context.Background()
+			content, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
+			require.NoError(t, err)
+			_, err = tx.ExecContext(ctx, string(content))
+			require.NoError(t, err)
+			for input, expected := range map[string]string{
+				"2026-02-31": "", "2026-02-29": "", "0000-01-01": "",
+				"2026-13-01": "", "2026-01-00": "", "not-a-date": "",
+				"2026-2-01": "", "2024-02-29": "2024-02-29", "2026-04-30": "2026-04-30",
+			} {
+				var parsed sql.NullString
+				err := tx.QueryRowContext(ctx, `SELECT pg_temp.sub2api_legacy_checkin_date($1)::text`, input).Scan(&parsed)
+				require.NoError(t, err, input)
+				require.Equal(t, expected != "", parsed.Valid, input)
+				require.Equal(t, expected, parsed.String, input)
+			}
+		})
+	}
+}
 
 func TestLegacyCheckinMigration_IsIdempotentAndPreservesNewRecords(t *testing.T) {
 	tx := testTx(t)
