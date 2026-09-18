@@ -261,6 +261,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			continue
 		}
 		if slotResult != openAISlotAcquireOK {
+			if slotResult == openAISlotAcquireRouteRetry {
+				resetSmartRoutingAccountFailover()
+				continue
+			}
 			return
 		}
 
@@ -300,6 +304,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyChat, clientRequestedUsageFields(c, attemptChannelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
 
+		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs

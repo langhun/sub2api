@@ -779,6 +779,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			accountReleaseFunc := selection.ReleaseFunc
 			if !selection.Acquired {
 				if selection.WaitPlan == nil {
+					if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+						retryWithFallback = true
+						break smartRoutingAttempt
+					}
 					markOpsRoutingCapacityLimited(c)
 					reqLog.Warn("gateway.select_account_no_slot_no_wait_plan",
 						zap.Int64("account_id", account.ID),
@@ -793,6 +797,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 				} else if !canWait {
+					if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+						retryWithFallback = true
+						break smartRoutingAttempt
+					}
 					reqLog.Info("gateway.account_wait_queue_full",
 						zap.Int64("account_id", account.ID),
 						zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
@@ -821,6 +829,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 					releaseWait()
+					if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+						retryWithFallback = true
+						break smartRoutingAttempt
+					}
 					h.handleConcurrencyError(c, err, "account", streamStarted)
 					return
 				}
@@ -937,6 +949,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 			writerSizeBeforeForward := c.Writer.Size()
+			forwardStart := time.Now()
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 				result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, attemptBody, hasBoundSession)
 			} else {
@@ -944,6 +957,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 
 			// 兜底释放串行锁（正常情况已通过回调提前释放）
+			observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 			if queueRelease != nil {
 				queueRelease()
 			}

@@ -228,6 +228,10 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		accountReleaseFunc := selection.ReleaseFunc
 		if !selection.Acquired {
 			if selection.WaitPlan == nil {
+				if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+					fs = NewFailoverState(h.maxAccountSwitches, false)
+					continue
+				}
 				markOpsRoutingCapacityLimited(c)
 				h.chatCompletionsErrorResponse(c, http.StatusServiceUnavailable, "api_error", "No available accounts")
 				return
@@ -242,6 +246,10 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 			)
 			if err != nil {
 				reqLog.Warn("gateway.cc.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+				if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+					fs = NewFailoverState(h.maxAccountSwitches, false)
+					continue
+				}
 				h.handleConcurrencyError(c, err, "account", streamStarted)
 				return
 			}
@@ -281,6 +289,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 		// 5. Forward request
 		writerSizeBeforeForward := c.Writer.Size()
+		forwardStart := time.Now()
 		forwardBody := body
 		if attemptChannelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
@@ -313,6 +322,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
+		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError

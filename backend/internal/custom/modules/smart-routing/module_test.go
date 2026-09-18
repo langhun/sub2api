@@ -38,7 +38,7 @@ func TestRepositoryGetReturnsEmptyGroupsForLegacyProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectQuery("SELECT api_key_id").WithArgs(int64(41)).WillReturnError(sql.ErrNoRows)
@@ -62,7 +62,7 @@ func TestRepositoryGetReturnsEmptyGroupsForProfileWithoutCandidates(t *testing.T
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectQuery("SELECT api_key_id").WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{
@@ -126,7 +126,7 @@ func TestResolveClearsActiveMarkerWhenRoutingPreflightFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectQuery("SELECT api_key_id").WithArgs(int64(46)).WillReturnRows(sqlmock.NewRows([]string{
@@ -159,7 +159,7 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectBegin()
@@ -206,7 +206,7 @@ func TestRepositorySaveRejectsVersionZeroWhenProfileExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectBegin()
@@ -239,7 +239,7 @@ func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewRepository(db)
 	mock.ExpectBegin()
@@ -267,7 +267,7 @@ func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New second db: %v", err)
 	}
-	defer db2.Close()
+	defer func() { _ = db2.Close() }()
 	repo2 := NewRepository(db2)
 	mock2.ExpectBegin()
 	mock2.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(45)).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -544,9 +544,10 @@ func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
 	profileGroups := make([]Group, 0, len(ids))
 	for i, id := range ids {
 		platform := service.PlatformAnthropic
-		if i == 1 {
+		switch i {
+		case 1:
 			platform = service.PlatformGemini
-		} else if i == 2 {
+		case 2:
 			platform = service.PlatformComposite
 		}
 		groups[id] = &service.Group{
@@ -1050,7 +1051,7 @@ func TestResolveDisablesSmartRoutingAfterRankFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	const keyID int64 = 91
 	mock.ExpectQuery("SELECT api_key_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{

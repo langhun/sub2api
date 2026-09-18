@@ -81,9 +81,24 @@ type SmartRoutingRequestState struct {
 	// selectedMu protects SmartRoutingSelectedGroups because usage recording is
 	// intentionally asynchronous and may inspect the marker while a streaming
 	// request is still advancing through another account/group attempt.
-	selectedMu     sync.RWMutex
-	MainGroupID    int64
-	CurrentGroupID int64
+	selectedMu          sync.RWMutex
+	MainGroupID         int64
+	CurrentGroupID      int64
+	ExhaustedGroups     map[int64]struct{}
+	FailedAccountIDs    map[int64]struct{}
+	NoRoute             bool
+	Strategy            string
+	SpeedWeight         float64
+	SuccessWeight       float64
+	RequestedModel      string
+	Stream              bool
+	Attempt             int
+	CapacityRetries     int
+	Observer            SmartRoutingAttemptObserver
+	ContinuityGroupID   int64
+	ContinuityAccountID int64
+	RecoveryProbe       bool
+	AccountMetrics      map[int64]SmartRoutingAccountMetric
 	// PrimaryGroupSnapshot is captured before the request-local API key is
 	// mutated to a candidate. It lets failover restore a coherent Group
 	// pointer even when the primary group repository is temporarily unable to
@@ -135,7 +150,7 @@ type SmartRoutingRequestState struct {
 	// but must not allow downstream schedulers to reload the changed row by ID.
 	ContractInvalid bool
 	// ContinuityLocked is set for requests carrying previous_response_id.
-	// Such requests must stay in the primary group; silently moving the
+	// Such requests must stay with their verified response owner; moving the
 	// response chain to another group would produce an upstream 404/401 or,
 	// worse, a semantically different conversation.
 	ContinuityLocked bool
@@ -147,7 +162,7 @@ type SmartRoutingRequestState struct {
 // before any platform/account pool is resolved.
 func SmartRoutingContractValid(ctx context.Context) bool {
 	state := SmartRoutingStateFromContext(ctx)
-	return state == nil || !state.ContractInvalid
+	return state == nil || (!state.ContractInvalid && !state.NoRoute)
 }
 
 func MarkSmartRoutingContractInvalid(ctx context.Context) {
@@ -350,6 +365,10 @@ func MarkSmartRoutingGroupExhausted(ctx context.Context) {
 		state.TriedGroups = make(map[int64]struct{})
 	}
 	state.TriedGroups[state.CurrentGroupID] = struct{}{}
+	if state.ExhaustedGroups == nil {
+		state.ExhaustedGroups = make(map[int64]struct{})
+	}
+	state.ExhaustedGroups[state.CurrentGroupID] = struct{}{}
 }
 
 // TrySmartRoutingGroupFailover advances the request to another configured
@@ -386,7 +405,7 @@ func TrySmartRoutingGroupFailover(ctx context.Context, failoverErr *UpstreamFail
 // not re-enter the loop.
 func ShouldRetrySmartRoutingGroup(ctx context.Context) bool {
 	state := SmartRoutingStateFromContext(ctx)
-	if state == nil || !state.SmartRoutingActive || state.MainGroupID <= 0 || state.CurrentGroupID <= 0 {
+	if state == nil || !state.SmartRoutingActive || state.NoRoute || state.ContractInvalid || state.MainGroupID <= 0 || state.CurrentGroupID <= 0 {
 		return false
 	}
 	maxSwitches := state.MaxGroupSwitches

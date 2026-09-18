@@ -1429,6 +1429,20 @@ func (s *OpenAIGatewayService) ValidateOpenAIHTTPResponseOwner(
 	if s == nil || strings.TrimSpace(responseID) == "" || userID <= 0 || apiKeyID <= 0 {
 		return false, nil
 	}
+	if routes, ok := s.smartRoutingResolver.(SmartRoutingResponseRoutes); ok {
+		if key, found := APIKeyFromContext(ctx); found && key.ID == apiKeyID && key.UserID == userID {
+			ownerGroup, ownerAccount, err := routes.LookupRoutingResponse(ctx, key, responseID)
+			if err != nil {
+				return false, err
+			}
+			if ownerGroup > 0 {
+				if state := SmartRoutingStateFromContext(ctx); state != nil {
+					state.ContinuityGroupID, state.ContinuityAccountID = ownerGroup, ownerAccount
+					groupID = ownerGroup
+				}
+			}
+		}
+	}
 	ownerUserID, ownerAPIKeyID, found, err := s.getOpenAIWSStateStore().GetHTTPResponseOwner(ctx, groupID, responseID)
 	if err != nil || !found {
 		return false, err
@@ -1466,6 +1480,15 @@ func (s *OpenAIGatewayService) bindHTTPResponseAccount(ctx context.Context, c *g
 	}
 	groupID := getOpenAIGroupIDFromContext(c)
 	ttl := s.openAIWSResponseStickyTTL()
+	if routes, ok := s.smartRoutingResolver.(SmartRoutingResponseRoutes); ok {
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+			if key, found := APIKeyFromContext(ctx); found {
+				if err := routes.BindRoutingResponse(ctx, key, state.MainGroupID, groupID, account.ID, responseID, ttl); err != nil {
+					logger.L().Warn("smart_routing.response_owner_bind_failed", zap.Error(err))
+				}
+			}
+		}
+	}
 	logOpenAIWSBindResponseAccountWarn(groupID, account.ID, responseID, store.BindResponseAccount(ctx, groupID, responseID, account.ID, ttl))
 	ownerUserID, ownerAPIKeyID := int64(0), int64(0)
 	if rawOwner, ok := c.Get(openAIHTTPResponseOwnerContextKey); ok {

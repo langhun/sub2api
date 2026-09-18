@@ -58,6 +58,7 @@ type Group struct {
 	Score         float64 `json:"score"`
 	Eligible      bool    `json:"eligible"`
 	Reason        string  `json:"reason,omitempty"`
+	Recovering    bool    `json:"recovering,omitempty"`
 }
 
 type UpdateRequest struct {
@@ -94,19 +95,24 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 		return stats{}
 	}
 	var st stats
+	ctx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+	endpoint, stream := "", false
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil {
+		endpoint, stream = state.EndpointType, state.Stream
+	}
 	// Keep the realtime and fallback windows in one query. A route with a cold
 	// candidate can otherwise issue two DB round trips per group on every first
 	// request, multiplying latency exactly when the pool is warming up.
 	// A failed scan degrades every candidate to the cold-start baseline; log it
 	// so stats outages don't silently turn routing into pure price ordering.
 	if err := m.repo.db.QueryRowContext(ctx, `SELECT
-		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '15 minutes'),
-		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ops_error_logs oe WHERE oe.request_id=ul.request_id) AND ul.created_at>=NOW()-INTERVAL '15 minutes'),
-		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(ul.first_token_ms, ul.duration_ms)) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
-		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '1 hour'),
-		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ops_error_logs oe WHERE oe.request_id=ul.request_id) AND ul.created_at>=NOW()-INTERVAL '1 hour'),
-		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(ul.first_token_ms, ul.duration_ms)) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '1 hour'),0)::bigint
-		FROM usage_logs ul WHERE ul.group_id=$1 AND ($2='' OR ul.requested_model=$2) AND ul.created_at>=NOW()-INTERVAL '1 hour'`, groupID, model).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
+		COUNT(*) FILTER (WHERE created_at>=NOW()-INTERVAL '15 minutes'),
+		COUNT(*) FILTER (WHERE success AND created_at>=NOW()-INTERVAL '15 minutes'),
+		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
+		COUNT(*), COUNT(*) FILTER (WHERE success),
+		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0),0)::bigint
+		FROM custom_route_attempts WHERE group_id=$1 AND requested_model=$2 AND endpoint_type=$3 AND stream=$4 AND created_at>=NOW()-INTERVAL '1 hour'`, groupID, model, endpoint, stream).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
 		slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err)
 	}
 	return st
@@ -144,7 +150,7 @@ func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var g Group
 		if err := rows.Scan(&g.GroupID, &g.SortOrder, &g.Enabled, &g.Name, &g.Platform); err != nil {
@@ -169,7 +175,7 @@ func (r *Repository) Save(ctx context.Context, keyID int64, req UpdateRequest) (
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	// A row-level lock cannot protect the no-row case. Serialize saves by key
 	// so two first writes cannot both insert version 1 and lose an update.
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, keyID); err != nil {
@@ -283,8 +289,9 @@ func routingProfileUsable(p *Profile) bool {
 }
 
 type Module struct {
-	repo    *Repository
-	apiKeys *service.APIKeyService
+	feedback routeFeedback
+	repo     *Repository
+	apiKeys  *service.APIKeyService
 	// availableGroups is kept as a narrow dependency so candidate permission
 	// checks fail closed when the API-key service is unavailable. NewModule
 	// wires the real service; tests can provide an explicit read-only stub.
@@ -490,6 +497,14 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	}
 	if state != nil {
 		state.SmartRoutingActive = false
+		if state.ContinuityGroupID > 0 {
+			state.NoRoute = true
+		}
+		defer func() {
+			if !state.SmartRoutingActive && (state.Attempt > 0 || state.CapacityRetries > 0) {
+				state.NoRoute = true
+			}
+		}()
 	}
 	if m == nil || m.repo == nil {
 		return nil, errors.New("smart routing repository unavailable")
@@ -552,9 +567,18 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		return nil, nil
 	}
 	state.SmartRoutingActive = true
+	if state.ContinuityGroupID > 0 {
+		state.NoRoute = false
+	}
+	state.Observer = m
+	state.Strategy, state.SpeedWeight, state.SuccessWeight = p.Strategy, p.SpeedWeight, p.SuccessWeight
+	if state.NoRoute {
+		return nil, nil
+	}
 	if mapped := service.OpenAIForwardModelFromContext(ctx); mapped != "" {
 		model = mapped
 	}
+	state.RequestedModel = model
 	if state.TriedGroups == nil {
 		state.TriedGroups = make(map[int64]struct{})
 	}
@@ -585,22 +609,38 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		}
 	}
 	if !hasEligible {
-		state.SmartRoutingActive = false
+		state.NoRoute = true
 		return nil, nil
+	}
+	// Preserve account retries in the admitted group until it is explicitly
+	// exhausted. A new request has no attempts and still gets a fresh ranking.
+	if state.Attempt > 0 || state.CapacityRetries > 0 || len(excluded) > 0 {
+		if _, exhausted := state.ExhaustedGroups[state.CurrentGroupID]; !exhausted {
+			for i := range ranked {
+				if ranked[i].GroupID == state.CurrentGroupID && ranked[i].Eligible {
+					ranked[0], ranked[i] = ranked[i], ranked[0]
+					break
+				}
+			}
+		}
 	}
 	// Smart routing deliberately does not pin a request session to a group.
 	// Re-score the primary and candidates on every request so a recovered,
 	// lower-cost primary group is selected immediately. Upstream account-level
 	// stickiness remains responsible for provider session continuity.
-	if exploreIndex := m.explorationIndex(key, p, ranked, state.MainGroupID, sessionHash, model); exploreIndex >= 0 {
+	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	if exploreIndex := m.explorationIndex(key, p, ranked, state.MainGroupID, requestID, model); requestID != "" && exploreIndex >= 0 && state.Attempt == 0 && state.CapacityRetries == 0 && len(state.ExhaustedGroups) == 0 {
 		// Exploration is applied only after hard eligibility checks. It gives a
 		// cold candidate a bounded opportunity without making routing
-		// nondeterministic for a given key/session. Price is a soft signal, so
+		// nondeterministic for a given request. Price is a soft signal, so
 		// even price-only strategies may explore.
 		ranked[0], ranked[exploreIndex] = ranked[exploreIndex], ranked[0]
 	}
 	for _, g := range ranked {
 		if !g.Eligible {
+			continue
+		}
+		if _, exhausted := state.ExhaustedGroups[g.GroupID]; exhausted {
 			continue
 		}
 		if _, rejected := state.BillingRejectedGroups[g.GroupID]; rejected {
@@ -616,7 +656,7 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		// before moving to another group. The resolver marks a group as tried
 		// when it is admitted, so this check must run before the TriedGroups
 		// filter on subsequent scheduler calls.
-		if g.GroupID == state.CurrentGroupID && len(excluded) > 0 {
+		if g.GroupID == state.CurrentGroupID && (len(excluded) > 0 || state.Attempt > 0 || state.CapacityRetries > 0) {
 			if m.accounts == nil {
 				return nil, nil
 			}
@@ -633,6 +673,10 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 				state.TriedGroups[g.GroupID] = struct{}{}
 				continue
 			}
+			if g.Recovering && !state.RecoveryProbe && !m.acquireRecoveryProbe(ctx, g.GroupID, model) {
+				continue
+			}
+			state.RecoveryProbe = g.Recovering
 			decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: len(state.TriedGroups), Reason: g.Reason}
 			m.recordDecision(ctx, key, p, model, g, decision)
 			return decision, nil
@@ -641,15 +685,18 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 			continue
 		}
 		depth := len(state.TriedGroups)
+		if g.Recovering && !m.acquireRecoveryProbe(ctx, g.GroupID, model) {
+			continue
+		}
+		state.RecoveryProbe = g.Recovering
 		decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}
 		m.recordDecision(ctx, key, p, model, g, decision)
 		return decision, nil
 	}
 	// Every eligible row may already be tried, rejected by continuity, or
 	// beyond the switch budget. There is no next route for this invocation;
-	// disable the marker so the caller falls back once to the primary group
-	// rather than spinning through the same resolver path.
-	state.SmartRoutingActive = false
+	// fail closed instead of reusing an exhausted primary group.
+	state.NoRoute = true
 	return nil, nil
 }
 
@@ -673,7 +720,11 @@ func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID int6
 		return true
 	}
 	if state.ContinuityLocked {
-		if groupID != state.MainGroupID {
+		owner := state.ContinuityGroupID
+		if owner == 0 {
+			owner = state.MainGroupID
+		}
+		if groupID != owner {
 			return false
 		}
 	}
@@ -749,19 +800,19 @@ func (m *Module) RecordSelectedAccount(ctx context.Context, apiKeyID, groupID, a
 	}()
 }
 
-func (m *Module) remainingModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) int {
-	remaining, _ := m.remainingModelAccountsKnown(ctx, groupID, platform, model, excluded)
-	return remaining
-}
-
 // remainingModelAccountsKnown returns whether the repository response was
 // authoritative. A repository failure must not be interpreted as "zero
 // accounts" because that would route a request away from the authenticated
 // primary group during an infrastructure incident. Only a successful query
 // proving zero eligible accounts may make a group ineligible.
 func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) (int, bool) {
+	n, known, _ := m.inspectModelAccounts(ctx, groupID, platform, model, excluded)
+	return n, known
+}
+
+func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) (int, bool, float64) {
 	if m == nil || m.accounts == nil {
-		return 0, false
+		return 0, false, 0
 	}
 	useMixedScheduling := platform == service.PlatformAnthropic || platform == service.PlatformGemini
 	var accounts []service.Account
@@ -776,14 +827,14 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 		accounts, err = m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
 	}
 	if err != nil {
-		return 0, false
+		return 0, false, 0
 	}
 	if m.groups == nil {
-		return 0, false
+		return 0, false, 0
 	}
 	group, groupErr := m.groups.GetByIDLite(ctx, groupID)
 	if groupErr != nil || group == nil {
-		return 0, false
+		return 0, false, 0
 	}
 	// Channel model aliases are only meaningful for the OpenAI-compatible
 	// Messages dispatcher. Applying them to native Anthropic groups could
@@ -795,11 +846,17 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 		model = m.resolveCandidateModel(ctx, groupID, model)
 	}
 	if !candidateEndpointAllowed(ctx, group) {
-		return 0, true
+		return 0, true, 0
 	}
 	remaining := 0
+	eligibleAccounts := make([]service.Account, 0, len(accounts))
 	for i := range accounts {
 		account := &accounts[i]
+		if state := service.SmartRoutingStateFromContext(ctx); state != nil {
+			if _, failed := state.FailedAccountIDs[account.ID]; failed {
+				continue
+			}
+		}
 		if useMixedScheduling && account.Platform == service.PlatformAntigravity && !account.IsMixedSchedulingEnabled() {
 			continue
 		}
@@ -837,8 +894,18 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 			}
 		}
 		remaining++
+		eligibleAccounts = append(eligibleAccounts, *account)
 	}
-	return remaining, true
+	capacity, known := 0.0, false
+	if platform == service.PlatformOpenAI && m.openAI != nil {
+		capacity, known = m.openAI.SmartRoutingCapacity(ctx, eligibleAccounts)
+	} else if m.gateway != nil {
+		capacity, known = m.gateway.SmartRoutingCapacity(ctx, eligibleAccounts)
+	}
+	if known && capacity <= 0 {
+		return 0, true, 0
+	}
+	return remaining, true, capacity
 }
 
 // resolveCandidateModel keeps account eligibility checks aligned with the
@@ -959,7 +1026,8 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "endpoint not supported by group"
 	} else if m.accounts != nil {
-		remaining, known := m.remainingModelAccountsKnown(ctx, main.ID, main.Platform, mainModel, excluded)
+		remaining, known, capacity := m.inspectModelAccounts(ctx, main.ID, main.Platform, mainModel, excluded)
+		mainCandidate.CapacityRatio = capacity
 		if known && remaining == 0 {
 			mainCandidate.Eligible = false
 			mainCandidate.Reason = "no schedulable accounts"
@@ -1028,7 +1096,8 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			remaining, known := m.remainingModelAccountsKnown(ctx, g.GroupID, main.Platform, candidateModel, excluded)
+			remaining, known, capacity := m.inspectModelAccounts(ctx, g.GroupID, main.Platform, candidateModel, excluded)
+			g.CapacityRatio = capacity
 			if !known {
 				g.Reason = "account availability unavailable"
 				out = append(out, g)
@@ -1043,6 +1112,13 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			// collecting metrics so rank and Resolve can consider it.
 			g.Eligible = true
 		}
+		blocked, recovering := m.routeHealth(ctx, g.GroupID, model)
+		if blocked {
+			g.Eligible, g.Reason = false, "upstream failure cooldown"
+			out = append(out, g)
+			continue
+		}
+		g.Recovering = recovering
 		st := m.loadStats(ctx, g.GroupID, model)
 		if st.Samples < minSamples && st.FallbackSamples > st.Samples {
 			st.Samples = st.FallbackSamples
@@ -1148,6 +1224,9 @@ func sortRankedGroups(groups []Group) {
 		if groups[i].Score != groups[j].Score {
 			return groups[i].Score > groups[j].Score
 		}
+		if groups[i].CapacityRatio != groups[j].CapacityRatio {
+			return groups[i].CapacityRatio > groups[j].CapacityRatio
+		}
 		if groups[i].SortOrder != groups[j].SortOrder {
 			return groups[i].SortOrder < groups[j].SortOrder
 		}
@@ -1159,17 +1238,18 @@ func finiteNonNegative(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0
 }
 
-func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Group, primaryGroupID int64, sessionHash, model string) int {
+func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Group, primaryGroupID int64, requestID, model string) int {
 	if key == nil || p == nil || !finiteNonNegative(p.ExplorationRate) || p.ExplorationRate <= 0 || p.ExplorationRate > 0.05 || len(ranked) < 2 {
 		return -1
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s:%s", key.ID, p.Version, sessionHash, model)))
-	if float64(digest[0])/256 >= p.ExplorationRate {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s:%s", key.ID, p.Version, requestID, model)))
+	bucket := uint32(digest[0])<<16 | uint32(digest[1])<<8 | uint32(digest[2])
+	if bucket >= uint32(p.ExplorationRate*(1<<24)) {
 		return -1
 	}
 	candidates := make([]int, 0, len(ranked))
 	for i := range ranked {
-		if !ranked[i].Eligible || ranked[i].GroupID == primaryGroupID || ranked[i].Samples >= minSamples {
+		if !ranked[i].Eligible || ranked[i].Recovering || ranked[i].GroupID == primaryGroupID || ranked[i].Samples >= minSamples {
 			continue
 		}
 		candidates = append(candidates, i)
@@ -1177,7 +1257,7 @@ func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Grou
 	if len(candidates) == 0 {
 		return -1
 	}
-	return candidates[int(digest[1])%len(candidates)]
+	return candidates[int(digest[3])%len(candidates)]
 }
 
 // dispatchModelForGroup returns the model that the selected group's
@@ -1203,27 +1283,6 @@ func (m *Module) dispatchModelForGroup(ctx context.Context, group *service.Group
 		return service.NormalizeOpenAICompatRequestedModel(mapped)
 	}
 	return model
-}
-
-func (m *Module) pricingComparableForGroups(ctx context.Context, primary, candidate *service.Group, model string) bool {
-	if m == nil || primary == nil || candidate == nil {
-		return false
-	}
-	for _, groupID := range []int64{primary.ID, candidate.ID} {
-		if m.gateway != nil {
-			ok, err := m.gateway.CheckSmartRoutingPricingComparable(ctx, groupID, model)
-			if err != nil || !ok {
-				return false
-			}
-		}
-		if m.openAI != nil {
-			ok, err := m.openAI.CheckSmartRoutingPricingComparable(ctx, groupID, model)
-			if err != nil || !ok {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // longContextPricingComparable verifies that selecting a candidate cannot

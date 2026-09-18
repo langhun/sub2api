@@ -561,7 +561,22 @@
           </p>
         </fieldset>
 
-        <div class="routing-primary-group">
+
+        <section v-if="showEditModal || showCreateModal" class="routing-panel">
+          <div class="routing-panel-header">
+            <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
+            <div class="routing-segmented" role="tablist" :aria-label="t('keys.routingMode')">
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'single'" :tabindex="formData.routing_mode === 'single' ? 0 : -1" data-routing-mode="single" :class="{ active: formData.routing_mode === 'single' }" :disabled="routingLoading" @click="formData.routing_mode = 'single'" @keydown="handleRoutingModeKeydown($event, 'single')">{{ t('keys.singleGroup') }}</button>
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :tabindex="formData.routing_mode === 'smart' ? 0 : -1" data-routing-mode="smart" :class="{ active: formData.routing_mode === 'smart' }" :disabled="routingLoading" @click="formData.routing_mode = 'smart'" @keydown="handleRoutingModeKeydown($event, 'smart')">{{ t('keys.smartRouting') }}</button>
+            </div>
+          </div>
+          <p class="routing-mode-hint">{{ formData.routing_mode === 'smart' ? t('keys.routingModeHint') : t('keys.routingSingleModeHint') }}</p>
+          <div v-if="routingProfileLoadError" class="routing-profile-error" role="alert">
+            <span class="routing-error-copy"><Icon name="exclamationTriangle" size="sm" /><span>{{ t('keys.routingLoadFailed') }}</span></span>
+            <button type="button" class="routing-retry-button" :disabled="routingLoading || !selectedKey" @click="selectedKey && retryRoutingProfile(selectedKey.id)"><Icon name="refresh" size="xs" /> {{ t('keys.routingRetry') }}</button>
+          </div>
+
+        <div v-if="formData.routing_mode === 'single'" class="routing-primary-group">
           <label class="input-label" for="key-form-group">{{ t('keys.groupLabel') }}</label>
           <Select
             :key="showEditModal ? 'edit' : createProvider"
@@ -609,20 +624,6 @@
           </Select>
         </div>
 
-        <section v-if="showEditModal || showCreateModal" class="routing-panel">
-          <div class="routing-panel-header">
-            <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
-            <div class="routing-segmented" role="tablist" :aria-label="t('keys.routingMode')">
-              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'single'" :tabindex="formData.routing_mode === 'single' ? 0 : -1" data-routing-mode="single" :class="{ active: formData.routing_mode === 'single' }" :disabled="routingLoading" @click="formData.routing_mode = 'single'" @keydown="handleRoutingModeKeydown($event, 'single')">{{ t('keys.singleGroup') }}</button>
-              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :tabindex="formData.routing_mode === 'smart' ? 0 : -1" data-routing-mode="smart" :class="{ active: formData.routing_mode === 'smart' }" :disabled="routingLoading" @click="formData.routing_mode = 'smart'" @keydown="handleRoutingModeKeydown($event, 'smart')">{{ t('keys.smartRouting') }}</button>
-            </div>
-          </div>
-          <p class="routing-mode-hint">{{ formData.routing_mode === 'smart' ? t('keys.routingModeHint') : t('keys.routingSingleModeHint') }}</p>
-          <div v-if="routingProfileLoadError" class="routing-profile-error" role="alert">
-            <span class="routing-error-copy"><Icon name="exclamationTriangle" size="sm" /><span>{{ t('keys.routingLoadFailed') }}</span></span>
-            <button type="button" class="routing-retry-button" :disabled="routingLoading || !selectedKey" @click="selectedKey && retryRoutingProfile(selectedKey.id)"><Icon name="refresh" size="xs" /> {{ t('keys.routingRetry') }}</button>
-          </div>
-
           <div v-if="formData.routing_mode === 'smart'" class="routing-workspace" :aria-busy="routingLoading">
             <p v-if="routingLoading" class="routing-loading-hint">{{ t('keys.routingLoading') }}</p>
             <div class="routing-strategy-block">
@@ -647,48 +648,39 @@
                   <span class="routing-strategy-copy"><strong>{{ strategy.label }}</strong><small>{{ strategy.description }}</small><em>{{ strategy.weightSummary }}</em></span>
                 </button>
               </div>
-              <div class="routing-mobile-strategy-select">
-                <Select
-                  v-model="formData.routing_strategy"
-                  :options="routingStrategyOptions"
-                  :disabled="routingLoading"
-                  :aria-label="t('keys.routingStrategy')"
-                  @update:model-value="handleRoutingStrategySelect"
-                />
-              </div>
               <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights" :class="{ invalid: !routingWeightsValid }">
                 <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
                 <label v-for="field in routingWeightFields" :key="field.key"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" /><b>%</b></div></label>
                 <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
               </div>
-              <div v-if="formData.routing_strategy === 'custom'" class="routing-mobile-weight-editor" :class="{ invalid: !routingWeightsValid }">
-                <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
-                <label v-for="field in routingWeightFields" :key="`mobile-${field.key}`"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" @focus="handleMobileWeightFocus" /><b>%</b></div></label>
-                <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
-              </div>
             </div>
 
+            <div class="routing-metrics-note"><strong>{{ t('keys.routingMetricsTitle') }}</strong><p>{{ t('keys.routingMetricsHint') }}</p></div>
             <div class="routing-candidates-block">
               <div class="routing-workspace-header">
                 <label class="input-label mb-0">{{ t('keys.routingCandidates') }}</label>
-                <span class="routing-count" aria-live="polite">{{ formData.routing_group_ids.length }}{{ t('keys.routingCandidateCountSuffix') }}</span>
+                <span class="routing-count" aria-live="polite">{{ t('keys.routingCandidateCount', { count: routingPoolGroupIds.length }) }}</span>
               </div>
               <p class="routing-field-hint">{{ t('keys.routingCandidatesHint') }}</p>
+              <RoutingCandidateOptions class="routing-add-select" :platform="primaryRoutingGroup?.platform || (showEditModal ? selectedKey?.group?.platform : createProvider)" :selected-labels="selectedRoutingGroups.map(group => group.label)" :options="availableRoutingGroupOptions" :disabled="routingLoading || routingProfileLoadError || routingPoolGroupIds.length >= 8" @select="addRoutingGroup">
+              <template #default>
               <div v-if="selectedRoutingGroups.length" class="routing-selected-list" role="list" :aria-label="t('keys.routingCandidates')">
                 <div v-for="(group, index) in selectedRoutingGroups" :key="group.id" class="routing-selected-row" :class="{ invalid: !group.eligible, dragging: routingDraggedGroupId === group.id, 'drag-over-before': routingDragOverGroupId === group.id && routingDragOverPlacement === 'before', 'drag-over-after': routingDragOverGroupId === group.id && routingDragOverPlacement === 'after' }" role="listitem" :aria-setsize="selectedRoutingGroups.length" :aria-posinset="index + 1" @dragover="handleRoutingGroupDragOver(group.id, $event)" @dragleave="handleRoutingGroupDragLeave(group.id, $event)" @drop.prevent="dropRoutingGroup(group.id)">
-                  <span class="routing-order">{{ index + 1 }}</span>
+                  <input class="routing-order" type="checkbox" :checked="true" :disabled="routingLoading" :aria-label="group.label" @change="removeRoutingGroup(group.id)" />
                   <button type="button" class="routing-drag-handle" :aria-label="t('keys.dragRoutingCandidate')" :title="t('keys.dragRoutingCandidate')" :aria-keyshortcuts="'ArrowUp ArrowDown Home End'" :disabled="routingLoading" draggable="true" @dragstart="startRoutingGroupDrag(group.id, $event)" @dragend="clearRoutingGroupDrag" @keydown="handleRoutingCandidateKeydown($event, group.id)"><Icon name="sort" size="xs" /></button>
-                  <span class="routing-selected-copy"><strong>{{ group.label }}</strong><small>{{ group.description }}</small></span>
-                  <span class="routing-group-status" :class="group.eligible ? 'eligible' : 'invalid'" :title="group.eligible ? t('keys.routingCandidateReady') : t('keys.routingCandidateInvalidShort')"><Icon :name="group.eligible ? 'checkCircle' : 'exclamationTriangle'" size="xs" /><span>{{ group.eligible ? t('keys.routingCandidateReady') : t('keys.routingCandidateInvalidShort') }}</span></span>
+                  <span class="routing-selected-copy"><RoutingGroupLabel :label="group.label" :platform="group.platform" :rate="group.rate" /><span v-if="!group.eligible" class="routing-group-status invalid"><Icon name="exclamationTriangle" size="xs" />{{ t('keys.routingCandidateInvalidShort') }}</span></span>
+                  <span class="routing-row-actions">
                   <button type="button" class="routing-icon-button" :disabled="routingLoading || index === 0" :aria-label="t('keys.moveRoutingCandidateUp')" :title="t('keys.moveRoutingCandidateUp')" @click="moveRoutingGroup(group.id, -1)"><Icon name="chevronUp" size="xs" /></button>
                   <button type="button" class="routing-icon-button" :disabled="routingLoading || index === selectedRoutingGroups.length - 1" :aria-label="t('keys.moveRoutingCandidateDown')" :title="t('keys.moveRoutingCandidateDown')" @click="moveRoutingGroup(group.id, 1)"><Icon name="chevronDown" size="xs" /></button>
-                  <button type="button" class="routing-icon-button danger" :disabled="routingLoading" :aria-label="`${t('common.delete')} ${group.label}`" :title="t('common.delete')" @click="removeRoutingGroup(group.id)"><Icon name="x" size="xs" /></button>
+                  </span>
                 </div>
               </div>
-              <div v-else class="routing-empty">{{ t('keys.routingCandidatesEmpty') }}</div>
-              <Select v-model="routingCandidateToAdd" class="routing-add-select" :options="availableRoutingGroupOptions" :placeholder="t('keys.addRoutingCandidate')" :searchable="true" :search-placeholder="t('keys.searchRoutingCandidates')" :empty-text="t('keys.routingCandidatesNoMatch')" :disabled="routingLoading || routingProfileLoadError || formData.routing_group_ids.length >= 8 || availableRoutingGroupOptions.length === 0" :aria-label="t('keys.selectRoutingCandidates')" @update:model-value="addRoutingGroup">
-                <template #option="{ option }"><span class="routing-select-option"><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span></template>
-              </Select>
+              </template>
+              </RoutingCandidateOptions>
+              <div v-if="selectedRoutingGroups.length" class="routing-pool-summary">
+                <div class="routing-workspace-header"><strong>{{ t('keys.routingActiveGroups') }}</strong><span class="routing-count">{{ t('keys.routingCandidateCount', { count: routingPoolGroupIds.length }) }}</span></div>
+                <ul><li v-for="group in selectedRoutingGroups" :key="group.id"><span>{{ group.label }}</span><span v-if="group.rate != null">{{ group.rate }}x</span></li></ul>
+              </div>
               <p v-if="routingSubmitAttempted && routingCandidateValidationError" class="routing-validation-error" role="alert">{{ routingCandidateValidationError }}</p>
             </div>
 
@@ -697,6 +689,9 @@
           </div>
         </section>
 
+        <details class="key-editor-advanced" :open="showEditModal && (formData.enable_ip_restriction || formData.enable_quota || formData.enable_rate_limit || formData.enable_expiration)">
+          <summary><span><strong>{{ t('keys.advancedOptions') }}</strong><small>{{ t('keys.advancedOptionsHint') }}</small></span><Icon name="chevronDown" size="sm" /></summary>
+          <div class="key-editor-advanced-fields space-y-5">
         <!-- Custom Key Section (only for create) -->
         <div v-if="!showEditModal" class="space-y-3">
           <div class="flex items-center justify-between">
@@ -1097,9 +1092,11 @@
             </div>
           </div>
         </div>
+          </div>
+        </details>
       </form>
       <template #footer>
-        <div class="flex justify-end gap-3">
+        <div class="key-editor-footer flex justify-end gap-3">
           <button @click="closeModals" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
@@ -1325,6 +1322,9 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
 import { getSmartRouting, updateSmartRouting, type SmartRoutingProfile } from '@/custom/modules/smart-routing/api'
+import RoutingCandidateOptions from '@/custom/modules/smart-routing/RoutingCandidateOptions.vue'
+import RoutingGroupLabel from '@/custom/modules/smart-routing/RoutingGroupLabel.vue'
+import { routingPool, splitRoutingPool } from '@/custom/modules/smart-routing/pool'
 import { reorderRoutingGroups, reorderRoutingGroupsByKeyboard, type RoutingDropPlacement, type RoutingKeyboardMove } from '@/custom/modules/smart-routing/reorder'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1490,8 +1490,11 @@ const routingSummaryCacheTtlMs = 30_000
 const routingListSummaryIsSmart = (summary?: RoutingListSummary) =>
   Boolean(summary?.profile?.enabled && summary.profile.mode === 'smart')
 
-const routingListSummaryCandidateCount = (summary?: RoutingListSummary) =>
-  summary?.profile?.groups?.filter((group) => group.enabled).length ?? 0
+const routingListSummaryCandidateCount = (summary?: RoutingListSummary) => {
+  if (!summary?.profile) return 0
+  const key = apiKeys.value.find((key) => key.id === summary.profile?.api_key_id)
+  return routingPool(key?.group_id ?? null, summary.profile.groups.filter(group => group.enabled).map(group => group.group_id)).length
+}
 
 const routingListSummaryStatusLabel = (summary?: RoutingListSummary) => {
   if (!routingListSummaryIsSmart(summary)) return t('keys.routingStatusDisabled')
@@ -1644,11 +1647,24 @@ const routingWeightsValid = computed(() => {
 
 const primaryRoutingGroup = computed(() => groups.value.find((group) => group.id === formData.value.group_id) || null)
 
+const routingPoolGroupIds = computed({
+  get: () => routingPool(formData.value.group_id, formData.value.routing_group_ids),
+  set: (ids: number[]) => {
+    const pool = splitRoutingPool(ids)
+    formData.value.group_id = pool.primary
+    formData.value.routing_group_ids = pool.candidates
+  }
+})
+
 const isRoutingCompatibleGroup = (group: Group) => {
-  const primary = primaryRoutingGroup.value
+  const primary = primaryRoutingGroup.value || (showEditModal.value ? selectedKey.value?.group : null)
+  if (!primary) {
+    return group.status === 'active' &&
+      (group.platform === 'openai' || group.platform === 'anthropic') &&
+      getKeyGroupProvider(group.platform) === createProvider.value
+  }
   return Boolean(
     primary &&
-    group.id !== primary.id &&
     group.status === 'active' &&
     group.platform !== 'composite' &&
     primary.platform !== 'composite' &&
@@ -1681,16 +1697,18 @@ const routingGroupOptions = computed<RoutingGroupOption[]>(() =>
 )
 
 const availableRoutingGroupOptions = computed(() =>
-  routingGroupOptions.value.filter((option) => !formData.value.routing_group_ids.includes(option.value))
+  routingGroupOptions.value.filter((option) => !routingPoolGroupIds.value.includes(option.value))
 )
 
 const selectedRoutingGroups = computed(() =>
-  formData.value.routing_group_ids.map((groupId) => {
+  routingPoolGroupIds.value.map((groupId) => {
     const option = routingGroupOptions.value.find((candidate) => candidate.value === groupId)
     const group = groups.value.find((candidate) => candidate.id === groupId)
     return {
       id: groupId,
       label: option?.label || group?.name || `#${groupId}`,
+      platform: option?.platform || group?.platform,
+      rate: option?.rate ?? group?.rate_multiplier,
       description: option?.description || (group ? `${group.platform} · ${group.subscription_type} · ${group.rate_multiplier}x` : t('keys.routingCandidateUnavailable')),
       eligible: Boolean(option)
     }
@@ -1700,7 +1718,7 @@ const selectedRoutingGroups = computed(() =>
 const routingCandidateValidationError = computed(() => {
   if (routingLoading.value) return ''
   if (!formData.value.routing_group_ids.length) return t('keys.routingCandidatesRequired')
-  if (formData.value.routing_group_ids.length > 8) return t('keys.routingCandidatesLimit')
+  if (routingPoolGroupIds.value.length > 8) return t('keys.routingCandidatesLimit')
   if (selectedRoutingGroups.value.some((group) => !group.eligible)) return t('keys.routingCandidateInvalid')
   return ''
 })
@@ -1712,8 +1730,6 @@ const routingStrategies = computed(() => [
   { value: 'success' as const, label: t('keys.strategySuccess'), description: t('keys.strategySuccessDesc'), weightSummary: `${t('keys.priceWeight')} 15% · ${t('keys.speedWeight')} 15% · ${t('keys.successWeight')} 70%`, icon: 'shield', tone: 'rose' },
   { value: 'custom' as const, label: t('keys.strategyCustom'), description: t('keys.strategyCustomDesc'), weightSummary: `${t('keys.priceWeight')} ${routingWeightValue(formData.value.routing_price_weight)}% · ${t('keys.speedWeight')} ${routingWeightValue(formData.value.routing_speed_weight)}% · ${t('keys.successWeight')} ${routingWeightValue(formData.value.routing_success_weight)}%`, icon: 'chart', tone: 'violet' }
 ] as const)
-
-const routingStrategyOptions = computed(() => routingStrategies.value.map(({ value, label }) => ({ value, label })))
 
 const selectRoutingStrategy = (strategy: RoutingStrategy) => {
   formData.value.routing_strategy = strategy
@@ -1737,17 +1753,6 @@ const selectRoutingStrategy = (strategy: RoutingStrategy) => {
 }
 
 const routingStrategyValues: RoutingStrategy[] = ['auto', 'price', 'speed', 'success', 'custom']
-
-const handleRoutingStrategySelect = (value: unknown) => {
-  if (typeof value !== 'string' || !routingStrategyValues.includes(value as RoutingStrategy)) return
-  selectRoutingStrategy(value as RoutingStrategy)
-}
-
-const handleMobileWeightFocus = () => {
-  if (formData.value.routing_strategy !== 'custom') {
-    selectRoutingStrategy('custom')
-  }
-}
 
 const focusRoutingStrategy = (strategy: RoutingStrategy) => {
   void nextTick(() => {
@@ -1799,24 +1804,24 @@ const addRoutingGroup = (value?: number | string | boolean | null) => {
     return
   }
   const groupId = rawGroupId === null || rawGroupId === undefined || rawGroupId === '' ? null : Number(rawGroupId)
-  if (groupId !== null && Number.isInteger(groupId) && availableRoutingGroupOptions.value.some((option) => option.value === groupId) && formData.value.routing_group_ids.length < 8) {
-    formData.value.routing_group_ids.push(groupId)
+  if (groupId !== null && Number.isInteger(groupId) && availableRoutingGroupOptions.value.some((option) => option.value === groupId) && routingPoolGroupIds.value.length < 8) {
+    routingPoolGroupIds.value = [...routingPoolGroupIds.value, groupId]
   }
   routingCandidateToAdd.value = null
 }
 
 const removeRoutingGroup = (groupId: number) => {
-  formData.value.routing_group_ids = formData.value.routing_group_ids.filter((id) => id !== groupId)
+  routingPoolGroupIds.value = routingPoolGroupIds.value.filter((id) => id !== groupId)
 }
 
 const moveRoutingGroup = (groupId: number, direction: -1 | 1) => {
   if (routingLoading.value) return
-  const currentIndex = formData.value.routing_group_ids.indexOf(groupId)
+  const currentIndex = routingPoolGroupIds.value.indexOf(groupId)
   const nextIndex = currentIndex + direction
-  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= formData.value.routing_group_ids.length) return
-  const targetGroupId = formData.value.routing_group_ids[nextIndex]
-  formData.value.routing_group_ids = reorderRoutingGroups(
-    formData.value.routing_group_ids,
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= routingPoolGroupIds.value.length) return
+  const targetGroupId = routingPoolGroupIds.value[nextIndex]
+  routingPoolGroupIds.value = reorderRoutingGroups(
+    routingPoolGroupIds.value,
     groupId,
     targetGroupId,
     direction === 1 ? 'after' : 'before'
@@ -1832,8 +1837,8 @@ const handleRoutingCandidateKeydown = (event: KeyboardEvent, groupId: number) =>
     Home: 'home',
     End: 'end'
   }
-  formData.value.routing_group_ids = reorderRoutingGroupsByKeyboard(
-    formData.value.routing_group_ids,
+  routingPoolGroupIds.value = reorderRoutingGroupsByKeyboard(
+    routingPoolGroupIds.value,
     groupId,
     movementByKey[event.key]
   )
@@ -1877,8 +1882,8 @@ const dropRoutingGroup = (targetGroupId: number) => {
   const placement = routingDragOverPlacement.value || 'before'
   clearRoutingGroupDrag()
   if (routingLoading.value || draggedGroupId === null || draggedGroupId === targetGroupId) return
-  formData.value.routing_group_ids = reorderRoutingGroups(
-    formData.value.routing_group_ids,
+  routingPoolGroupIds.value = reorderRoutingGroups(
+    routingPoolGroupIds.value,
     draggedGroupId,
     targetGroupId,
     placement
@@ -2017,6 +2022,7 @@ const selectCreateProvider = (provider: KeyGroupProvider) => {
   if (createProvider.value === provider) return
   createProvider.value = provider
   formData.value.group_id = null
+  formData.value.routing_group_ids = []
 }
 
 // Also handles groups arriving after the create dialog has already opened.
@@ -2410,7 +2416,11 @@ const confirmDelete = (key: ApiKey) => {
 
 const handleSubmit = async () => {
   routingSubmitAttempted.value = true
-  // Validate group_id is required
+  if (formData.value.routing_mode === 'smart' && routingCandidateValidationError.value) {
+    appStore.showError(routingCandidateValidationError.value)
+    return
+  }
+  // The selected pool supplies the persisted group for smart routing.
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
     return
@@ -2419,17 +2429,12 @@ const handleSubmit = async () => {
     appStore.showError(t('keys.routingLoadFailed'))
     return
   }
-  const primaryGroupChanged = Boolean(
-    showEditModal.value &&
-    selectedKey.value &&
-    selectedKey.value.group_id !== formData.value.group_id
-  )
   if (formData.value.routing_mode === 'smart') {
-    if (!routingWeightsValid.value && !primaryGroupChanged) {
+    if (!routingWeightsValid.value) {
       appStore.showError(t('keys.routingWeightInvalid'))
       return
     }
-    if (routingCandidateValidationError.value && !primaryGroupChanged) {
+    if (routingCandidateValidationError.value) {
       appStore.showError(routingCandidateValidationError.value)
       return
     }
@@ -2885,1514 +2890,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-/* Legacy routing rules are kept below as a reference; the compact reference-aligned
- * layer that follows is the only active routing editor styling. */
-/*
-.routing-panel {
-  color: #172033;
-}
-
-.routing-field-head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.routing-segmented {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 100%;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid #e5e7eb;
-  border-radius: 9px;
-  background: #f8fafc;
-}
-
-.routing-segmented button {
-  min-height: 35px;
-  padding: 0 10px;
-  border-radius: 6px;
-  color: #667085;
-  font-size: 12px;
-  font-weight: 600;
-  transition: color .16s ease, background .16s ease, box-shadow .16s ease;
-}
-
-.routing-segmented button.active {
-  color: #0f766e;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
-}
-
-.routing-segmented button:disabled,
-.routing-strategy-card:disabled {
-  cursor: wait;
-  opacity: .65;
-}
-
-.routing-segmented button:focus-visible,
-.routing-strategy-card:focus-visible,
-.routing-icon-button:focus-visible {
-  outline: 2px solid rgb(20 184 166 / 55%);
-  outline-offset: 2px;
-}
-
-.routing-mode-hint {
-  margin: 0;
-  color: #98a2b3;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.routing-smart-content {
-  margin-top: 24px;
-}
-
-.routing-loading-hint {
-  margin: 0 0 10px;
-  color: #667085;
-  font-size: 11px;
-}
-
-.routing-section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.routing-section-head h4 {
-  margin: 0;
-  color: #344054;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.routing-section-head p {
-  margin: 4px 0 0;
-  color: #98a2b3;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.routing-count,
-.routing-weight-total {
-  flex-shrink: 0;
-  color: #667085;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.routing-weight-total.valid { color: #0f9f8d; }
-.routing-weight-total.invalid { color: #dc5b62; }
-
-.routing-candidates-section {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #edf0f4;
-}
-
-.routing-candidate-box {
-  margin-top: 10px;
-  padding: 9px;
-  border: 1px solid #dfe4ec;
-  border-radius: 9px;
-  background: #fff;
-}
-
-.routing-selected-list {
-  display: grid;
-  gap: 6px;
-}
-
-.routing-selected-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 7px 5px 7px 7px;
-  border: 1px solid #edf0f4;
-  border-radius: 7px;
-  background: #fbfcfe;
-}
-
-.routing-selected-row.invalid {
-  border-color: #f2c5c8;
-  background: #fff8f8;
-}
-
-.routing-selected-row.dragging {
-  opacity: .55;
-  border-color: #2cc4b4;
-}
-
-.routing-selected-row.drag-over-before {
-  border-top-color: #16a394;
-  box-shadow: inset 0 2px 0 #16a394;
-}
-
-.routing-selected-row.drag-over-after {
-  border-bottom-color: #16a394;
-  box-shadow: inset 0 -2px 0 #16a394;
-}
-
-.routing-order {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: #eef2f6;
-  color: #667085;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.routing-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 20px;
-  width: 20px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #98a2b3;
-  cursor: grab;
-}
-
-.routing-drag-handle:active { cursor: grabbing; }
-.routing-drag-handle:disabled { cursor: not-allowed; opacity: .45; }
-
-.routing-selected-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.routing-selected-copy strong {
-  overflow: hidden;
-  color: #344054;
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.routing-selected-copy small {
-  overflow: hidden;
-  color: #98a2b3;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.routing-invalid-badge {
-  flex: 0 0 auto;
-  color: #c24d55;
-  font-size: 10px;
-}
-
-.routing-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 26px;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  color: #667085;
-  transition: color .16s ease, background .16s ease;
-}
-
-.routing-icon-button:hover:not(:disabled) { color: #0f766e; background: #effcf9; }
-.routing-icon-button:disabled { cursor: not-allowed; color: #cbd5e1; }
-.routing-icon-button.danger:hover:not(:disabled) { color: #b42318; background: #fff1f2; }
-
-.routing-empty {
-  padding: 7px 3px 9px;
-  color: #98a2b3;
-  font-size: 12px;
-}
-
-.routing-add-select {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.routing-add-select :deep(.select-trigger) {
-  min-height: 36px;
-  border-style: dashed;
-  background: #f8fafc;
-}
-
-.routing-add-select :deep(.select-trigger:focus-visible) {
-  border-color: var(--ui-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 12%, transparent);
-}
-
-.routing-select-option {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.routing-select-option strong {
-  color: #344054;
-  font-size: 12px;
-}
-
-.routing-select-option small {
-  color: #98a2b3;
-  font-size: 10px;
-}
-
-.routing-strategy-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.routing-strategy-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  min-width: 0;
-  min-height: 84px;
-  padding: 12px;
-  border: 1px solid #e4e7ec;
-  border-radius: 10px;
-  background: #fff;
-  text-align: left;
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
-}
-
-.routing-strategy-card:hover { border-color: #a8ddd7; transform: translateY(-1px); }
-.routing-strategy-card:disabled:hover { border-color: #e4e7ec; transform: none; }
-.routing-strategy-card.selected { border-color: #2cc4b4; background: #f1fcfa; box-shadow: 0 0 0 1px #2cc4b4 inset; }
-.routing-strategy-card.custom { grid-column: 1 / -1; }
-
-.routing-strategy-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-}
-.routing-strategy-icon.teal { color: #0f9f8d; background: #dff8f4; }
-.routing-strategy-icon.green { color: #17845a; background: #e3f8ee; }
-.routing-strategy-icon.amber { color: #bc7614; background: #fff2dc; }
-.routing-strategy-icon.rose { color: #c65767; background: #ffebef; }
-.routing-strategy-icon.violet { color: #7657c9; background: #f0ebff; }
-
-.routing-strategy-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.routing-strategy-copy strong { color: #344054; font-size: 12px; line-height: 1.25; }
-.routing-strategy-copy small { color: #667085; font-size: 11px; line-height: 1.4; }
-.routing-strategy-copy em { color: #98a2b3; font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; }
-.routing-strategy-check { flex: 0 0 auto; color: #0f9f8d; }
-
-.routing-custom-weights {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #edf0f4;
-}
-
-.routing-custom-weights.invalid { border-top-color: #f2c5c8; }
-
-.routing-custom-weight-total {
-  grid-column: 1 / -1;
-  color: #667085;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.routing-custom-weight-total.valid { color: #0f9f8d; }
-.routing-custom-weight-total.invalid { color: #dc5b62; }
-
-.routing-preview-section {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #edf0f4;
-}
-
-.routing-preview-controls {
-  display: flex;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 10px;
-}
-
-.routing-preview-input {
-  min-width: 0;
-  flex: 1;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid #dfe4ec;
-  border-radius: 7px;
-  background: #fff;
-  color: #344054;
-  font-size: 12px;
-  outline: none;
-}
-
-.routing-preview-input:focus { border-color: var(--ui-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 10%, transparent); }
-
-.routing-preview-endpoint {
-  flex: 0 0 132px;
-  min-width: 0;
-}
-
-.routing-preview-endpoint :deep(.select-trigger) { min-height: 36px; }
-
-.routing-preview-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 36px;
-  padding: 0 11px;
-  border-radius: 7px;
-  background: #eafaf7;
-  color: #0f766e;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.routing-preview-button:disabled { cursor: wait; opacity: .6; }
-
-.routing-preview-list {
-  display: grid;
-  gap: 5px;
-  margin-top: 10px;
-}
-
-.routing-preview-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 7px;
-  border: 1px solid #edf0f4;
-  border-radius: 7px;
-  background: #fbfcfe;
-}
-
-.routing-preview-row:not(.eligible) { background: #fff8f8; border-color: #f2c5c8; }
-.routing-preview-rank { flex: 0 0 20px; color: #98a2b3; font-size: 11px; text-align: center; }
-.routing-preview-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
-.routing-preview-copy strong { overflow: hidden; color: #344054; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.routing-preview-copy small { overflow: hidden; color: #98a2b3; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.routing-preview-metric { color: #0f9f8d; font-size: 11px; font-variant-numeric: tabular-nums; }
-
-.routing-custom-weights label { color: #667085; font-size: 11px; }
-.routing-number-input { display: flex; align-items: center; margin-top: 5px; border: 1px solid #dfe4ec; border-radius: 6px; background: #fff; }
-.routing-number-input:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 10%, transparent); }
-.routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #344054; font-size: 12px; outline: none; }
-.routing-number-input b { padding-right: 8px; color: #98a2b3; font-size: 11px; font-weight: 500; }
-
-.routing-validation-error {
-  margin: 7px 0 0;
-  color: #c24d55;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.routing-profile-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border: 1px solid #f2c5c8;
-  border-radius: 7px;
-  background: #fff8f8;
-}
-
-.routing-profile-error .routing-validation-error {
-  margin: 0;
-}
-
-.routing-retry-button {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 4px;
-  min-height: 28px;
-  padding: 0 7px;
-  border-radius: 5px;
-  color: #b42318;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.routing-retry-button:hover:not(:disabled) { background: #ffeded; }
-.routing-retry-button:disabled { cursor: wait; opacity: .55; }
-
-.key-routing-cell {
-  display: flex;
-  min-width: 100px;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.key-routing-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 0 7px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.key-routing-badge-smart { color: #0f766e; background: #eafaf7; }
-.key-routing-badge-single { color: #667085; background: #f1f3f5; }
-.key-routing-badge-muted { color: #98a2b3; background: #f6f7f9; }
-.key-routing-count,
-.key-routing-status { color: #98a2b3; font-size: 10px; line-height: 1.2; }
-.key-routing-status.active { color: #0f9f8d; }
-.key-routing-status.disabled { color: #98a2b3; }
-.key-routing-status.warning { color: #bc7614; }
-
-.routing-custom-weights .routing-validation-error {
-  grid-column: 1 / -1;
-}
-
-.dark .routing-panel { color: #e5e7eb; }
-.dark .routing-profile-error { border-color: #713d46; background: #2a2025; }
-.dark .routing-retry-button { color: #fda4af; }
-.dark .routing-retry-button:hover:not(:disabled) { background: #3b232a; }
-.dark .key-routing-badge-smart { color: #5eead4; background: #153433; }
-.dark .key-routing-badge-single { color: #aeb8c5; background: #303846; }
-.dark .key-routing-badge-muted { color: #8994a5; background: #252d38; }
-.dark .key-routing-status.active { color: #5eead4; }
-.dark .key-routing-status.warning { color: #fbbf24; }
-.dark .routing-segmented { border-color: #394150; background: #202733; }
-.dark .routing-segmented button { color: #9aa4b2; }
-.dark .routing-segmented button.active { color: #5eead4; background: #293241; }
-.dark .routing-mode-hint,
-.dark .routing-loading-hint,
-.dark .routing-section-head p,
-.dark .routing-selected-copy small,
-.dark .routing-select-option small { color: #8994a5; }
-.dark .routing-candidates-section { border-top-color: #303846; }
-.dark .routing-candidate-box,
-.dark .routing-selected-row,
-.dark .routing-number-input { border-color: #3b4554; background: #202733; }
-.dark .routing-selected-row.invalid { border-color: #713d46; background: #2a2025; }
-.dark .routing-selected-copy strong,
-.dark .routing-select-option strong,
-.dark .routing-strategy-copy strong { color: #e5e7eb; }
-.dark .routing-order { background: #303846; color: #aeb8c5; }
-.dark .routing-add-select :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
-.dark .routing-strategy-card,
-.dark .routing-number-input { border-color: #3b4554; background: #202733; }
-.dark .routing-strategy-card.selected { border-color: #2cc4b4; background: #153433; }
-.dark .routing-custom-weights { border-top-color: #303846; }
-.dark .routing-custom-weights.invalid { border-top-color: #713d46; }
-.dark .routing-number-input input { color: #e5e7eb; }
-.dark .routing-preview-section { border-top-color: #303846; }
-.dark .routing-preview-input,
-.dark .routing-preview-row { border-color: #3b4554; background: #202733; }
-.dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
-.dark .routing-preview-input { color: #e5e7eb; }
-.dark .routing-preview-copy strong { color: #e5e7eb; }
-
-*/
-
-/*
-Smart-routing editor visual hierarchy. Keep the controls dense, but make
-safety state, strategy, candidates, and preview read as separate tools.
-.routing-panel {
-  margin-top: 2px;
-  color: #172033;
-}
-
-.routing-panel-heading {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.routing-panel-heading-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid #dce5f7;
-  border-radius: 10px;
-  color: #4663a8;
-  background: #eff3ff;
-}
-
-.routing-panel-heading-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.routing-panel-kicker {
-  color: #667085;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.routing-panel-heading-copy strong {
-  color: #1f2937;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.routing-panel-heading-copy p {
-  margin: 1px 0 0;
-  color: #667085;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.routing-panel-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 23px;
-  padding: 0 8px;
-  border: 1px solid #e3e7ee;
-  border-radius: 999px;
-  color: #667085;
-  background: #f8fafc;
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.routing-panel-status.active {
-  border-color: #b9dfd9;
-  color: #0f766e;
-  background: #eefbf8;
-}
-
-.routing-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #98a2b3;
-}
-
-.routing-panel-status.active .routing-status-dot {
-  background: #16a394;
-  box-shadow: 0 0 0 3px rgb(22 163 148 / 12%);
-}
-
-.routing-segmented {
-  gap: 5px;
-  padding: 4px;
-  border-color: #e1e6ef;
-  border-radius: 11px;
-  background: #f6f8fb;
-}
-
-.routing-segmented button {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 8px;
-  min-height: 58px;
-  padding: 9px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: #667085;
-  text-align: left;
-}
-
-.routing-segmented button > svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: #98a2b3;
-}
-
-.routing-segmented button.active {
-  border-color: #dbe3f4;
-  color: #31477c;
-  background: #fff;
-  box-shadow: 0 2px 6px rgb(31 41 55 / 8%);
-}
-
-.routing-segmented button.active > svg {
-  color: #4663a8;
-}
-
-.routing-mode-option-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.routing-mode-option-copy strong {
-  color: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.routing-mode-option-copy small {
-  overflow: hidden;
-  color: #98a2b3;
-  font-size: 10px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.routing-mode-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  margin-top: 8px;
-  color: #667085;
-}
-
-.routing-mode-hint svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: #8090ad;
-}
-
-.routing-error-copy {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.routing-error-copy > svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: #c24d55;
-}
-
-.routing-smart-content {
-  margin-top: 16px;
-}
-
-.routing-loading-hint {
-  display: flex;
-  align-items: center;
-  min-height: 28px;
-  margin-bottom: 10px;
-  padding: 0 9px;
-  border: 1px solid #e4e9f2;
-  border-radius: 7px;
-  color: #667085;
-  background: #f8fafc;
-}
-
-.routing-safety-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 11px;
-  border: 1px solid #d8e4f5;
-  border-radius: 9px;
-  color: #435b82;
-  background: #f3f7fd;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.routing-safety-note > svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: #4663a8;
-}
-
-.routing-safety-note > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.routing-safety-note strong {
-  color: #31477c;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.routing-section-head {
-  margin-top: 18px;
-}
-
-.routing-section-head h4 {
-  color: #26344f;
-  font-size: 13px;
-}
-
-.routing-section-head p {
-  max-width: 50ch;
-  color: #7b879c;
-}
-
-.routing-strategy-grid {
-  gap: 7px;
-  margin-top: 9px;
-}
-
-.routing-strategy-card {
-  min-height: 88px;
-  padding: 11px;
-  border-color: #e2e7ef;
-  border-radius: 9px;
-  background: #fff;
-  box-shadow: 0 1px 1px rgb(16 24 40 / 2%);
-}
-
-.routing-strategy-card:hover {
-  border-color: #aebcdf;
-  background: #fbfcff;
-  transform: translateY(-1px);
-}
-
-.routing-strategy-card.selected {
-  border-color: #6f86cf;
-  background: #f1f4ff;
-  box-shadow: 0 0 0 1px #6f86cf inset, 0 2px 5px rgb(70 99 168 / 8%);
-}
-
-.routing-strategy-icon {
-  width: 29px;
-  height: 29px;
-  border-radius: 8px;
-}
-
-.routing-strategy-icon.teal { color: #4663a8; background: #e9efff; }
-.routing-strategy-icon.green { color: #17845a; background: #e5f7ee; }
-.routing-strategy-icon.amber { color: #a76514; background: #fff2dd; }
-.routing-strategy-icon.rose { color: #b54f66; background: #ffedf1; }
-.routing-strategy-icon.violet { color: #6f58b7; background: #f0ecff; }
-
-.routing-strategy-copy strong {
-  color: #26344f;
-  font-size: 12px;
-}
-
-.routing-strategy-copy small {
-  color: #6f7c91;
-  font-size: 10.5px;
-}
-
-.routing-strategy-copy em {
-  color: #98a2b3;
-  font-size: 9.5px;
-}
-
-.routing-strategy-check { color: #4663a8; }
-
-.routing-candidates-section,
-.routing-preview-section {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top-color: #e7ebf2;
-}
-
-.routing-count {
-  padding: 3px 7px;
-  border: 1px solid #e2e7ef;
-  border-radius: 999px;
-  color: #667085;
-  background: #f8fafc;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.routing-candidate-box {
-  margin-top: 9px;
-  padding: 8px;
-  border-color: #dfe5ee;
-  border-radius: 9px;
-  background: #f8fafc;
-}
-
-.routing-selected-row {
-  min-height: 43px;
-  padding: 7px 5px 7px 7px;
-  border-color: #e4e9f1;
-  border-radius: 7px;
-  background: #fff;
-}
-
-.routing-order {
-  width: 21px;
-  height: 21px;
-  border: 1px solid #e0e6ef;
-  border-radius: 6px;
-  color: #667085;
-  background: #f4f6fa;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.routing-selected-copy strong { color: #26344f; font-size: 11.5px; }
-.routing-selected-copy small { color: #8490a3; font-size: 9.5px; }
-
-.routing-group-status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.routing-group-status.eligible { color: #17845a; }
-.routing-group-status.invalid { color: #b54f66; }
-
-.key-routing-badge {
-  gap: 4px;
-  border: 1px solid transparent;
-}
-
-.key-routing-badge-smart { border-color: #cfe7e3; color: #0f766e; background: #eefbf8; }
-.key-routing-badge-single { border-color: #e1e5eb; color: #667085; background: #f6f7f9; }
-
-.key-routing-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.key-routing-status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #aeb8c5;
-}
-
-.key-routing-status.active .key-routing-status-dot { background: #16a394; }
-.key-routing-status.warning .key-routing-status-dot { background: #d4932f; }
-
-.routing-icon-button:hover:not(:disabled) { color: #4663a8; background: #eef2ff; }
-.routing-icon-button.danger:hover:not(:disabled) { color: #b42318; background: #fff1f2; }
-
-.routing-add-select :deep(.select-trigger) {
-  min-height: 38px;
-  border-color: #cbd5e1;
-  border-style: solid;
-  background: #fff;
-}
-
-.routing-add-select :deep(.select-trigger)::before {
-  content: '+';
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
-  border-radius: 50%;
-  color: #4663a8;
-  background: #e9efff;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.routing-preview-controls { gap: 7px; margin-top: 9px; }
-
-.routing-preview-input,
-.routing-number-input {
-  border-color: #d6dde8;
-  border-radius: 7px;
-  background: #fff;
-}
-
-.routing-preview-input:focus,
-.routing-number-input:focus-within {
-  border-color: #6f86cf;
-  box-shadow: 0 0 0 3px rgb(70 99 168 / 11%);
-}
-
-.routing-preview-button {
-  border: 1px solid #cbd6f1;
-  border-radius: 7px;
-  color: #3d5798;
-  background: #eef2ff;
-}
-
-.routing-preview-button:hover:not(:disabled) { background: #e2e9ff; }
-
-.routing-preview-list { gap: 5px; margin-top: 9px; }
-
-.routing-preview-row {
-  min-height: 44px;
-  padding: 7px;
-  border-color: #e4e9f1;
-  border-radius: 7px;
-  background: #fff;
-}
-
-.routing-preview-row:not(.eligible) {
-  border-color: #f2c5c8;
-  background: #fff8f8;
-}
-
-.routing-preview-copy strong { color: #26344f; font-size: 11px; }
-.routing-preview-copy small { color: #8490a3; font-size: 9.5px; }
-
-.routing-preview-metrics {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
-}
-
-.routing-preview-metrics span {
-  min-width: 33px;
-  padding: 3px 4px;
-  border: 1px solid #e1e7f0;
-  border-radius: 5px;
-  color: #4663a8;
-  background: #f4f6fd;
-  font-size: 9px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.routing-custom-weights {
-  gap: 9px;
-  margin-top: 9px;
-  padding-top: 11px;
-  border-top-color: #e7ebf2;
-}
-
-.routing-custom-weight-total.valid { color: #17845a; }
-.routing-custom-weight-total.invalid { color: #b54f66; }
-
-.routing-validation-error { color: #b54f66; }
-
-.dark .routing-panel-heading-icon { border-color: #394768; color: #aebdf1; background: #25304b; }
-.dark .routing-panel-heading-copy strong,
-.dark .routing-section-head h4,
-.dark .routing-strategy-copy strong,
-.dark .routing-selected-copy strong,
-.dark .routing-preview-copy strong { color: #e9edf5; }
-.dark .routing-panel-heading-copy p,
-.dark .routing-mode-hint,
-.dark .routing-mode-option-copy small,
-.dark .routing-section-head p,
-.dark .routing-selected-copy small,
-.dark .routing-preview-copy small { color: #9aa6ba; }
-.dark .routing-panel-status { border-color: #3d4657; color: #9aa6ba; background: #202733; }
-.dark .routing-panel-status.active { border-color: #2f6d68; color: #77d5c8; background: #1c3638; }
-.dark .routing-segmented { border-color: #394150; background: #202733; }
-.dark .routing-segmented button.active { border-color: #3d4a68; color: #b8c4ef; background: #293241; }
-.dark .routing-segmented button.active > svg { color: #aebdf1; }
-.dark .routing-safety-note { border-color: #3b4b70; color: #b9c5df; background: #222d45; }
-.dark .routing-safety-note > svg,
-.dark .routing-safety-note strong { color: #aebdf1; }
-.dark .routing-strategy-card { border-color: #3b4554; background: #202733; }
-.dark .routing-strategy-card:hover { border-color: #5a6fa8; background: #252d3b; }
-.dark .routing-strategy-card.selected { border-color: #6f86cf; background: #283450; }
-.dark .routing-strategy-copy small { color: #a5b0c0; }
-.dark .routing-strategy-check { color: #aebdf1; }
-.dark .routing-candidates-section,
-.dark .routing-preview-section,
-.dark .routing-custom-weights { border-top-color: #303846; }
-.dark .routing-count { border-color: #3b4554; color: #aeb8c5; background: #202733; }
-.dark .routing-candidate-box,
-.dark .routing-selected-row,
-.dark .routing-preview-row,
-.dark .routing-preview-input,
-.dark .routing-number-input { border-color: #3b4554; background: #202733; }
-.dark .routing-selected-row.invalid,
-.dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
-.dark .routing-order { border-color: #3b4554; color: #aeb8c5; background: #303846; }
-.dark .routing-add-select :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
-.dark .routing-add-select :deep(.select-trigger)::before { color: #b8c4ef; background: #313d62; }
-.dark .routing-preview-input,
-.dark .routing-number-input input { color: #e5e7eb; }
-.dark .routing-preview-button { border-color: #4d5d8c; color: #b8c4ef; background: #2a3654; }
-.dark .routing-preview-button:hover:not(:disabled) { background: #344263; }
-.dark .routing-preview-metrics span { border-color: #3b4b70; color: #b8c4ef; background: #283450; }
-.dark .key-routing-badge-smart { border-color: #2f6d68; }
-.dark .key-routing-badge-single { border-color: #3b4554; }
-.dark .routing-group-status.eligible { color: #70d3a6; }
-.dark .routing-group-status.invalid { color: #f2a4b0; }
-
-@media (max-width: 520px) {
-  .routing-panel { padding-top: 16px; }
-  .routing-panel-heading { grid-template-columns: auto minmax(0, 1fr); }
-  .routing-panel-status { grid-column: 2; justify-self: start; }
-  .routing-segmented { grid-template-columns: 1fr; }
-  .routing-segmented button { min-height: 51px; }
-  .routing-mode-option-copy small { white-space: normal; }
-  .routing-profile-error { align-items: flex-start; flex-direction: column; }
-  .routing-retry-button { align-self: flex-end; }
-  .routing-strategy-grid { grid-template-columns: 1fr; }
-  .routing-strategy-card.custom { grid-column: auto; }
-  .routing-custom-weights { grid-template-columns: 1fr; }
-  .routing-invalid-badge { display: none; }
-  .routing-group-status span { display: none; }
-  .routing-group-status { margin-left: auto; }
-  .routing-preview-controls { flex-direction: column; }
-  .routing-preview-input,
-  .routing-preview-endpoint { width: 100%; }
-  .routing-preview-button { width: 100%; }
-  .routing-preview-metrics { gap: 3px; }
-  .routing-preview-metrics span { min-width: 28px; padding: 3px; }
-}
-
-*/
-
-/* Compact reference-aligned routing editor. */
-.key-routing-cell { display: flex; min-width: 100px; flex-direction: column; align-items: flex-start; gap: 4px; }
-.key-routing-badge { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; font-weight: 600; line-height: 1; }
-.key-routing-badge-smart { border-color: #cdebe4; color: #0f766e; background: #f1fbf8; }
-.key-routing-badge-single { border-color: #e5e7eb; color: #6b7280; background: #f5f6f7; }
-.key-routing-badge-muted { border-color: #edf0f4; color: #9ca3af; background: #f8fafc; }
-.key-routing-count, .key-routing-status { color: #9ca3af; font-size: 10px; line-height: 1.2; }
-.key-routing-status { display: inline-flex; align-items: center; gap: 4px; }
-.key-routing-status.active { color: #0f9f8d; }
-.key-routing-status.warning { color: #b7791f; }
-.key-routing-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #aeb8c5; }
-.key-routing-status.active .key-routing-status-dot { background: #16a394; }
-.key-routing-status.warning .key-routing-status-dot { background: #d4932f; }
-
-.routing-panel {
-  margin-top: 0;
-  color: #111827;
-}
-
-.routing-panel-header {
-  display: flex;
-  align-items: stretch;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.routing-segmented {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 100%;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid #edf0f3;
-  border-radius: 9px;
-  background: #f5f6f8;
-}
-
-.routing-segmented button {
-  flex: 1;
-  min-height: 36px;
-  padding: 0 11px;
-  border-radius: 7px;
-  color: #667085;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.routing-segmented button.active {
-  color: #138f84;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(16 24 40 / 10%), inset 0 0 0 1px rgb(19 143 132 / 4%);
-}
-
-.routing-segmented button:disabled { cursor: wait; opacity: .65; }
-.routing-segmented button:focus-visible,
-.routing-drag-handle:focus-visible,
-.routing-icon-button:focus-visible,
-.routing-preview-toggle:focus-visible { outline: 2px solid rgb(15 159 141 / 45%); outline-offset: 2px; }
-
-.routing-mode-hint,
-.routing-field-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  margin: 9px 0 0;
-  color: #667085;
-  font-size: 10px;
-  line-height: 1.45;
-}
-
-.routing-mode-hint svg { flex: 0 0 auto; margin-top: 1px; color: #9ca3af; }
-
-.routing-profile-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 8px 10px;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  color: #b91c1c;
-  background: #fff7f7;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.routing-error-copy { display: inline-flex; min-width: 0; align-items: flex-start; gap: 6px; }
-.routing-error-copy svg { flex: 0 0 auto; margin-top: 1px; }
-.routing-retry-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: #b91c1c; font-size: 11px; font-weight: 600; }
-.routing-retry-button:hover:not(:disabled) { text-decoration: underline; }
-.routing-retry-button:disabled { cursor: wait; opacity: .55; }
-
-.routing-workspace { margin-top: 17px; }
-.routing-loading-hint { margin: 0 0 8px; color: #6b7280; font-size: 11px; }
-
-.routing-safety-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border: 1px solid #cdebe4;
-  border-radius: 6px;
-  color: #28766e;
-  background: #f1fbf8;
-  font-size: 10.5px;
-  line-height: 1.45;
-}
-
-.routing-safety-note svg { flex: 0 0 auto; margin-top: 1px; color: #0f9f8d; }
-.routing-safety-note strong { margin-right: 4px; color: #0f766e; font-weight: 700; }
-
-.routing-workspace-box {
-  padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.routing-workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.routing-count { flex: 0 0 auto; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; }
-.routing-workspace-box > .routing-field-hint { margin-top: 4px; }
-
-.routing-selected-list { display: grid; gap: 4px; margin-top: 8px; max-height: 150px; overflow-y: auto; }
-.routing-selected-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  min-height: 35px;
-  padding: 4px 4px 4px 6px;
-  border: 1px solid #edf0f4;
-  border-radius: 5px;
-  background: #fbfcfe;
-}
-.routing-selected-row.invalid { border-color: #fecaca; background: #fff8f8; }
-.routing-selected-row.dragging { opacity: .55; }
-.routing-selected-row.drag-over-before { border-top: 2px solid #0f9f8d; }
-.routing-selected-row.drag-over-after { border-bottom: 2px solid #0f9f8d; }
-.routing-order { display: inline-flex; flex: 0 0 18px; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; color: #6b7280; background: #f1f3f5; font-size: 10px; font-variant-numeric: tabular-nums; }
-.routing-drag-handle { display: inline-flex; flex: 0 0 18px; align-items: center; justify-content: center; width: 18px; height: 22px; padding: 0; color: #9ca3af; cursor: grab; }
-.routing-drag-handle:active { cursor: grabbing; }
-.routing-drag-handle:disabled { cursor: not-allowed; opacity: .45; }
-.routing-selected-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
-.routing-selected-copy strong { overflow: hidden; color: #374151; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.routing-selected-copy small { overflow: hidden; color: #9ca3af; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.routing-group-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; color: #0f9f8d; font-size: 9px; font-weight: 600; white-space: nowrap; }
-.routing-group-status.invalid { color: #dc2626; }
-.routing-icon-button { display: inline-flex; flex: 0 0 22px; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; color: #9ca3af; }
-.routing-icon-button:hover:not(:disabled) { color: #0f766e; background: #effcf9; }
-.routing-icon-button.danger:hover:not(:disabled) { color: #dc2626; background: #fff1f2; }
-.routing-icon-button:disabled { cursor: not-allowed; opacity: .4; }
-.routing-empty { margin-top: 8px; padding: 8px; border: 1px dashed #d1d5db; border-radius: 5px; color: #9ca3af; font-size: 11px; text-align: center; }
-
-.routing-add-select { width: 100%; margin-top: 8px; }
-.routing-add-select :deep(.select-trigger) { min-height: 34px; border-style: dashed; border-radius: 5px; background: #fff; }
-.routing-select-option { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
-.routing-select-option strong { color: #374151; font-size: 11px; }
-.routing-select-option small { color: #9ca3af; font-size: 9px; }
-
-.routing-strategy-block { margin-top: 0; padding-top: 0; }
-.routing-strategy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.routing-strategy-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-  min-height: 112px;
-  padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  color: #374151;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
-  appearance: none;
-  transition: border-color .14s ease, background-color .14s ease, box-shadow .14s ease;
-}
-.routing-strategy-card:hover:not(:disabled) { border-color: #9fd9cf; background: #fbfefd; }
-.routing-strategy-card:focus-visible { outline: 2px solid rgb(15 159 141 / 35%); outline-offset: 1px; }
-.routing-strategy-card:disabled { cursor: wait; opacity: .6; }
-.routing-strategy-card.selected { border-color: #67d8cf; background: #effcfb; box-shadow: 0 0 0 1px #a6eee8 inset; }
-.routing-strategy-card.custom { grid-column: 1 / -1; }
-.routing-strategy-icon { display: inline-flex; flex: 0 0 30px; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; }
-.routing-strategy-icon.teal { color: #0f766e; background: #e4f7f2; }
-.routing-strategy-icon.green { color: #17845a; background: #e6f7ee; }
-.routing-strategy-icon.amber { color: #a76514; background: #fff2dd; }
-.routing-strategy-icon.rose { color: #b54f66; background: #ffedf1; }
-.routing-strategy-icon.violet { color: #6f58b7; background: #f0ecff; }
-.routing-strategy-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
-.routing-strategy-copy strong { color: #25324a; font-size: 13px; font-weight: 700; line-height: 1.25; }
-.routing-strategy-copy small { display: -webkit-box; overflow: hidden; color: #667085; font-size: 11px; line-height: 1.4; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.routing-strategy-copy em { color: #8b95a5; font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; line-height: 1.35; white-space: normal; }
-.routing-strategy-check { flex: 0 0 auto; margin-top: 1px; color: #0f9f8d; }
-.routing-strategy-card.custom { min-height: 76px; }
-.routing-candidates-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid #edf0f4; }
-.routing-custom-weights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; padding-top: 9px; border-top: 1px solid #edf0f4; }
-.routing-custom-weights label { display: block; min-width: 0; color: #6b7280; font-size: 10px; }
-.routing-custom-weight-total { grid-column: 1 / -1; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1.25; }
-.routing-custom-weight-total.valid { color: #0f9f8d; }
-.routing-custom-weight-total.invalid { color: #dc2626; }
-.routing-custom-weights.invalid { border-top-color: #fecaca; }
-.routing-weight-total { flex: 0 0 auto; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; }
-.routing-weight-total.valid { color: #0f9f8d; }
-.routing-weight-total.invalid { color: #dc2626; }
-.routing-weight-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
-.routing-weight-grid label { color: #6b7280; font-size: 10px; }
-.routing-number-input { display: flex; align-items: center; margin-top: 4px; border: 1px solid #dfe4ec; border-radius: 5px; background: #fff; }
-.routing-number-input:focus-within { border-color: #0f9f8d; box-shadow: 0 0 0 2px rgb(15 159 141 / 10%); }
-.routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #374151; font-size: 12px; outline: none; }
-.routing-number-input b { padding-right: 7px; color: #9ca3af; font-size: 10px; font-weight: 500; }
-.routing-strategy-select { margin-top: 9px; }
-.routing-strategy-select :deep(.select-trigger) { min-height: 34px; border-radius: 5px; }
-.routing-validation-error { margin: 6px 0 0; color: #dc2626; font-size: 10px; line-height: 1.4; }
-
-.routing-preview-section { margin-top: 12px; padding-top: 11px; border-top: 1px solid #edf0f4; }
-.routing-preview-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; color: #374151; font-size: 11px; font-weight: 600; }
-.routing-preview-toggle > span { display: inline-flex; align-items: center; gap: 5px; }
-.routing-preview-toggle:hover { color: #0f766e; }
-.routing-preview-section > .routing-field-hint { margin-top: 4px; }
-.routing-preview-content { margin-top: 8px; }
-.routing-preview-controls { display: flex; align-items: stretch; gap: 6px; }
-.routing-preview-input { min-width: 0; flex: 1; min-height: 34px; padding: 0 9px; border: 1px solid #dfe4ec; border-radius: 5px; color: #374151; font-size: 11px; outline: none; }
-.routing-preview-input:focus { border-color: #0f9f8d; box-shadow: 0 0 0 2px rgb(15 159 141 / 10%); }
-.routing-preview-endpoint { flex: 0 0 112px; min-width: 0; }
-.routing-preview-endpoint :deep(.select-trigger) { min-height: 34px; border-radius: 5px; }
-.routing-preview-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-height: 34px; padding: 0 9px; border: 1px solid #cdebe4; border-radius: 5px; color: #0f766e; background: #f1fbf8; font-size: 11px; font-weight: 600; }
-.routing-preview-button:hover:not(:disabled) { background: #e4f7f2; }
-.routing-preview-button:disabled { cursor: wait; opacity: .6; }
-.routing-preview-list { display: grid; gap: 4px; margin-top: 8px; }
-.routing-preview-row { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 36px; padding: 5px 6px; border: 1px solid #edf0f4; border-radius: 5px; background: #fbfcfe; }
-.routing-preview-row:not(.eligible) { border-color: #fecaca; background: #fff8f8; }
-.routing-preview-rank { flex: 0 0 16px; color: #9ca3af; font-size: 10px; text-align: center; }
-.routing-preview-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
-.routing-preview-copy strong { overflow: hidden; color: #374151; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.routing-preview-copy small { overflow: hidden; color: #9ca3af; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.routing-preview-metrics { display: inline-flex; flex: 0 0 auto; gap: 3px; }
-.routing-preview-metrics span { min-width: 28px; padding: 2px 3px; border: 1px solid #e1e7f0; border-radius: 4px; color: #4663a8; background: #f4f6fd; font-size: 9px; font-variant-numeric: tabular-nums; text-align: center; }
-
-.dark .routing-panel { color: #e5e7eb; }
-.dark .routing-segmented { border-color: #374151; background: #202733; }
-.dark .routing-segmented button { color: #aeb8c5; }
-.dark .routing-segmented button.active { color: #77d5c8; background: #1c3638; box-shadow: 0 1px 3px rgb(0 0 0 / 22%), inset 0 0 0 1px rgb(119 213 200 / 12%); }
-.dark .routing-mode-hint, .dark .routing-field-hint, .dark .routing-count, .dark .routing-selected-copy small, .dark .routing-select-option small { color: #9ca3af; }
-.dark .routing-safety-note { border-color: #2f6d68; color: #a7d9d2; background: #1c3638; }
-.dark .routing-safety-note strong { color: #77d5c8; }
-.dark .routing-workspace-box, .dark .routing-selected-row, .dark .routing-number-input, .dark .routing-preview-input, .dark .routing-preview-row { border-color: #374151; background: #202733; }
-.dark .routing-selected-row.invalid, .dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
-.dark .routing-selected-copy strong, .dark .routing-preview-copy strong, .dark .routing-preview-toggle { color: #e5e7eb; }
-.dark .routing-number-input input, .dark .routing-preview-input { color: #e5e7eb; }
-.dark .routing-add-select :deep(.select-trigger), .dark .routing-strategy-select :deep(.select-trigger), .dark .routing-preview-endpoint :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
-.dark .routing-number-input, .dark .routing-preview-input { border-color: #4b5666; }
-.dark .routing-strategy-card { border-color: #374151; background: #202733; }
-.dark .routing-strategy-card.selected { border-color: #57cfc6; background: #173b39; box-shadow: 0 0 0 1px #2f6d68 inset; }
-.dark .routing-strategy-copy strong { color: #e9edf5; }
-.dark .routing-strategy-copy small { color: #aeb8c5; }
-.dark .routing-strategy-copy em { color: #8f9bad; }
-.dark .routing-strategy-block, .dark .routing-candidates-block, .dark .routing-preview-section { border-top-color: #303846; }
-.dark .routing-preview-button { border-color: #2f6d68; color: #77d5c8; background: #1c3638; }
-
-@media (max-width: 520px) {
-  .routing-panel-header { align-items: flex-start; flex-direction: column; }
-  .routing-segmented { width: 100%; }
-  .routing-segmented button { flex: 1; }
-  .routing-profile-error { align-items: flex-start; flex-direction: column; }
-  .routing-retry-button { align-self: flex-end; }
-  .routing-group-status span { display: none; }
-  .routing-group-status { margin-left: auto; }
-  .routing-strategy-grid { grid-template-columns: 1fr; }
-  .routing-strategy-card.custom { grid-column: auto; }
-  .routing-custom-weights { grid-template-columns: 1fr; }
-  .routing-custom-weight-total { grid-column: auto; }
-  .routing-weight-grid { grid-template-columns: 1fr; }
-  .routing-preview-controls { flex-direction: column; }
-  .routing-preview-input, .routing-preview-endpoint, .routing-preview-button { width: 100%; }
-}
-
-/* Final layout guards for the reference-sized editor.  The form keeps its
- * existing single-group flow; only smart routing gets an explicit visual
- * order so the primary group remains available without dominating the panel. */
-.routing-mobile-strategy-select,
-.routing-mobile-weight-editor { display: none; }
-
-.routing-smart-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.routing-smart-form > * { margin-top: 0 !important; }
-
-.routing-workspace {
-  display: flex;
-  flex-direction: column;
-}
-
-.routing-workspace > .routing-loading-hint { order: 0; }
-.routing-workspace > .routing-strategy-block { order: 1; }
-.routing-workspace > .routing-candidates-block { order: 2; }
-.routing-workspace > .routing-safety-note { order: 3; }
-.routing-workspace > .routing-preview-section { order: 4; }
-
-@media (max-width: 520px) {
-  .routing-smart-form { gap: 16px; }
-
-  /* On narrow screens the candidate pool is the primary action. */
-  .routing-workspace > .routing-candidates-block { order: 1; }
-  .routing-workspace > .routing-strategy-block { order: 2; }
-
-  .routing-candidates-block {
-    margin-top: 0;
-    padding: 12px;
-    border: 1px solid #e6e9ef;
-    border-radius: 10px;
-    background: #fff;
-  }
-
-  .routing-candidates-block .routing-field-hint { margin-top: 5px; }
-  .routing-selected-list { max-height: 180px; }
-
-  .routing-strategy-grid,
-  .routing-custom-weights { display: none; }
-
-  .routing-strategy-block {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .routing-strategy-block > .routing-workspace-header,
-  .routing-strategy-block > .routing-field-hint { display: none; }
-
-  .routing-mobile-strategy-select {
-    display: block;
-    order: 2;
-    margin-top: 10px;
-  }
-
-  .routing-mobile-strategy-select :deep(.select-trigger) {
-    min-height: 44px;
-    border: 2px solid #4dd4c7;
-    border-radius: 10px;
-    color: #0f766e;
-    background: #fff;
-    box-shadow: 0 0 0 2px rgb(77 212 199 / 12%);
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .routing-mobile-weight-editor {
-    display: grid;
-    order: 1;
-    grid-template-columns: 1fr;
-    gap: 10px;
-    margin-top: 0;
-    padding: 0;
-    border: 0;
-  }
-
-  .routing-mobile-weight-editor > label {
-    display: block;
-    min-width: 0;
-    color: #667085;
-    font-size: 12px;
-  }
-
-  .routing-mobile-weight-editor .routing-number-input {
-    min-height: 48px;
-    margin-top: 5px;
-    border-radius: 10px;
-  }
-
-  .routing-mobile-weight-editor .routing-number-input input {
-    min-height: 44px;
-    padding: 9px 12px;
-    font-size: 15px;
-  }
-
-  .routing-mobile-weight-editor .routing-number-input b {
-    padding-right: 12px;
-    font-size: 12px;
-  }
-
-  .routing-mobile-weight-editor .routing-custom-weight-total {
-    order: 4;
-    margin-top: 1px;
-    color: #0f9f8d;
-    font-size: 13px;
-  }
-
-  .routing-mobile-weight-editor > label:nth-of-type(1) { order: 1; }
-  .routing-mobile-weight-editor > label:nth-of-type(2) { order: 2; }
-  .routing-mobile-weight-editor > label:nth-of-type(3) { order: 3; }
-  .routing-mobile-weight-editor .routing-validation-error { order: 5; }
-
-  .routing-safety-note {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 9px 10px;
-    font-size: 10px;
-  }
-
-  .routing-selected-row {
-    gap: 4px;
-    min-height: 42px;
-    padding: 5px 4px 5px 6px;
-  }
-
-  .routing-selected-copy strong { font-size: 11px; }
-  .routing-selected-copy small { font-size: 9px; }
-  .routing-icon-button { flex-basis: 24px; width: 24px; height: 24px; }
-  .routing-add-select :deep(.select-trigger) { min-height: 42px; }
-}
-
-.dark .routing-candidates-block { border-color: #374151; background: #202733; }
-.dark .routing-mobile-strategy-select :deep(.select-trigger) {
-  border-color: #57cfc6;
-  color: #77d5c8;
-  background: #202733;
-  box-shadow: 0 0 0 2px rgb(87 207 198 / 12%);
-}
-.dark .routing-mobile-weight-editor > label { color: #aeb8c5; }
-</style>
+<style scoped src="@/custom/modules/smart-routing/editor.css"></style>

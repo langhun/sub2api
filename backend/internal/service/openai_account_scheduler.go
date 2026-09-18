@@ -75,6 +75,8 @@ type OpenAIAccountScheduleRequest struct {
 	GuardianParentAccountID int64
 	StickyPreviousAccountID int64
 	StickyWeighted          bool
+	SmartRouting            bool
+	SpeedPreferred          bool
 	SubscriptionPriority    bool
 	PreserveStickyBinding   bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
@@ -453,7 +455,7 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 	}
 
-	if !req.StickyWeighted {
+	if !req.StickyWeighted && !req.SmartRouting {
 		selection, escapedSticky, err := s.selectBySessionHash(ctx, req)
 		if err != nil {
 			return nil, decision, err
@@ -865,6 +867,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 ) openAIAccountLoadPlan {
 	allCandidates := make([]openAIAccountCandidateScore, 0, len(filtered))
 	for _, account := range filtered {
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && state.ContinuityLocked && state.ContinuityAccountID > 0 && account.ID != state.ContinuityAccountID {
+			continue
+		}
 		loadInfo, loadKnown := loadMap[account.ID]
 		if !loadKnown || loadInfo == nil {
 			loadInfo = &AccountLoadInfo{AccountID: account.ID}
@@ -873,6 +878,17 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		errorRate, ttft, hasTTFT := 0.0, 0.0, false
 		if s.stats != nil {
 			errorRate, ttft, hasTTFT = s.stats.snapshot(account.ID)
+		}
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+			// Generic runtime TTFT mixes models and request types. Smart routes
+			// use only their matching endpoint/model/stream observations.
+			errorRate, ttft, hasTTFT = 0, 0, false
+			if metric, ok := state.AccountMetrics[account.ID]; ok {
+				errorRate = metric.ErrorRate
+				if metric.SpeedMs > 0 {
+					ttft, hasTTFT = metric.SpeedMs, true
+				}
+			}
 		}
 		allCandidates = append(allCandidates, openAIAccountCandidateScore{
 			account:   account,
@@ -902,6 +918,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		candidates:                candidates,
 		staleSnapshotCompactRetry: staleSnapshotCompactRetry,
 		candidateCount:            len(candidates),
+		includeOverflowFallback:   req.SmartRouting,
 	}
 	if len(candidates) == 0 {
 		plan.selectionOrder = s.buildOpenAISelectionOrder(req, plan)
@@ -1001,6 +1018,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		if item.hasTTFT && hasTTFTSample && maxTTFT > minTTFT {
 			ttftFactor = 1 - clamp01((item.ttft-minTTFT)/(maxTTFT-minTTFT))
 		}
+		if req.SpeedPreferred && item.hasTTFT && item.ttft > 0 && maxTTFT == minTTFT {
+			ttftFactor = 1
+		}
 		resetFactor := 0.0
 		if weights.Reset > 0 && hasResetSample {
 			if end, ok := openAISchedulingResetWindowEnd(item.account, now); ok {
@@ -1029,11 +1049,14 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 			weights.Reset*resetFactor +
 			weights.QuotaHeadroom*quotaHeadroomFactor +
 			weights.UpstreamCost*(upstreamCostFactor-openAIUpstreamCostNeutralFactor)
+		if req.SpeedPreferred {
+			item.score = 7*ttftFactor + 1.5*errorFactor + loadFactor + 0.5*queueFactor
+		}
 		if req.StickyWeighted {
 			if req.PreviousResponseCanMove && req.StickyPreviousAccountID > 0 && item.account.ID == req.StickyPreviousAccountID {
 				item.score += weights.Previous
 			}
-			if req.StickyAccountID > 0 && item.account.ID == req.StickyAccountID {
+			if req.StickyAccountID > 0 && item.account.ID == req.StickyAccountID && !req.SpeedPreferred {
 				item.score += weights.SessionSticky
 			}
 		}
@@ -1066,7 +1089,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		}
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
 		var primary []openAIAccountCandidateScore
-		if req.StickyWeighted {
+		if req.StickyWeighted && !req.SmartRouting {
 			for _, stickyID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
 				if stickyID <= 0 {
 					continue
@@ -1084,7 +1107,11 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 			}
 		}
 		if len(primary) == 0 {
-			primary = buildOpenAIWeightedSelectionOrder(ranked, req)
+			if req.SpeedPreferred {
+				primary = ranked
+			} else {
+				primary = buildOpenAIWeightedSelectionOrder(ranked, req)
+			}
 		}
 		if !plan.includeOverflowFallback || groupTopK >= len(pool) {
 			return primary
@@ -1271,7 +1298,7 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (*AccountSelectionResult, error) {
-	if !req.StickyWeighted {
+	if !req.StickyWeighted || req.SmartRouting {
 		return nil, nil
 	}
 	for _, accountID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
@@ -2128,6 +2155,13 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	platformOverride ...string,
 ) (selection *AccountSelectionResult, decision OpenAIAccountScheduleDecision, err error) {
 	defer func() {
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.ContinuityLocked && state.ContinuityAccountID > 0 && selection != nil && selection.Account != nil && selection.Account.ID != state.ContinuityAccountID {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			selection = nil
+			err = fmt.Errorf("%w: response owner unavailable", ErrNoAvailableAccounts)
+		}
 		if errors.Is(err, ErrNoAvailableAccounts) || errors.Is(err, ErrNoAvailableCompactAccounts) {
 			MarkSmartRoutingGroupExhausted(ctx)
 		}
@@ -2139,6 +2173,8 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 		state.RequireCompact = requireCompact
 	}
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
+	LoadSmartRoutingAccountMetrics(ctx, s.smartRoutingResolver, groupID)
+	excludedIDs = SmartRoutingExcludedAccounts(ctx, excludedIDs)
 	// Messages dispatch aliases belong to the selected group. Resolve this only
 	// after smart routing has mutated the request-local API key; otherwise a
 	// candidate group is filtered using the primary group's mapped model.
@@ -2196,6 +2232,12 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		return err == nil && candidate != nil && candidate.Status == StatusActive && SmartRoutingGroupsCompatible(primaryRoutingGroup, candidate)
 	}
 	restorePrimary := func() *int64 {
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			_, exhausted := state.ExhaustedGroups[primaryGroupID]
+			if exhausted || (state.ContinuityGroupID > 0 && state.ContinuityGroupID != primaryGroupID) {
+				state.NoRoute = true
+			}
+		}
 		resolved := primaryGroupID
 		// Do not leave a billing-rejected candidate on the mutable API key. The
 		// group object is restored with the ID so usage recording retains the
@@ -2427,6 +2469,11 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 	if !errors.Is(err, ErrNoAvailableAccounts) && !errors.Is(err, ErrNoAvailableCompactAccounts) {
 		return selection, decision, err
 	}
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		// Let the Overlay try a healthy candidate group instead of bypassing
+		// this group's proxy quarantine and retrying a known broken upstream.
+		return selection, decision, err
+	}
 	// The circuit only ever quarantines PlatformOpenAI accounts.
 	if NormalizeOpenAICompatiblePlatform(platform) != PlatformOpenAI {
 		return selection, decision, err
@@ -2511,6 +2558,11 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		guardianParentAccountID = s.resolveOpenAIGuardianParentAccountID(ctx, groupID)
 	}
 	scheduler := s.getOpenAIAccountScheduler(ctx)
+	// Smart routing requires scored admission even when ordinary keys use the
+	// legacy scheduler. Keep that switch's behavior unchanged for ordinary keys.
+	if state := SmartRoutingStateFromContext(ctx); scheduler == nil && state != nil && state.SmartRoutingActive {
+		scheduler = &defaultOpenAIAccountScheduler{service: s, stats: newOpenAIAccountRuntimeStats()}
+	}
 	if scheduler == nil {
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		if guardianParentAccountID > 0 {
@@ -2613,7 +2665,22 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		}
 	}
 	stickyWeighted := s.isOpenAIAdvancedSchedulerStickyWeightedEnabled(ctx)
+	smartRouting := false
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		smartRouting = true
+		stickyWeighted = true
+		if !state.ContinuityLocked && stickyAccountID > 0 {
+			if scheduler, ok := scheduler.(*defaultOpenAIAccountScheduler); ok {
+				if _, _, _, escape := scheduler.shouldEscapeStickyAccount(stickyAccountID, s.openAIStickyEscapeConfig()); escape {
+					stickyAccountID = 0
+				}
+			}
+		}
+	}
 	subscriptionPriority := s.isOpenAIAdvancedSchedulerSubscriptionPriorityEnabled(ctx)
+	if SmartRoutingSpeedPreferred(ctx) {
+		subscriptionPriority = false
+	}
 	stickyPreviousAccountID := int64(0)
 	if stickyWeighted && previousResponseCanMove && strings.TrimSpace(previousResponseID) != "" && platform == PlatformOpenAI {
 		stickyPreviousAccountID = s.ResolveAccountIDByPreviousResponseIDForScheduler(ctx, groupID, previousResponseID, requestedModel, excludedIDs, requiredCapability, requireCompact)
@@ -2627,6 +2694,8 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		GuardianParentAccountID: guardianParentAccountID,
 		StickyPreviousAccountID: stickyPreviousAccountID,
 		StickyWeighted:          stickyWeighted,
+		SmartRouting:            smartRouting,
+		SpeedPreferred:          SmartRoutingSpeedPreferred(ctx),
 		SubscriptionPriority:    subscriptionPriority,
 		PreserveStickyBinding:   preserveGuardianParentBinding,
 		RequirePrivacySet:       s.openAIGroupRequiresPrivacySet(ctx, groupID),

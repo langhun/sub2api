@@ -16,7 +16,7 @@ type platformCapturingAccountRepo struct {
 	platformsByID map[int64]string
 }
 
-func (s *platformCapturingAccountRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID int64, platform string) ([]service.Account, error) {
+func (s *platformCapturingAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
 	if _, seen := s.platformsByID[groupID]; !seen && s.platformsByID == nil {
 		s.platformsByID = map[int64]string{}
 	}
@@ -28,7 +28,7 @@ func (s *platformCapturingAccountRepo) ListSchedulableByGroupIDAndPlatform(_ con
 		// ever match nothing.
 		return nil, nil
 	}
-	return s.routingAccountRepoStub.ListSchedulableByGroupIDAndPlatform(nil, groupID, platform)
+	return s.routingAccountRepoStub.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
 }
 
 func (s *platformCapturingAccountRepo) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID int64, platforms []string) ([]service.Account, error) {
@@ -75,7 +75,7 @@ func TestResolveKeepsCurrentGroupWhenKeyGroupNil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	const keyID int64 = 92
 	mainID, candidateID := int64(1), int64(2)
@@ -86,8 +86,8 @@ func TestResolveKeepsCurrentGroupWhenKeyGroupNil(t *testing.T) {
 		"group_id", "sort_order", "enabled", "name", "platform",
 	}).AddRow(int64(2), 0, true, "expensive", service.PlatformOpenAI))
 	zeroStats := sqlmock.NewRows([]string{"samples", "success", "speed", "fallback_samples", "fallback_success", "fallback_speed"}).AddRow(0, 0, sql.NullInt64{}, 0, 0, sql.NullInt64{})
-	mock.ExpectQuery("FROM usage_logs").WithArgs(mainID, "gpt-5").WillReturnRows(zeroStats)
-	mock.ExpectQuery("FROM usage_logs").WithArgs(candidateID, "gpt-5").WillReturnRows(zeroStats)
+	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(mainID, "gpt-5", "chat_completions", false).WillReturnRows(zeroStats)
+	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(candidateID, "gpt-5", "chat_completions", false).WillReturnRows(sqlmock.NewRows([]string{"samples", "success", "speed", "fallback_samples", "fallback_success", "fallback_speed"}).AddRow(0, 0, sql.NullInt64{}, 0, 0, sql.NullInt64{}))
 
 	primary := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
 	candidate := &service.Group{ID: candidateID, Name: "expensive", Platform: service.PlatformOpenAI, RateMultiplier: 5, Status: service.StatusActive, SubscriptionType: "standard"}

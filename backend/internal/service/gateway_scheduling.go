@@ -36,6 +36,8 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 
 	requestedGroupID := groupID
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
+	LoadSmartRoutingAccountMetrics(ctx, s.smartRoutingResolver, groupID)
+	excludedIDs = SmartRoutingExcludedAccounts(ctx, excludedIDs)
 	ctx = s.refreshSingleAccountRetryAfterRouting(ctx, requestedGroupID, groupID)
 	if !SmartRoutingContractValid(ctx) {
 		if key, ok := APIKeyFromContext(ctx); ok {
@@ -140,6 +142,8 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}()
 	requestedGroupID := groupID
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
+	LoadSmartRoutingAccountMetrics(ctx, s.smartRoutingResolver, groupID)
+	excludedIDs = SmartRoutingExcludedAccounts(ctx, excludedIDs)
 	// Group resolution happens inside the scheduler, before the handler can
 	// republish the selected group's context. Refresh the group-scoped
 	// Antigravity retry mode here so a candidate never inherits the primary
@@ -210,6 +214,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 
 	// [DEBUG-STICKY] 调度器入口日志
+	if SmartRoutingSpeedPreferred(ctx) {
+		stickyAccountID = 0
+	}
 	slog.Info("sticky.scheduler_entry",
 		"group_id", derefGroupID(groupID),
 		"session_hash", shortSessionHash(sessionHash),
@@ -230,7 +237,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			derefGroupID(groupID), groupPlatform, requestedModel, shortSessionHash(sessionHash), stickyAccountID, cfg.LoadBatchEnabled, s.concurrencyService != nil)
 	}
 
-	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
+	if s.concurrencyService == nil || (!cfg.LoadBatchEnabled && !SmartRoutingSpeedPreferred(ctx)) {
 		// 复制排除列表，用于会话限制拒绝时的重试
 		localExcluded := make(map[int64]struct{})
 		for k, v := range excludedIDs {
@@ -546,6 +553,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					}
 				})
 				shuffleWithinSortGroups(routingAvailable)
+				routingAvailable = smartRoutingOrderBySpeed(ctx, routingAvailable)
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
@@ -816,6 +824,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			candidates = filterByMinLoadRate(candidates)
 			// 4. LRU 选择最久未用的账号
 			selected := selectByLRU(candidates, preferOAuth)
+			if SmartRoutingSpeedPreferred(ctx) && len(available) > 0 {
+				ordered := smartRoutingOrderBySpeed(ctx, available)
+				selected = &ordered[0]
+			}
 			if selected == nil {
 				break
 			}
@@ -932,6 +944,12 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 		return err == nil && candidate != nil && candidate.Status == StatusActive && SmartRoutingGroupsCompatible(primaryRoutingGroup, candidate)
 	}
 	restorePrimary := func() *int64 {
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			_, exhausted := state.ExhaustedGroups[primaryGroupID]
+			if exhausted || (state.ContinuityGroupID > 0 && state.ContinuityGroupID != primaryGroupID) {
+				state.NoRoute = true
+			}
+		}
 		resolved := primaryGroupID
 		// A rejected/exhausted candidate must never remain on the mutable key.
 		// Reloading the primary group also restores the billing snapshot used by
@@ -2295,6 +2313,9 @@ func shuffleWithinPriority(accounts []*Account) {
 
 // selectAccountForModelWithPlatform 选择单平台账户（完全隔离）
 func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, platform string) (*Account, error) {
+	if SmartRoutingSpeedPreferred(ctx) {
+		sessionHash = ""
+	}
 	preferOAuth := platform == PlatformGemini
 	routingAccountIDs := s.routingAccountIDsForRequest(ctx, groupID, requestedModel, platform)
 
@@ -2401,6 +2422,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			}
 			if selected == nil {
 				selected = acc
+				continue
+			}
+			if prefer, decisive := smartRoutingPreferAccountBySpeed(ctx, acc, selected); decisive {
+				if prefer {
+					selected = acc
+				}
 				continue
 			}
 			if acc.Priority < selected.Priority {
@@ -2520,6 +2547,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			selected = acc
 			continue
 		}
+		if prefer, decisive := smartRoutingPreferAccountBySpeed(ctx, acc, selected); decisive {
+			if prefer {
+				selected = acc
+			}
+			continue
+		}
 		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
@@ -2561,6 +2594,9 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 // selectAccountWithMixedScheduling 选择账户（支持混合调度）
 // 查询原生平台账户 + 启用 mixed_scheduling 的 antigravity 账户
 func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, nativePlatform string) (*Account, error) {
+	if SmartRoutingSpeedPreferred(ctx) {
+		sessionHash = ""
+	}
 	preferOAuth := nativePlatform == PlatformGemini
 	routingAccountIDs := s.routingAccountIDsForRequest(ctx, groupID, requestedModel, nativePlatform)
 
@@ -2667,6 +2703,12 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 			}
 			if selected == nil {
 				selected = acc
+				continue
+			}
+			if prefer, decisive := smartRoutingPreferAccountBySpeed(ctx, acc, selected); decisive {
+				if prefer {
+					selected = acc
+				}
 				continue
 			}
 			if acc.Priority < selected.Priority {
@@ -2785,6 +2827,12 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 		}
 		if selected == nil {
 			selected = acc
+			continue
+		}
+		if prefer, decisive := smartRoutingPreferAccountBySpeed(ctx, acc, selected); decisive {
+			if prefer {
+				selected = acc
+			}
 			continue
 		}
 		if acc.Priority < selected.Priority {

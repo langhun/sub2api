@@ -800,6 +800,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			continue
 		}
 		if slotResult != openAISlotAcquireOK {
+			if slotResult == openAISlotAcquireRouteRetry {
+				resetSmartRoutingAccountFailover()
+				continue
+			}
 			return
 		}
 
@@ -840,6 +844,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			cyberBlockBodyHTTP = sessionHashBody
 		}
 		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyHTTP, clientRequestedUsageFields(c, attemptChannelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
+		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs
@@ -1467,6 +1472,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			continue
 		}
 		if slotResult != openAISlotAcquireOK {
+			if slotResult == openAISlotAcquireRouteRetry {
+				resetSmartRoutingAccountFailover()
+				continue
+			}
 			return
 		}
 
@@ -1500,6 +1509,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if err == nil && result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
+		observeSmartRoutingForward(c, account.ID, reqStream, forwardStart, result, err)
 		// Forward 与错误一起返回的部分结果：流中断/客户端断开排水前上游已计量的
 		// usage 照常入账，避免上游已产生消耗的请求完全漏记（#5148，对齐 anthropic
 		// 网关同名修复）。failover 错误恒定 result=nil，不会重复计费。
@@ -2199,6 +2209,7 @@ const (
 	openAISlotAcquireOK openAISlotAcquireResult = iota
 	// openAISlotAcquireFailed：错误响应已写出，调用方直接 return。
 	openAISlotAcquireFailed
+	openAISlotAcquireRouteRetry
 	// openAISlotAcquireProfitVetoed：槽位获取成功后利润终检否决。槽位已释放、
 	// 未写任何响应；调用方应经 recordOpenAIProfitVeto 把该账号加入本请求排除集
 	// 后重新选号，全池耗尽由下一轮选号返回标准 no available accounts。
@@ -2323,6 +2334,9 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		return wrapReleaseOnDone(ctx, selection.ReleaseFunc), openAISlotAcquireOK
 	}
 	if selection.WaitPlan == nil {
+		if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+			return nil, openAISlotAcquireRouteRetry
+		}
 		markOpsRoutingCapacityLimited(c)
 		writeError(http.StatusServiceUnavailable, "api_error", "", "No available accounts")
 		return nil, openAISlotAcquireFailed
@@ -2362,6 +2376,9 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	if waitErr != nil {
 		reqLog.Warn("openai.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(waitErr))
 	} else if !canWait {
+		if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+			return nil, openAISlotAcquireRouteRetry
+		}
 		reqLog.Info("openai.account_wait_queue_full",
 			zap.Int64("account_id", account.ID),
 			zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
@@ -2389,6 +2406,9 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	)
 	if err != nil {
 		reqLog.Warn("openai.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+		if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+			return nil, openAISlotAcquireRouteRetry
+		}
 		status, errType, code, message := concurrencyErrorResponse(err, "account")
 		writeError(status, errType, code, message)
 		return nil, openAISlotAcquireFailed
