@@ -153,6 +153,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	var lastFailoverErr *service.UpstreamFailoverError
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	resetSmartRoutingAccountFailover := func() {
+		service.ClearSmartRoutingRetryAccount(c.Request.Context())
 		failedAccountIDs = make(map[int64]struct{})
 		sameAccountRetryCount = make(map[int64]int)
 		switchCount = 0
@@ -230,6 +231,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			return
 		}
 		account := selection.Account
+		service.CompleteSmartRoutingRetrySelection(c.Request.Context(), account.ID)
 		// Smart routing mutates the request-local API key after selecting a
 		// candidate. Re-publish that group and reinstall its profit gate while
 		// preserving the request-level pricing timestamp, then resolve channel
@@ -296,7 +298,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					accountReleaseFunc()
 				}
 			}()
-			return forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.OpenAIForwardResult, error) {
+			return forwardWithSmartRouting(c, account, reqStream, func() (*service.OpenAIForwardResult, error) {
 				return h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, promptCacheKey, "")
 			})
 		}()
@@ -380,6 +382,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						return
 					}
 					if c.Writer.Size() != writerSizeBeforeForward {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ObserveOpenAIAccountHealthFailure(c.Request.Context(), account, err)
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
@@ -409,10 +412,13 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 								return
 							case <-time.After(retryDelay):
 							}
+							lastFailoverErr = failoverErr
+							service.SetSmartRoutingRetryAccount(c.Request.Context(), account.ID)
 							continue
 						}
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
+					service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 					failedAccountIDs[account.ID] = struct{}{}
 					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr

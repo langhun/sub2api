@@ -228,8 +228,10 @@ func (s *FailoverState) HandleFailoverError(
 			zap.Duration("retry_delay", retryDelay),
 		)
 		if !sleepWithContext(ctx, retryDelay) {
+			service.ClearSmartRoutingRetryAccount(ctx)
 			return FailoverCanceled
 		}
+		service.SetSmartRoutingRetryAccount(ctx, accountID)
 		return FailoverContinue
 	}
 

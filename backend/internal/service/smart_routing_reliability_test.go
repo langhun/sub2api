@@ -20,10 +20,12 @@ func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T
 	collector := &routeAttemptCollector{}
 	s := &SmartRoutingRequestState{SmartRoutingActive: true, CurrentGroupID: 2, RequestedModel: "gpt-5", EndpointType: "responses", Observer: collector}
 	ctx := WithSmartRoutingState(WithAPIKeyContext(context.WithValue(context.Background(), ctxkey.RequestID, "request-1"), &APIKey{ID: 9}), s)
-	ObserveSmartRoutingAttempt(ctx, 11, true, time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
+	account11 := &Account{ID: 11}
+	account12 := &Account{ID: 12}
+	ObserveSmartRoutingAttempt(ctx, account11, true, time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
 	s.CurrentGroupID = 21
 	ttft := 100
-	ObserveSmartRoutingAttempt(ctx, 12, true, 2*time.Second, &ttft, nil)
+	ObserveSmartRoutingAttempt(ctx, account12, true, 2*time.Second, &ttft, nil)
 	require.Len(t, collector.attempts, 2)
 	require.Equal(t, "request-1", collector.attempts[0].RequestID)
 	require.Equal(t, 1, collector.attempts[0].Attempt)
@@ -33,17 +35,65 @@ func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T
 	require.False(t, collector.attempts[0].Success)
 	require.Equal(t, int64(100), collector.attempts[1].SpeedMs)
 	require.Contains(t, SmartRoutingExcludedAccounts(ctx, nil), int64(11))
-	ObserveSmartRoutingAttempt(ctx, 12, false, time.Second, nil, errors.New("invalid user parameter"))
-	ObserveSmartRoutingAttempt(ctx, 12, false, time.Second, nil, &UpstreamFailoverError{StatusCode: 503, RequestScopedTransient: true})
-	ObserveSmartRoutingAttempt(ctx, 12, false, time.Second, nil, &UpstreamFailoverError{Stage: GatewayFailureStageAccountAuth, Scope: GatewayFailureScopeProvider})
+	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, errors.New("invalid user parameter"))
+	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, &UpstreamFailoverError{StatusCode: 503, RequestScopedTransient: true})
+	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, &UpstreamFailoverError{Stage: GatewayFailureStageAccountAuth, Scope: GatewayFailureScopeProvider})
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	ObserveSmartRoutingAttempt(cancelCtx, 12, true, time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
+	ObserveSmartRoutingAttempt(cancelCtx, account12, true, time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
 	require.Len(t, collector.attempts, 2)
 	require.NotContains(t, s.FailedAccountIDs, int64(12), "request/provider credential failures must not quarantine a healthy account")
 	s.SmartRoutingActive = false
-	ObserveSmartRoutingAttempt(ctx, 12, false, time.Second, nil, nil)
+	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, nil)
 	require.Len(t, collector.attempts, 2, "single-group requests have no new feedback behavior")
+}
+
+func TestSmartRoutingPoolFailureIsFinalizedOnlyAfterHandlerExhaustion(t *testing.T) {
+	collector := &routeAttemptCollector{}
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		CurrentGroupID:     2,
+		RequestedModel:     "gpt-5",
+		EndpointType:       "responses",
+		Stream:             true,
+		Observer:           collector,
+	}
+	ctx := WithSmartRoutingState(WithAPIKeyContext(context.Background(), &APIKey{ID: 9}), state)
+	account := &Account{ID: 11, Type: AccountTypeAPIKey, Credentials: map[string]any{"pool_mode": true}}
+	failure := &UpstreamFailoverError{StatusCode: 429, RetryableOnSameAccount: true}
+
+	for i := 0; i < account.GetPoolModeRetryCount()+1; i++ {
+		ObserveSmartRoutingAttempt(ctx, account, true, time.Second, nil, failure)
+		require.NotContains(t, state.FailedAccountIDs, account.ID)
+		require.False(t, collector.attempts[i].HealthFinal)
+		require.False(t, collector.attempts[i].HealthOnly)
+	}
+
+	FinalizeSmartRoutingPoolFailure(ctx, account, failure)
+	require.Contains(t, state.FailedAccountIDs, account.ID)
+	require.Len(t, collector.attempts, account.GetPoolModeRetryCount()+2)
+	final := collector.attempts[len(collector.attempts)-1]
+	require.True(t, final.HealthFinal)
+	require.True(t, final.HealthOnly)
+	require.Equal(t, 429, final.StatusCode)
+}
+
+func TestSmartRoutingRetryAccountPinIsOneSelectionOnly(t *testing.T) {
+	state := &SmartRoutingRequestState{SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	accounts := []Account{{ID: 11}, {ID: 12}}
+
+	SetSmartRoutingRetryAccount(ctx, 11)
+	limited := LimitSmartRoutingAccountsForRetry(ctx, accounts)
+	require.Equal(t, []Account{{ID: 11}}, limited)
+	require.Equal(t, int64(11), state.RetryAccountID)
+	CompleteSmartRoutingRetrySelection(ctx, 11)
+	require.Zero(t, state.RetryAccountID)
+	require.Equal(t, accounts, LimitSmartRoutingAccountsForRetry(ctx, accounts))
+
+	SetSmartRoutingRetryAccount(ctx, 99)
+	require.Equal(t, accounts, LimitSmartRoutingAccountsForRetry(ctx, accounts), "a removed website must not hide healthy websites")
+	require.Zero(t, state.RetryAccountID)
 }
 
 func TestSmartRoutingSpeedDoesNotForceSlowStickyToFront(t *testing.T) {

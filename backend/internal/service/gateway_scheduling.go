@@ -33,6 +33,11 @@ func (s *GatewayService) SelectAccountForModel(ctx context.Context, groupID *int
 
 // SelectAccountForModelWithExclusions selects an account supporting the requested model while excluding specified accounts.
 func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
+	if SmartRoutingRetryAccountID(ctx) > 0 {
+		// A pool retry is request-local and must not be diverted by a durable
+		// session binding before the authoritative website candidate list loads.
+		sessionHash = ""
+	}
 
 	requestedGroupID := groupID
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
@@ -214,7 +219,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 
 	// [DEBUG-STICKY] 调度器入口日志
-	if SmartRoutingSpeedPreferred(ctx) {
+	if SmartRoutingSpeedPreferred(ctx) || SmartRoutingRetryAccountID(ctx) > 0 {
 		stickyAccountID = 0
 	}
 	slog.Info("sticky.scheduler_entry",
@@ -1409,6 +1414,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 		if platform == PlatformGrok || strings.EqualFold(platform, PlatformGrok) {
 			accounts = s.filterGrokFreeQuotaAccountsForGateway(ctx, accounts)
 		}
+		accounts = LimitSmartRoutingAccountsForRetry(ctx, accounts)
 		return accounts, useMixed, nil
 	}
 	if s.schedulerSnapshot != nil {

@@ -22,7 +22,7 @@ func accountHealthFixture(t *testing.T) (*Module, *miniredis.Miniredis, service.
 	r := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: r.Addr(), MaxRetries: -1})
 	t.Cleanup(func() { _ = client.Close() })
-	return &Module{redis: client}, r, service.SmartRoutingAttempt{GroupID: 2, AccountID: 11, Model: "gpt-5", Endpoint: "responses", Stream: true, StatusCode: 503, CreatedAt: time.Now()}
+	return &Module{redis: client}, r, service.SmartRoutingAttempt{GroupID: 2, AccountID: 11, Model: "gpt-5", Endpoint: "responses", Stream: true, StatusCode: 503, HealthFinal: true, CreatedAt: time.Now()}
 }
 
 func expireAccountCooldown(t *testing.T, r *miniredis.Miniredis, a service.SmartRoutingAttempt) {
@@ -163,7 +163,7 @@ func TestAccountRecoveryFailureBackoffAndLeaseExpiry(t *testing.T) {
 
 func TestAccountHealthLocalFallbackAndLateSuccess(t *testing.T) {
 	m := &Module{}
-	a := service.SmartRoutingAttempt{AccountID: 11, Model: "gpt-5", Endpoint: "responses", Stream: true, CreatedAt: time.Now()}
+	a := service.SmartRoutingAttempt{AccountID: 11, Model: "gpt-5", Endpoint: "responses", Stream: true, HealthFinal: true, CreatedAt: time.Now()}
 	m.ObserveRoutingAttempt(a)
 	a.Success = true
 	m.ObserveRoutingAttempt(a)
@@ -185,6 +185,41 @@ func TestAccountHealthLocalFallbackAndLateSuccess(t *testing.T) {
 	token, ok := m.AcquireRoutingAccount(context.Background(), 11, a.Model, a.Endpoint, a.Stream)
 	require.True(t, ok)
 	require.Empty(t, token)
+}
+
+func TestPoolAttemptsDoNotQuarantineWebsiteUntilTerminalFailure(t *testing.T) {
+	m, _, a := accountHealthFixture(t)
+	a.HealthFinal = false
+	for i := 0; i < 4; i++ {
+		m.ObserveRoutingAttempt(a)
+		_, admitted := m.AcquireRoutingAccount(context.Background(), a.AccountID, a.Model, a.Endpoint, a.Stream)
+		require.True(t, admitted, "pool member failures are not website-level failures")
+	}
+
+	a.HealthFinal = true
+	a.HealthOnly = true
+	m.ObserveRoutingAttempt(a)
+	_, admitted := m.AcquireRoutingAccount(context.Background(), a.AccountID, a.Model, a.Endpoint, a.Stream)
+	require.False(t, admitted, "exhausting the website pool must quarantine that website")
+	_, admitted = m.AcquireRoutingAccount(context.Background(), 12, a.Model, a.Endpoint, a.Stream)
+	require.True(t, admitted, "one website failure must not quarantine another website")
+}
+
+func TestConcurrentPoolMemberFailuresDoNotCombineIntoWebsiteFailure(t *testing.T) {
+	m, _, a := accountHealthFixture(t)
+	a.HealthFinal = false
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			m.ObserveRoutingAttempt(a)
+		}()
+	}
+	wg.Wait()
+
+	_, admitted := m.AcquireRoutingAccount(context.Background(), a.AccountID, a.Model, a.Endpoint, a.Stream)
+	require.True(t, admitted, "independent requests must not accumulate pool-member failures into a website quarantine")
 }
 
 func TestAccountHealthRedisOutageStillProtectsPeersAndRecoversLocally(t *testing.T) {

@@ -40,7 +40,7 @@ func retrySmartRoutingCapacity(c *gin.Context, err error, accountID int64, maxSw
 	return true
 }
 
-func observeSmartRoutingForward(c *gin.Context, accountID int64, stream bool, started time.Time, result any, err error) {
+func observeSmartRoutingForward(c *gin.Context, account *service.Account, stream bool, started time.Time, result any, err error) {
 	var firstToken *int
 	switch r := result.(type) {
 	case *service.OpenAIForwardResult:
@@ -58,18 +58,21 @@ func observeSmartRoutingForward(c *gin.Context, accountID int64, stream bool, st
 			firstToken = r.FirstTokenMs
 		}
 	}
-	service.ObserveSmartRoutingAttempt(c.Request.Context(), accountID, stream, time.Since(started), firstToken, err)
+	service.ObserveSmartRoutingAttempt(c.Request.Context(), account, stream, time.Since(started), firstToken, err)
 }
 
-func forwardWithSmartRouting[T any](c *gin.Context, accountID int64, stream bool, forward func() (T, error)) (T, error) {
+func forwardWithSmartRouting[T any](c *gin.Context, account *service.Account, stream bool, forward func() (T, error)) (T, error) {
 	var zero T
-	release, err := service.BeginSmartRoutingAttempt(c.Request.Context(), accountID)
+	if account == nil {
+		return zero, errors.New("smart routing account is nil")
+	}
+	release, err := service.BeginSmartRoutingAttempt(c.Request.Context(), account.ID)
 	if err != nil {
 		return zero, err
 	}
 	defer release()
 	started := time.Now()
 	result, err := forward()
-	observeSmartRoutingForward(c, accountID, stream, started, result, err)
+	observeSmartRoutingForward(c, account, stream, started, result, err)
 	return result, err
 }

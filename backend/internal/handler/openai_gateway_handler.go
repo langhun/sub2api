@@ -632,6 +632,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	var passthroughFailoverState openAIPassthroughFailoverState
 	resetSmartRoutingAccountFailover := func() {
+		service.ClearSmartRoutingRetryAccount(c.Request.Context())
 		failedAccountIDs = make(map[int64]struct{})
 		sameAccountRetryCount = make(map[int64]int)
 		switchCount = 0
@@ -739,6 +740,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			zap.Float64("load_skew", scheduleDecision.LoadSkew),
 		)
 		account := selection.Account
+		service.CompleteSmartRoutingRetrySelection(c.Request.Context(), account.ID)
 		forwardModel := reqModel
 		// Smart routing mutates the request-local key to the selected group.
 		// Publish that group, preserve the frozen pricing instant, and resolve
@@ -837,7 +839,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					accountReleaseFunc()
 				}
 			}()
-			return forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.OpenAIForwardResult, error) {
+			return forwardWithSmartRouting(c, account, reqStream, func() (*service.OpenAIForwardResult, error) {
 				return h.gatewayService.Forward(c.Request.Context(), c, account, attemptBody)
 			})
 		}()
@@ -939,6 +941,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					if !openAIForwardMayFailover(c, writerSizeBeforeForward, failoverErr) {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ObserveOpenAIAccountHealthFailure(c.Request.Context(), account, err)
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
@@ -956,6 +959,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					if openAIFirstOutputFailoverExhausted(failoverErr, &firstOutputTimeoutSwitchCount) {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
 							resetSmartRoutingAccountFailover()
@@ -982,10 +986,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 								return
 							case <-time.After(retryDelay):
 							}
+							lastFailoverErr = failoverErr
+							service.SetSmartRoutingRetryAccount(c.Request.Context(), account.ID)
 							continue
 						}
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
+					service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 					failedAccountIDs[account.ID] = struct{}{}
 					// Do not keep a credential sticky after it has failed and the
 					// request is about to move on. The next request must be free to
@@ -1356,6 +1363,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	// request-local API key to a different candidate group.
 	effectiveMappedModel := ""
 	resetSmartRoutingAccountFailover := func() {
+		service.ClearSmartRoutingRetryAccount(c.Request.Context())
 		failedAccountIDs = make(map[int64]struct{})
 		sameAccountRetryCount = make(map[int64]int)
 		switchCount = 0
@@ -1457,6 +1465,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			return
 		}
 		account := selection.Account
+		service.CompleteSmartRoutingRetrySelection(c.Request.Context(), account.ID)
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		reqLog.Debug("openai_messages.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		_ = scheduleDecision
@@ -1493,7 +1502,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					accountReleaseFunc()
 				}
 			}()
-			return forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.OpenAIForwardResult, error) {
+			return forwardWithSmartRouting(c, account, reqStream, func() (*service.OpenAIForwardResult, error) {
 				return h.gatewayService.ForwardAsAnthropic(c.Request.Context(), c, account, forwardBody, promptCacheKey, defaultMappedModel)
 			})
 		}()
@@ -1579,6 +1588,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						return
 					}
 					if c.Writer.Size() != writerSizeBeforeForward {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ObserveOpenAIAccountHealthFailure(c.Request.Context(), account, err)
 						h.handleAnthropicFailoverExhausted(c, failoverErr, true)
 						return
@@ -1608,10 +1618,13 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 								return
 							case <-time.After(retryDelay):
 							}
+							lastFailoverErr = failoverErr
+							service.SetSmartRoutingRetryAccount(c.Request.Context(), account.ID)
 							continue
 						}
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
+					service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 					failedAccountIDs[account.ID] = struct{}{}
 					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr

@@ -238,6 +238,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			parsedReq.GroupID = apiKey.GroupID
 		}
 		account := selection.Account
+		service.CompleteSmartRoutingRetrySelection(requestCtx, account.ID)
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
 		// 4. Acquire account concurrency slot
@@ -314,11 +315,11 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			setActualUpstreamEndpoint(c, EndpointAntigravityGenerateContent)
-			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+			result, err = forwardWithSmartRouting(c, account, reqStream, func() (*service.ForwardResult, error) {
 				return h.antigravityGatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
 			})
 		} else {
-			result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+			result, err = forwardWithSmartRouting(c, account, reqStream, func() (*service.ForwardResult, error) {
 				return h.gatewayService.ForwardAsResponses(requestCtx, c, account, forwardBody, parsedReq)
 			})
 		}
@@ -332,11 +333,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			if errors.As(err, &failoverErr) {
 				// Can't failover if streaming content already sent
 				if c.Writer.Size() != writerSizeBeforeForward {
+					service.FinalizeSmartRoutingPoolFailure(requestCtx, account, failoverErr)
 					h.handleResponsesFailoverExhausted(c, failoverErr, true)
 					return
 				}
 				action := fs.HandleFailoverError(requestCtx, h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 				if _, failed := fs.FailedAccountIDs[account.ID]; failed {
+					service.FinalizeSmartRoutingPoolFailure(requestCtx, account, failoverErr)
 					h.gatewayService.ClearSmartRoutingStickySession(requestCtx, apiKey.GroupID, sessionHash)
 				}
 				switch action {

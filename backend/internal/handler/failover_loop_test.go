@@ -455,6 +455,21 @@ func TestHandleFailoverError_CacheBilling(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandleFailoverError_SameAccountRetry(t *testing.T) {
+	t.Run("智能路由下一次选号锁定同一上游网站", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(3, false)
+		err := newTestFailoverErr(403, true, false)
+		err.SameAccountRetryDelay = time.Nanosecond
+		state := &service.SmartRoutingRequestState{SmartRoutingActive: true}
+		ctx := service.WithSmartRoutingState(context.Background(), state)
+
+		action := fs.HandleFailoverError(ctx, mock, 100, "openai", maxSameAccountRetries, err)
+		require.Equal(t, FailoverContinue, action)
+		require.Equal(t, int64(100), state.RetryAccountID)
+		service.CompleteSmartRoutingRetrySelection(ctx, 100)
+		require.Zero(t, state.RetryAccountID, "锁定只消费一次选号，不是会话粘性")
+	})
+
 	t.Run("第一次重试返回FailoverContinue", func(t *testing.T) {
 		mock := &mockTempUnscheduler{}
 		fs := NewFailoverState(3, false)

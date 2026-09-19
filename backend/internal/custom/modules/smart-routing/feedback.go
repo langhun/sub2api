@@ -52,8 +52,14 @@ func (m *Module) RoutingAccountMetrics(ctx context.Context, groupID int64, model
 }
 
 func (m *Module) ObserveRoutingAttempt(a service.SmartRoutingAttempt) {
-	// Publish health before retrying; SQL telemetry must not gate isolation.
-	m.observeAccountHealth(a)
+	// Pool-mode attempts become website-level health failures only after the
+	// handler confirms that the website's internal retry budget is exhausted.
+	if a.HealthFinal {
+		m.observeAccountHealth(a)
+	}
+	if a.HealthOnly {
+		return
+	}
 	if m.repo == nil || m.repo.db == nil || a.RequestID == "" {
 		return
 	}

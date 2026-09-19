@@ -121,8 +121,9 @@ func TestSmartRoutingForwardAdmissionAndCleanup(t *testing.T) {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
 			calls := 0
+			account := &service.Account{ID: 11}
 			run := func() {
-				_, err := forwardWithSmartRouting(c, 11, false, func() (*service.OpenAIForwardResult, error) {
+				_, err := forwardWithSmartRouting(c, account, false, func() (*service.OpenAIForwardResult, error) {
 					calls++
 					switch scenario {
 					case "cancel":

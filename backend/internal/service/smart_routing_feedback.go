@@ -20,8 +20,15 @@ type SmartRoutingAttempt struct {
 	Stream, Success              bool
 	ProbeToken                   string
 	StatusCode                   int
-	SpeedMs                      int64
-	CreatedAt                    time.Time
+	// HealthFinal marks an attempt that represents the website-level outcome.
+	// Pool-mode retries remain telemetry-only until the handler exhausts the
+	// website's own retry budget.
+	HealthFinal bool
+	// HealthOnly prevents the terminal pool failure notification from being
+	// persisted as a duplicate request attempt.
+	HealthOnly bool
+	SpeedMs    int64
+	CreatedAt  time.Time
 }
 
 type SmartRoutingAttemptObserver interface {
@@ -138,12 +145,13 @@ func smartRoutingPreferAccountBySpeed(ctx context.Context, account, selected *Ac
 	return a > b, a != b
 }
 
-func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream bool, duration time.Duration, firstTokenMs *int, err error) {
+func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bool, duration time.Duration, firstTokenMs *int, err error) {
 	state := SmartRoutingStateFromContext(ctx)
-	if state == nil || !state.SmartRoutingActive || state.Observer == nil || accountID <= 0 || ctx.Err() != nil {
+	if state == nil || !state.SmartRoutingActive || state.Observer == nil || account == nil || account.ID <= 0 || ctx.Err() != nil {
 		return
 	}
 	statusCode := 0
+	healthFinal := true
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return
@@ -154,6 +162,9 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 				return
 			}
 			statusCode = failure.StatusCode
+			if account.IsPoolMode() && failure.RetryableOnSameAccount {
+				healthFinal = false
+			}
 		} else {
 			var streamRead *openAIUpstreamStreamReadError
 			var streamEvent *sseStreamErrorEventError
@@ -164,7 +175,9 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 		if state.FailedAccountIDs == nil {
 			state.FailedAccountIDs = map[int64]struct{}{}
 		}
-		state.FailedAccountIDs[accountID] = struct{}{}
+		if healthFinal {
+			state.FailedAccountIDs[account.ID] = struct{}{}
+		}
 	}
 	key, ok := APIKeyFromContext(ctx)
 	if !ok {
@@ -181,10 +194,40 @@ func ObserveSmartRoutingAttempt(ctx context.Context, accountID int64, stream boo
 	}
 	state.Observer.ObserveRoutingAttempt(SmartRoutingAttempt{
 		RequestID: requestID, APIKeyID: key.ID, GroupID: state.CurrentGroupID,
-		AccountID: accountID, Attempt: state.Attempt, Model: state.RequestedModel,
+		AccountID: account.ID, Attempt: state.Attempt, Model: state.RequestedModel,
 		Endpoint: state.EndpointType, Stream: stream, Success: err == nil,
-		ProbeToken: state.ProbeToken, StatusCode: statusCode,
+		ProbeToken: state.ProbeToken, StatusCode: statusCode, HealthFinal: healthFinal,
 		SpeedMs: speed, CreatedAt: time.Now(),
+	})
+}
+
+// FinalizeSmartRoutingPoolFailure promotes a pool-mode attempt to a website-
+// level failure only after the handler has exhausted same-account retries (or
+// cannot safely retry after visible output). The original attempt already
+// supplied telemetry, so this notification only updates admission health.
+func FinalizeSmartRoutingPoolFailure(ctx context.Context, account *Account, err error) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || state.Observer == nil || account == nil || account.ID <= 0 || ctx.Err() != nil || !account.IsPoolMode() {
+		return
+	}
+	var failure *UpstreamFailoverError
+	if !errors.As(err, &failure) || !failure.RetryableOnSameAccount || failure.RequestScopedTransient || failure.Scope == GatewayFailureScopeRequest || !failure.ShouldReportAccountScheduleFailure() {
+		return
+	}
+	if state.FailedAccountIDs == nil {
+		state.FailedAccountIDs = map[int64]struct{}{}
+	}
+	state.FailedAccountIDs[account.ID] = struct{}{}
+	state.Observer.ObserveRoutingAttempt(SmartRoutingAttempt{
+		AccountID:   account.ID,
+		GroupID:     state.CurrentGroupID,
+		Model:       state.RequestedModel,
+		Endpoint:    state.EndpointType,
+		Stream:      state.Stream,
+		StatusCode:  failure.StatusCode,
+		HealthFinal: true,
+		HealthOnly:  true,
+		CreatedAt:   time.Now(),
 	})
 }
 

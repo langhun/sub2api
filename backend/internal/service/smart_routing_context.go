@@ -81,20 +81,24 @@ type SmartRoutingRequestState struct {
 	// selectedMu protects SmartRoutingSelectedGroups because usage recording is
 	// intentionally asynchronous and may inspect the marker while a streaming
 	// request is still advancing through another account/group attempt.
-	selectedMu          sync.RWMutex
-	MainGroupID         int64
-	CurrentGroupID      int64
-	ExhaustedGroups     map[int64]struct{}
-	FailedAccountIDs    map[int64]struct{}
-	AccountExclusions   map[int64]string
-	NoRoute             bool
-	Strategy            string
-	SpeedWeight         float64
-	SuccessWeight       float64
-	RequestedModel      string
-	Stream              bool
-	Attempt             int
-	CapacityRetries     int
+	selectedMu        sync.RWMutex
+	MainGroupID       int64
+	CurrentGroupID    int64
+	ExhaustedGroups   map[int64]struct{}
+	FailedAccountIDs  map[int64]struct{}
+	AccountExclusions map[int64]string
+	NoRoute           bool
+	Strategy          string
+	SpeedWeight       float64
+	SuccessWeight     float64
+	RequestedModel    string
+	Stream            bool
+	Attempt           int
+	CapacityRetries   int
+	// RetryAccountID pins only the next pool-mode retry to the same upstream
+	// website. It is request-local and cleared as soon as that website is
+	// selected; it is not session stickiness.
+	RetryAccountID      int64
 	Observer            SmartRoutingAttemptObserver
 	ContinuityGroupID   int64
 	ContinuityAccountID int64
@@ -170,6 +174,54 @@ func MarkSmartRoutingContractInvalid(ctx context.Context) {
 	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
 		state.ContractInvalid = true
 	}
+}
+
+func SetSmartRoutingRetryAccount(ctx context.Context, accountID int64) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || accountID <= 0 {
+		return
+	}
+	state.RetryAccountID = accountID
+}
+
+func ClearSmartRoutingRetryAccount(ctx context.Context) {
+	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		state.RetryAccountID = 0
+	}
+}
+
+func CompleteSmartRoutingRetrySelection(ctx context.Context, accountID int64) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || state.RetryAccountID == 0 {
+		return
+	}
+	if state.RetryAccountID == accountID {
+		state.RetryAccountID = 0
+	}
+}
+
+func SmartRoutingRetryAccountID(ctx context.Context) int64 {
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		return state.RetryAccountID
+	}
+	return 0
+}
+
+// LimitSmartRoutingAccountsForRetry keeps a pool retry on the same upstream
+// website. If that website disappeared from the fresh schedulable snapshot,
+// the pin is cleared and the ordinary pool remains available.
+func LimitSmartRoutingAccountsForRetry(ctx context.Context, accounts []Account) []Account {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || state.RetryAccountID <= 0 {
+		return accounts
+	}
+	for i := range accounts {
+		if accounts[i].ID == state.RetryAccountID {
+			return []Account{accounts[i]}
+		}
+	}
+	state.RetryAccountID = 0
+	return accounts
 }
 
 // SmartRoutingGroupsCompatible is the shared hard boundary for a routed
@@ -362,6 +414,7 @@ func MarkSmartRoutingGroupExhausted(ctx context.Context) {
 		// retry decision on the same request context.
 		return
 	}
+	state.RetryAccountID = 0
 	if state.TriedGroups == nil {
 		state.TriedGroups = make(map[int64]struct{})
 	}

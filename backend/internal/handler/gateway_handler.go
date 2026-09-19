@@ -371,6 +371,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 			account := selection.Account
+			service.CompleteSmartRoutingRetrySelection(c.Request.Context(), account.ID)
 			attemptChannelMapping := channelMapping
 			if apiKey.Group != nil {
 				selectedCtx := service.WithGroupContext(c.Request.Context(), apiKey.Group)
@@ -731,6 +732,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 			account := selection.Account
+			service.CompleteSmartRoutingRetrySelection(c.Request.Context(), account.ID)
 			attemptChannelMapping := channelMapping
 			if currentAPIKey.Group != nil {
 				selectedCtx := service.WithGroupContext(c.Request.Context(), currentAPIKey.Group)
@@ -950,11 +952,11 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 			writerSizeBeforeForward := c.Writer.Size()
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
-				result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				result, err = forwardWithSmartRouting(c, account, reqStream, func() (*service.ForwardResult, error) {
 					return h.antigravityGatewayService.Forward(requestCtx, c, account, attemptBody, hasBoundSession)
 				})
 			} else {
-				result, err = forwardWithSmartRouting(c, account.ID, reqStream, func() (*service.ForwardResult, error) {
+				result, err = forwardWithSmartRouting(c, account, reqStream, func() (*service.ForwardResult, error) {
 					return h.gatewayService.Forward(requestCtx, c, account, attemptParsedReq)
 				})
 			}
@@ -1097,11 +1099,13 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if errors.As(err, &failoverErr) {
 					// 流式内容已写入客户端，无法撤销，禁止 failover 以防止流拼接腐化
 					if c.Writer.Size() != writerSizeBeforeForward {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, account.Platform, true)
 						return
 					}
 					action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 					if _, failed := fs.FailedAccountIDs[account.ID]; failed {
+						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), currentAPIKey.GroupID, sessionKey)
 					}
 					switch action {
