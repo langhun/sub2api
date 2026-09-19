@@ -78,6 +78,35 @@ func TestSmartRoutingPoolFailureIsFinalizedOnlyAfterHandlerExhaustion(t *testing
 	require.Equal(t, 429, final.StatusCode)
 }
 
+func TestSmartRoutingSeparatesWebsitePoolsFromDirectAccounts(t *testing.T) {
+	collector := &routeAttemptCollector{}
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		CurrentGroupID:     2,
+		RequestedModel:     "gpt-5",
+		EndpointType:       "responses",
+		Observer:           collector,
+	}
+	ctx := WithSmartRoutingState(WithAPIKeyContext(context.Background(), &APIKey{ID: 9}), state)
+	poolWebsite := &Account{
+		ID:          11,
+		Type:        AccountTypeAPIKey,
+		Credentials: map[string]any{"pool_mode": true},
+	}
+	directAccount := &Account{ID: 12, Type: AccountTypeOAuth}
+	failure := &UpstreamFailoverError{StatusCode: 429, RetryableOnSameAccount: true}
+
+	ObserveSmartRoutingAttempt(ctx, poolWebsite, false, time.Second, nil, failure)
+	require.NotContains(t, state.FailedAccountIDs, poolWebsite.ID, "an intermediate failure belongs to the website pool, not its hidden members")
+
+	ObserveSmartRoutingAttempt(ctx, directAccount, false, time.Second, nil, failure)
+	require.Contains(t, state.FailedAccountIDs, directAccount.ID, "a directly managed account is its own health unit")
+
+	attemptCount := len(collector.attempts)
+	FinalizeSmartRoutingPoolFailure(ctx, directAccount, failure)
+	require.Len(t, collector.attempts, attemptCount, "pool finalization must not emit a website-level event for a direct account")
+}
+
 func TestSmartRoutingRetryAccountPinIsOneSelectionOnly(t *testing.T) {
 	state := &SmartRoutingRequestState{SmartRoutingActive: true}
 	ctx := WithSmartRoutingState(context.Background(), state)
