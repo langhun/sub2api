@@ -50,6 +50,8 @@ export interface MonitorMetric {
   upstream_attempt_count?: number
 }
 
+export type MonitorExtensions = Record<string, unknown>
+
 export interface MonitorHealth {
   overall: HealthState
   error_rate: HealthState
@@ -149,13 +151,15 @@ export interface MonitorSnapshot {
   coverage: MonitorCoverage
   metrics: MonitorMetric
   health: MonitorHealth
-  trend: Array<{ bucket_start: string; metrics: MonitorMetric; health: MonitorHealth }>
+  trend: Array<{ bucket_start: string; metrics: MonitorMetric; health: MonitorHealth; extensions?: MonitorExtensions }>
+  extensions?: MonitorExtensions
 }
 
 export interface MonitorMatrixBucket {
   bucket_start: string
   metrics: MonitorMetric
   health: MonitorHealth
+  extensions?: MonitorExtensions
 }
 
 export interface MonitorMatrixRow {
@@ -166,6 +170,7 @@ export interface MonitorMatrixRow {
   metrics: MonitorMetric
   health: MonitorHealth
   buckets: MonitorMatrixBucket[]
+  extensions?: MonitorExtensions
 }
 
 export interface MonitorMatrixResponse {
@@ -180,7 +185,7 @@ export interface MonitorDimensions {
   models: Array<{ value: string; label: string; platform?: string; request_count: number }>
 }
 
-export interface MonitorModelRow { platform: string; model: string; metrics: MonitorMetric; health: MonitorHealth }
+export interface MonitorModelRow { platform: string; model: string; metrics: MonitorMetric; health: MonitorHealth; extensions?: MonitorExtensions }
 export interface MonitorErrorRow {
   category: string
   count: number

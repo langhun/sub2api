@@ -11,6 +11,7 @@ import { supportContactsLocaleMessages } from './modules/support-contacts/locale
 import { docsLocaleMessages } from './modules/docs/locales'
 import { registrationProtectionLocaleMessages } from './modules/registration-protection/locales'
 import { checkinUserAccessAdminLocaleMessages, checkinUserAccessLocaleMessages } from './modules/checkin-user-access/locales'
+import { channelMonitorV2ActiveProbeLocaleMessages } from './modules/channel-monitor-v2-active-probes/locales'
 import appleThemeLocalesEn from './modules/apple-theme/locales/en'
 import appleThemeLocalesZh from './modules/apple-theme/locales/zh'
 
@@ -66,8 +67,8 @@ export const customAdminLocaleMessages = {
 } as const
 
 export const customLocaleMessages = {
-	en: [customSharedLocaleMessages.en, appleThemeLocalesEn, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gmpayEdgeLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en, registrationProtectionLocaleMessages.en, checkinUserAccessLocaleMessages.en],
-	zh: [customSharedLocaleMessages.zh, appleThemeLocalesZh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gmpayEdgeLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh, registrationProtectionLocaleMessages.zh, checkinUserAccessLocaleMessages.zh],
+	en: [customSharedLocaleMessages.en, appleThemeLocalesEn, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gmpayEdgeLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en, registrationProtectionLocaleMessages.en, checkinUserAccessLocaleMessages.en, channelMonitorV2ActiveProbeLocaleMessages.en],
+	zh: [customSharedLocaleMessages.zh, appleThemeLocalesZh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gmpayEdgeLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh, registrationProtectionLocaleMessages.zh, checkinUserAccessLocaleMessages.zh, channelMonitorV2ActiveProbeLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

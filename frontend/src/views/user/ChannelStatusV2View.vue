@@ -28,6 +28,12 @@
                 {{ t('channelMonitorV2.updatedTo', { time: formatTime(snapshot.coverage.data_through) }) }}
               </span>
               <span v-else class="text-gray-400">{{ t('common.loading') }}</span>
+              <component
+                :is="extension.component"
+                v-for="extension in customChannelMonitorV2SourceExtensions"
+                :key="extension.id"
+                :extensions="snapshot?.extensions"
+              />
               <span
                 v-if="snapshot && !snapshot.coverage.coverage_complete && !bootstrapActive"
                 class="badge badge-warning"
@@ -310,6 +316,12 @@
                         <strong class="font-semibold text-gray-900 dark:text-white">
                           {{ row.model === '__other__' ? t('channelMonitorV2.otherModels') : row.model }}
                         </strong>
+                        <component
+                          :is="extension.component"
+                          v-for="extension in customChannelMonitorV2SourceExtensions"
+                          :key="extension.id"
+                          :extensions="row.extensions"
+                        />
                       </div>
                     </div>
                   </td>
@@ -471,6 +483,7 @@ import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
 import * as api from '@/api/channelMonitorV2'
+import { customChannelMonitorV2SourceExtensions } from '@/custom/registry'
 import type {
   HealthState,
   MonitorDimensions,

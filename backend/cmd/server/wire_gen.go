@@ -337,7 +337,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicSettingsProvider := server.ProvidePublicSettingsInjectionProvider(settingService, settingsRegistry)
 	activityWalletCapabilities := platform.ProvideActivityWalletCapabilities(billingCacheService, userRepository, subscriptionService, client, leaderLockCache)
 	generator := codeformat.NewGenerator(settingsRegistry)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, openAIGatewayService, redisClient)
+	channelMonitorQuotaFetcher := service.NewChannelMonitorQuotaFetcher(accountUsageService, cnProviderQuotaService, cnProviderBalanceService, accountRepository, configConfig)
+	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, openAIGatewayService, channelMonitorService, channelMonitorV2Service, channelMonitorRunner, settingService, redisClient)
 	if err != nil {
 		return nil, err
 	}
@@ -357,8 +359,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, configConfig)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)
-	channelMonitorQuotaFetcher := service.NewChannelMonitorQuotaFetcher(accountUsageService, cnProviderQuotaService, cnProviderBalanceService, accountRepository, configConfig)
-	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher)
 	channelMonitorV2Aggregator := service.ProvideChannelMonitorV2Aggregator(channelMonitorV2Repository, db, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
 	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, runtime, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, openAIQuotaAutoResetService, promptService, pluginManager)

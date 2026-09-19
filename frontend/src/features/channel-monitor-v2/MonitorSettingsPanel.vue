@@ -81,6 +81,12 @@
             </button>
           </div>
         </div>
+        <component
+          :is="extension.component"
+          v-for="extension in customChannelMonitorV2SettingsExtensions"
+          :key="extension.id"
+          @open-targets="$emit('open-active-probe-targets')"
+        />
       </div>
 
       <div class="card overflow-hidden !rounded-3xl !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
@@ -276,6 +282,9 @@ import {
 } from '@/api/channelMonitorV2'
 import { adminAPI } from '@/api/admin'
 import type { AdminGroup } from '@/types'
+import { customChannelMonitorV2SettingsExtensions } from '@/custom/registry'
+
+defineEmits<{ 'open-active-probe-targets': [] }>()
 
 const { t, te } = useI18n()
 const appStore = useAppStore()

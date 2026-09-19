@@ -32,6 +32,10 @@ type monitorRunnerSvc interface {
 	RunCheck(ctx context.Context, id int64) ([]*CheckResult, error)
 }
 
+type monitorRunnerRuntimeGate interface {
+	ScheduledCheckAllowed(context.Context, string) bool
+}
+
 // ChannelMonitorRunner 渠道监控调度器。
 //
 // 设计：
@@ -67,11 +71,12 @@ type ChannelMonitorRunner struct {
 
 // scheduledMonitor 单个监控的运行时上下文。
 type scheduledMonitor struct {
-	id       int64
-	name     string
-	interval time.Duration
-	jitter   time.Duration // 每轮 ± [0, jitter] 的均匀随机偏移；0 = 固定间隔
-	cancel   context.CancelFunc
+	id        int64
+	name      string
+	checkMode string
+	interval  time.Duration
+	jitter    time.Duration // 每轮 ± [0, jitter] 的均匀随机偏移；0 = 固定间隔
+	cancel    context.CancelFunc
 }
 
 // nextDelay 计算下一次触发的等待时长：interval ± [0, jitter] 的均匀随机偏移。
@@ -184,11 +189,12 @@ func (r *ChannelMonitorRunner) Schedule(m *ChannelMonitor) {
 	}
 	ctx, cancel := context.WithCancel(r.parentCtx)
 	task := &scheduledMonitor{
-		id:       m.ID,
-		name:     m.Name,
-		interval: interval,
-		jitter:   jitter,
-		cancel:   cancel,
+		id:        m.ID,
+		name:      m.Name,
+		checkMode: m.CheckMode,
+		interval:  interval,
+		jitter:    jitter,
+		cancel:    cancel,
 	}
 	r.tasks[m.ID] = task
 	r.wg.Add(1)
@@ -211,6 +217,27 @@ func (r *ChannelMonitorRunner) Unschedule(id int64) {
 	r.mu.Unlock()
 	if ok {
 		task.cancel()
+	}
+}
+
+// TriggerScheduledChecks asks every currently scheduled monitor to run once.
+// Eligibility and in-flight de-duplication still go through the normal fire path.
+func (r *ChannelMonitorRunner) TriggerScheduledChecks() {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	if !r.started || r.stopped {
+		r.mu.Unlock()
+		return
+	}
+	tasks := make([]*scheduledMonitor, 0, len(r.tasks))
+	for _, task := range r.tasks {
+		tasks = append(tasks, task)
+	}
+	r.mu.Unlock()
+	for _, task := range tasks {
+		r.fire(r.parentCtx, task)
 	}
 }
 
@@ -257,7 +284,11 @@ func (r *ChannelMonitorRunner) runScheduled(ctx context.Context, task *scheduled
 // fire 提交一次检测到 worker 池。功能开关关闭时跳过本次（不取消任务，
 // 重新启用时立即恢复）；池满或重复在飞时也跳过。
 func (r *ChannelMonitorRunner) fire(ctx context.Context, task *scheduledMonitor) {
-	if r.settingService != nil {
+	if gate, ok := r.svc.(monitorRunnerRuntimeGate); ok {
+		if !gate.ScheduledCheckAllowed(ctx, task.checkMode) {
+			return
+		}
+	} else if r.settingService != nil {
 		rt := r.settingService.GetChannelMonitorRuntime(ctx)
 		if !rt.ActiveProbesAllowed() {
 			return

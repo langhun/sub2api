@@ -68,6 +68,13 @@ type channelMonitorRuntimeReader interface {
 	GetChannelMonitorRuntime(ctx context.Context) ChannelMonitorRuntime
 }
 
+// ChannelMonitorCheckExtension is the fixed, narrow mount point used by
+// downstream monitoring Overlays. Core still owns probing and V1 history.
+type ChannelMonitorCheckExtension interface {
+	AllowChannelMonitorCheck(context.Context, ChannelMonitorRuntime, string) bool
+	ObserveChannelMonitorCheck(context.Context, ChannelMonitorRuntime, *ChannelMonitor, []*CheckResult)
+}
+
 // ChannelMonitorService 渠道监控管理服务。
 type ChannelMonitorService struct {
 	repo      ChannelMonitorRepository
@@ -81,7 +88,9 @@ type ChannelMonitorService struct {
 	// quotaFetcher 由 wire 通过 SetQuotaFetcher 注入（accountUsage/CN 服务在本服务
 	// 之后构造，构造参数注入会破坏既有依赖顺序）。nil 时 fail-closed：
 	// 配额模式的检测产出「未配置」错误快照，Create/Update 关联账号直接报错。
-	quotaFetcher *ChannelMonitorQuotaFetcher
+	quotaFetcher     *ChannelMonitorQuotaFetcher
+	checkExtensionMu sync.RWMutex
+	checkExtension   ChannelMonitorCheckExtension
 }
 
 const maxChannelMonitorNameRunes = 100
@@ -104,6 +113,44 @@ func (s *ChannelMonitorService) SetRuntimeReader(r channelMonitorRuntimeReader) 
 		return
 	}
 	s.settings = r
+}
+
+// SetCheckExtension attaches an optional Overlay policy and observer. It does
+// not change the upstream probe result or persistence path.
+func (s *ChannelMonitorService) SetCheckExtension(extension ChannelMonitorCheckExtension) {
+	if s == nil {
+		return
+	}
+	s.checkExtensionMu.Lock()
+	s.checkExtension = extension
+	s.checkExtensionMu.Unlock()
+}
+
+func (s *ChannelMonitorService) getCheckExtension() ChannelMonitorCheckExtension {
+	if s == nil {
+		return nil
+	}
+	s.checkExtensionMu.RLock()
+	extension := s.checkExtension
+	s.checkExtensionMu.RUnlock()
+	return extension
+}
+
+// ScheduledCheckAllowed is the generic runner gate. V1 remains core-owned;
+// optional modes are admitted only by the mounted extension.
+func (s *ChannelMonitorService) ScheduledCheckAllowed(ctx context.Context, checkMode string) bool {
+	if s == nil {
+		return false
+	}
+	runtime := s.probeRuntime(ctx)
+	if !runtime.Enabled {
+		return false
+	}
+	if runtime.ActiveProbesAllowed() {
+		return true
+	}
+	extension := s.getCheckExtension()
+	return extension != nil && extension.AllowChannelMonitorCheck(ctx, runtime, checkMode)
 }
 
 func (s *ChannelMonitorService) probeRuntime(ctx context.Context) ChannelMonitorRuntime {
@@ -604,15 +651,19 @@ func (s *ChannelMonitorService) ListHistory(ctx context.Context, id int64, model
 // 零 LLM 成本）/ quota_probe（探活 + 配额快照挂主模型行）。
 func (s *ChannelMonitorService) RunCheck(ctx context.Context, id int64) ([]*CheckResult, error) {
 	rt := s.probeRuntime(ctx)
+	extension := s.getCheckExtension()
 	if !rt.Enabled {
 		return nil, ErrChannelMonitorDisabled
 	}
-	if !rt.ActiveProbesAllowed() {
+	if !rt.ActiveProbesAllowed() && extension == nil {
 		return nil, ErrChannelMonitorActiveProbesRetired
 	}
 	m, err := s.Get(ctx, id) // 已解密 APIKey
 	if err != nil {
 		return nil, err
+	}
+	if !rt.ActiveProbesAllowed() && !extension.AllowChannelMonitorCheck(ctx, rt, m.CheckMode) {
+		return nil, ErrChannelMonitorActiveProbesRetired
 	}
 	checkMode := defaultCheckMode(m.CheckMode)
 	if checkMode != MonitorCheckModeQuota && m.APIKeyDecryptFailed {
@@ -630,6 +681,9 @@ func (s *ChannelMonitorService) RunCheck(ctx context.Context, id int64) ([]*Chec
 		results = s.runChecksConcurrent(ctx, m)
 	}
 	s.persistCheckResults(ctx, m, results)
+	if extension != nil {
+		extension.ObserveChannelMonitorCheck(ctx, rt, m, results)
+	}
 	return results, nil
 }
 

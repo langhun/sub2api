@@ -61,6 +61,13 @@ The gate reports the following ownership categories separately:
 | `historical-upstream-revert` | A shared path whose final content exactly matches the immutable upstream SHA for the current incremental baseline. |
 | `reviewed-upstream-hotfix` | A core fix pinned to one immutable upstream base and exact final Git blob hashes. Any later edit is rejected as shared. |
 
+The channel-monitor V2 Overlay uses three restricted backend ports for
+scheduling, result observation, and query-result extension, plus four fixed
+frontend mounts for generic extension payloads and registered components.
+Provider-specific switches, persistence, source labels, and merge rules must
+remain under `backend/internal/custom/modules/channel-monitor-v2-active-probes/`
+and `frontend/src/custom/modules/channel-monitor-v2-active-probes/`.
+
 Known migrations `173` through `181`, `185`, and `187` are immutable. Adding
 them from an older baseline is reported as historical data; modifying, deleting,
 or renaming one is an `immutable-migration-change` violation. A shared path is

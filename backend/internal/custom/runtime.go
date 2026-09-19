@@ -12,6 +12,7 @@ import (
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
+	channelmonitorv2activeprobes "github.com/Wei-Shaw/sub2api/internal/custom/modules/channel-monitor-v2-active-probes"
 	checkinuseraccess "github.com/Wei-Shaw/sub2api/internal/custom/modules/checkin-user-access"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	docsmodule "github.com/Wei-Shaw/sub2api/internal/custom/modules/docs"
@@ -40,21 +41,22 @@ var ProviderSet = wire.NewSet(
 
 // Runtime owns dependencies shared by custom modules as they are introduced.
 type Runtime struct {
-	ActivityCheckin     *activitycheckin.Module
-	ActivityLeaderboard *activityleaderboard.Module
-	ActivityRedPacket   *activityredpacket.Module
-	ActivityRewards     *activityrewards.Runtime
-	ActivityRewardsHTTP *activityrewards.Module
-	GameHall            *gamehall.Module
-	SupportTickets      *supporttickets.Module
-	Docs                *docsmodule.Module
-	OpenAIRT            *openairt.Module
-	RegistrationRisk    *registrationprotection.Module
-	RechargePromotions  *rechargepromotions.Module
-	SupportContacts     *supportcontacts.Module
-	CheckinUserAccess   *checkinuseraccess.Module
-	SmartRouting        *smartrouting.Module
-	UsageQuerySettings  UsageQuerySettings
+	ActivityCheckin              *activitycheckin.Module
+	ActivityLeaderboard          *activityleaderboard.Module
+	ActivityRedPacket            *activityredpacket.Module
+	ActivityRewards              *activityrewards.Runtime
+	ActivityRewardsHTTP          *activityrewards.Module
+	GameHall                     *gamehall.Module
+	SupportTickets               *supporttickets.Module
+	Docs                         *docsmodule.Module
+	OpenAIRT                     *openairt.Module
+	RegistrationRisk             *registrationprotection.Module
+	RechargePromotions           *rechargepromotions.Module
+	SupportContacts              *supportcontacts.Module
+	CheckinUserAccess            *checkinuseraccess.Module
+	SmartRouting                 *smartrouting.Module
+	ChannelMonitorV2ActiveProbes *channelmonitorv2activeprobes.Module
+	UsageQuerySettings           UsageQuerySettings
 }
 
 // NewRuntime constructs the enabled custom modules at the composition root.
@@ -75,6 +77,10 @@ func NewRuntime(
 	accountRepo service.AccountRepository,
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
+	channelMonitorService *service.ChannelMonitorService,
+	channelMonitorV2Service *service.ChannelMonitorV2Service,
+	channelMonitorRunner *service.ChannelMonitorRunner,
+	settingService *service.SettingService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
@@ -179,21 +185,29 @@ func NewRuntime(
 	if paymentService != nil {
 		paymentService.SetBalanceOrderExtension(rechargePromotions)
 	}
+	channelMonitorV2ActiveProbes := channelmonitorv2activeprobes.NewModule(db, customSettingsRegistry, channelMonitorRunner, settingService)
+	if channelMonitorService != nil {
+		channelMonitorService.SetCheckExtension(channelMonitorV2ActiveProbes)
+	}
+	if channelMonitorV2Service != nil {
+		channelMonitorV2Service.SetDataExtension(channelMonitorV2ActiveProbes)
+	}
 	return &Runtime{
-		ActivityCheckin:     activityCheckin,
-		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
-		ActivityRedPacket:   activityRedPacket,
-		ActivityRewards:     activityRewards,
-		ActivityRewardsHTTP: activityRewardsHTTP,
-		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
-		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
-		Docs:                docsmodule.NewModule(docsmodule.NewService(docsmodule.NewRepository(db))),
-		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
-		RegistrationRisk:    registrationRiskModule,
-		RechargePromotions:  rechargePromotions,
-		SupportContacts:     supportcontacts.NewModule(db),
-		CheckinUserAccess:   checkinUserAccess,
-		SmartRouting:        smartRouting,
-		UsageQuerySettings:  customSettingsRegistry,
+		ActivityCheckin:              activityCheckin,
+		ActivityLeaderboard:          activityleaderboard.NewDatabaseModule(client, db),
+		ActivityRedPacket:            activityRedPacket,
+		ActivityRewards:              activityRewards,
+		ActivityRewardsHTTP:          activityRewardsHTTP,
+		GameHall:                     gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
+		SupportTickets:               supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
+		Docs:                         docsmodule.NewModule(docsmodule.NewService(docsmodule.NewRepository(db))),
+		OpenAIRT:                     openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		RegistrationRisk:             registrationRiskModule,
+		RechargePromotions:           rechargePromotions,
+		SupportContacts:              supportcontacts.NewModule(db),
+		CheckinUserAccess:            checkinUserAccess,
+		SmartRouting:                 smartRouting,
+		ChannelMonitorV2ActiveProbes: channelMonitorV2ActiveProbes,
+		UsageQuerySettings:           customSettingsRegistry,
 	}, nil
 }

@@ -206,14 +206,16 @@ type ChannelMonitorV2TrendPoint struct {
 	BucketStart time.Time              `json:"bucket_start"`
 	Metrics     ChannelMonitorV2Metric `json:"metrics"`
 	Health      ChannelMonitorV2Health `json:"health"`
+	Extensions  map[string]any         `json:"extensions,omitempty"`
 }
 
 type ChannelMonitorV2Snapshot struct {
-	Config   ChannelMonitorV2Config       `json:"config"`
-	Coverage ChannelMonitorV2Coverage     `json:"coverage"`
-	Metrics  ChannelMonitorV2Metric       `json:"metrics"`
-	Health   ChannelMonitorV2Health       `json:"health"`
-	Trend    []ChannelMonitorV2TrendPoint `json:"trend"`
+	Config     ChannelMonitorV2Config       `json:"config"`
+	Coverage   ChannelMonitorV2Coverage     `json:"coverage"`
+	Metrics    ChannelMonitorV2Metric       `json:"metrics"`
+	Health     ChannelMonitorV2Health       `json:"health"`
+	Trend      []ChannelMonitorV2TrendPoint `json:"trend"`
+	Extensions map[string]any               `json:"extensions,omitempty"`
 }
 
 type ChannelMonitorV2Dimension struct {
@@ -237,20 +239,22 @@ type ChannelMonitorV2Dimensions struct {
 }
 
 type ChannelMonitorV2ModelRow struct {
-	Platform string                 `json:"platform"`
-	Model    string                 `json:"model"`
-	Metrics  ChannelMonitorV2Metric `json:"metrics"`
-	Health   ChannelMonitorV2Health `json:"health"`
+	Platform   string                 `json:"platform"`
+	Model      string                 `json:"model"`
+	Metrics    ChannelMonitorV2Metric `json:"metrics"`
+	Health     ChannelMonitorV2Health `json:"health"`
+	Extensions map[string]any         `json:"extensions,omitempty"`
 }
 
 type ChannelMonitorV2MatrixRow struct {
-	Platform  string                       `json:"platform"`
-	GroupID   *int64                       `json:"group_id,omitempty"`
-	GroupName string                       `json:"group_name,omitempty"`
-	Model     string                       `json:"model,omitempty"`
-	Metrics   ChannelMonitorV2Metric       `json:"metrics"`
-	Health    ChannelMonitorV2Health       `json:"health"`
-	Buckets   []ChannelMonitorV2TrendPoint `json:"buckets"`
+	Platform   string                       `json:"platform"`
+	GroupID    *int64                       `json:"group_id,omitempty"`
+	GroupName  string                       `json:"group_name,omitempty"`
+	Model      string                       `json:"model,omitempty"`
+	Metrics    ChannelMonitorV2Metric       `json:"metrics"`
+	Health     ChannelMonitorV2Health       `json:"health"`
+	Buckets    []ChannelMonitorV2TrendPoint `json:"buckets"`
+	Extensions map[string]any               `json:"extensions,omitempty"`
 }
 
 type ChannelMonitorV2Matrix struct {
@@ -310,6 +314,15 @@ type ChannelMonitorV2Repository interface {
 	// passive aggregator (and bootstrap progress). Missing row → zero value, nil error.
 	GetAggregationWatermark(ctx context.Context) (*ChannelMonitorV2AggregationWatermark, error)
 	RecomputeRange(ctx context.Context, start, end time.Time) error
+}
+
+// ChannelMonitorV2DataExtension is the fixed query-result mount point for an
+// optional downstream data source. Core repositories remain passive-only.
+type ChannelMonitorV2DataExtension interface {
+	ExtendChannelMonitorV2Dimensions(context.Context, ChannelMonitorV2Filter, ChannelMonitorV2Config, *ChannelMonitorV2Dimensions) error
+	ExtendChannelMonitorV2Snapshot(context.Context, ChannelMonitorV2Filter, ChannelMonitorV2Config, *ChannelMonitorV2Snapshot, bool) error
+	ExtendChannelMonitorV2Models(context.Context, ChannelMonitorV2Filter, ChannelMonitorV2Config, *ChannelMonitorV2List[ChannelMonitorV2ModelRow], bool) error
+	ExtendChannelMonitorV2Matrix(context.Context, ChannelMonitorV2Filter, ChannelMonitorV2Config, ChannelMonitorV2GroupBy, *ChannelMonitorV2Matrix, bool) error
 }
 
 // ChannelMonitorV2BootstrapProductWindow is the longest UI range that must be
@@ -376,9 +389,10 @@ func ChannelMonitorV2BootstrapProgress(now, coveredFrom time.Time, hasData bool)
 }
 
 type ChannelMonitorV2Service struct {
-	repo     ChannelMonitorV2Repository
-	settings channelMonitorRuntimeReader
-	now      func() time.Time
+	repo      ChannelMonitorV2Repository
+	settings  channelMonitorRuntimeReader
+	extension ChannelMonitorV2DataExtension
+	now       func() time.Time
 }
 
 func NewChannelMonitorV2Service(repo ChannelMonitorV2Repository) *ChannelMonitorV2Service {
@@ -391,6 +405,14 @@ func (s *ChannelMonitorV2Service) SetRuntimeReader(r channelMonitorRuntimeReader
 		return
 	}
 	s.settings = r
+}
+
+// SetDataExtension attaches one optional Overlay-owned metric source.
+func (s *ChannelMonitorV2Service) SetDataExtension(extension ChannelMonitorV2DataExtension) {
+	if s == nil {
+		return
+	}
+	s.extension = extension
 }
 
 func (s *ChannelMonitorV2Service) hideThroughputForViewer(ctx context.Context, admin bool) bool {
@@ -478,6 +500,11 @@ func (s *ChannelMonitorV2Service) Dimensions(ctx context.Context, filter Channel
 	if err != nil {
 		return nil, err
 	}
+	if s.extension != nil {
+		if err := s.extension.ExtendChannelMonitorV2Dimensions(ctx, filter, *cfg, dims); err != nil {
+			return nil, err
+		}
+	}
 	// Dimension request_count is operational volume; strip for non-admin callers
 	// at the API edge. Dimensions is shared by user/admin routes — redaction is
 	// applied in the handler for user routes only, so keep raw here.
@@ -493,6 +520,11 @@ func (s *ChannelMonitorV2Service) Snapshot(ctx context.Context, filter ChannelMo
 	if err != nil {
 		return nil, err
 	}
+	if s.extension != nil {
+		if err := s.extension.ExtendChannelMonitorV2Snapshot(ctx, filter, *cfg, snap, admin); err != nil {
+			return nil, err
+		}
+	}
 	if !admin && snap != nil {
 		redactChannelMonitorV2Snapshot(snap, s.hideThroughputForViewer(ctx, admin))
 	}
@@ -507,6 +539,11 @@ func (s *ChannelMonitorV2Service) Models(ctx context.Context, filter ChannelMoni
 	list, err := s.repo.GetModels(ctx, filter, *cfg, admin)
 	if err != nil {
 		return nil, err
+	}
+	if s.extension != nil {
+		if err := s.extension.ExtendChannelMonitorV2Models(ctx, filter, *cfg, list, admin); err != nil {
+			return nil, err
+		}
 	}
 	if !admin && list != nil {
 		hideTP := s.hideThroughputForViewer(ctx, admin)
@@ -528,6 +565,11 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 	matrix, err := s.repo.GetMatrix(ctx, filter, *cfg, groupBy, admin)
 	if err != nil {
 		return nil, err
+	}
+	if s.extension != nil {
+		if err := s.extension.ExtendChannelMonitorV2Matrix(ctx, filter, *cfg, groupBy, matrix, admin); err != nil {
+			return nil, err
+		}
 	}
 	if !admin && matrix != nil {
 		hideTP := s.hideThroughputForViewer(ctx, admin)

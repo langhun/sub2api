@@ -20,6 +20,15 @@ type stubMonitorSvc struct {
 	runHoldFor time.Duration // RunCheck 内额外阻塞的时长，用来测试 Stop 等待行为
 }
 
+type gatedMonitorSvc struct {
+	*stubMonitorSvc
+	allowed atomic.Bool
+}
+
+func (s *gatedMonitorSvc) ScheduledCheckAllowed(context.Context, string) bool {
+	return s.allowed.Load()
+}
+
 func (s *stubMonitorSvc) ListEnabledMonitors(_ context.Context) ([]*ChannelMonitor, error) {
 	if s.listErr != nil {
 		return nil, s.listErr
@@ -97,6 +106,70 @@ func TestSchedule_AddsTaskAndFiresOnce(t *testing.T) {
 	}
 
 	r.Stop()
+}
+
+func TestFire_UsesRuntimeExtensionGate(t *testing.T) {
+	base := &stubMonitorSvc{runCalled: make(chan int64, 2)}
+	svc := &gatedMonitorSvc{stubMonitorSvc: base}
+	r := newRunnerForTest(svc)
+	r.Start()
+	r.Schedule(&ChannelMonitor{ID: 2, Name: "gated", CheckMode: MonitorCheckModeProbe, Enabled: true, IntervalSeconds: 60})
+
+	select {
+	case <-base.runCalled:
+		t.Fatal("disabled extension gate must suppress the scheduled probe")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	svc.allowed.Store(true)
+	task := runnerTaskPtr(r, 2)
+	if task == nil {
+		t.Fatal("expected scheduled task")
+	}
+	r.fire(context.Background(), task)
+	select {
+	case id := <-base.runCalled:
+		if id != 2 {
+			t.Fatalf("expected monitor 2, got %d", id)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("enabled extension gate did not run the probe")
+	}
+
+	stoppedWithin(t, r, 3*time.Second)
+}
+
+func TestTriggerScheduledChecksUsesNormalGateAndInFlightPath(t *testing.T) {
+	base := &stubMonitorSvc{runCalled: make(chan int64, 4)}
+	svc := &gatedMonitorSvc{stubMonitorSvc: base}
+	r := newRunnerForTest(svc)
+	r.Start()
+	r.Schedule(&ChannelMonitor{ID: 4, Name: "triggered", CheckMode: MonitorCheckModeProbe, Enabled: true, IntervalSeconds: 60})
+	time.Sleep(25 * time.Millisecond)
+	requireNoRunnerCall := func() {
+		t.Helper()
+		select {
+		case <-base.runCalled:
+			t.Fatal("disabled gate must suppress triggered probes")
+		default:
+		}
+	}
+	requireNoRunnerCall()
+	r.TriggerScheduledChecks()
+	requireNoRunnerCall()
+
+	svc.allowed.Store(true)
+	r.TriggerScheduledChecks()
+	select {
+	case id := <-base.runCalled:
+		if id != 4 {
+			t.Fatalf("expected monitor 4, got %d", id)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("enabled trigger did not run the scheduled probe")
+	}
+
+	stoppedWithin(t, r, 3*time.Second)
 }
 
 // TestSchedule_ReplaceCancelsOldTask 验证对同一 id 二次 Schedule 会替换旧 task 实例。

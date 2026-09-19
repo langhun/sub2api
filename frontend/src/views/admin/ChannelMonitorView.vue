@@ -47,7 +47,7 @@
         </div>
       </header>
 
-      <MonitorSettingsPanel v-if="adminMonitorTab === 'v2'" />
+      <MonitorSettingsPanel v-if="adminMonitorTab === 'v2'" @open-active-probe-targets="adminMonitorTab = 'legacy'" />
 
       <TablePageLayout v-else data-glass-content>
       <template #filters>

@@ -3,6 +3,7 @@ package custom
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
@@ -30,6 +31,10 @@ func ProvideRuntime(
 	accountRepo service.AccountRepository,
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
+	channelMonitorService *service.ChannelMonitorService,
+	channelMonitorV2Service *service.ChannelMonitorV2Service,
+	channelMonitorRunner *service.ChannelMonitorRunner,
+	settingService *service.SettingService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
@@ -49,6 +54,10 @@ func ProvideRuntime(
 		accountRepo,
 		gatewayService,
 		openAIGatewayService,
+		channelMonitorService,
+		channelMonitorV2Service,
+		channelMonitorRunner,
+		settingService,
 		redisClient,
 	)
 	if err != nil {
@@ -62,6 +71,11 @@ func ProvideRuntime(
 func (r *Runtime) Start() {
 	if r == nil {
 		return
+	}
+	if r.ChannelMonitorV2ActiveProbes != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		r.ChannelMonitorV2ActiveProbes.Start(ctx)
+		cancel()
 	}
 	if r.ActivityRedPacket != nil {
 		r.ActivityRedPacket.Start()

@@ -35,6 +35,10 @@ import { formatAuditAction } from './modules/audit-log-localization/actionLabels
 import { appleThemeSettingsPanels } from './modules/apple-theme/settings'
 import CheckinUserAccessModal from './modules/checkin-user-access/CheckinUserAccessModal.vue'
 import { checkinUserAccessActions } from './modules/checkin-user-access/userActions'
+import {
+  channelMonitorV2SettingsExtensions,
+  channelMonitorV2SourceExtensions,
+} from './modules/channel-monitor-v2-active-probes/extensions'
 import './payments'
 export {
   customPaymentDefinition,
@@ -67,6 +71,11 @@ export interface CustomHeaderAction {
 }
 
 export interface CustomNotificationCenterExtension {
+  id: string
+  component: Component
+}
+
+export interface CustomChannelMonitorV2Extension {
   id: string
   component: Component
 }
@@ -175,6 +184,14 @@ export const customHeaderActions: readonly CustomHeaderAction[] = [
 
 export const customNotificationCenterExtensions: readonly CustomNotificationCenterExtension[] = [
   ...supportTicketNotificationCenterExtensions,
+]
+
+export const customChannelMonitorV2SettingsExtensions: readonly CustomChannelMonitorV2Extension[] = [
+  ...channelMonitorV2SettingsExtensions,
+]
+
+export const customChannelMonitorV2SourceExtensions: readonly CustomChannelMonitorV2Extension[] = [
+  ...channelMonitorV2SourceExtensions,
 ]
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [

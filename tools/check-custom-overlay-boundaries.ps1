@@ -332,6 +332,13 @@ $script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new(
     'frontend/src/types/index.ts',
     'frontend/src/utils/featureFlags.ts',
     'frontend/src/views/admin/SettingsView.vue',
+    # Channel monitor V2 presentation mounts. These files may render generic
+    # registered settings/source components and carry generic extension data;
+    # provider-specific probe rules remain under frontend/src/custom.
+    'frontend/src/api/channelMonitorV2.ts',
+    'frontend/src/features/channel-monitor-v2/MonitorSettingsPanel.vue',
+    'frontend/src/views/admin/ChannelMonitorView.vue',
+    'frontend/src/views/user/ChannelStatusV2View.vue',
     # Presentation-only Overlay adapters. They delegate display classification
     # or formatting to frontend/src/custom and must not contain custom rules.
     'frontend/src/views/admin/UsersView.vue',
@@ -350,7 +357,13 @@ $script:RestrictedPlatformPortAllowlist = [System.Collections.Generic.HashSet[st
     'backend/internal/service/admin_service.go',
     'backend/internal/service/admin_user.go',
     'backend/internal/service/code_generator.go',
-    'backend/internal/service/redeem_service.go'
+    'backend/internal/service/redeem_service.go',
+    # Generic channel-monitor scheduling, observation, and V2 result ports.
+    # Concrete active-probe settings, persistence, and merge policy remain in
+    # backend/internal/custom/modules/channel-monitor-v2-active-probes.
+    'backend/internal/service/channel_monitor_runner.go',
+    'backend/internal/service/channel_monitor_service.go',
+    'backend/internal/service/channel_monitor_v2.go'
 ))
 $script:PublishedImmutableMigrationPaths = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
     'backend/migrations/173_port_balance_features.sql',
