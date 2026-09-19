@@ -1,6 +1,6 @@
 <template>
   <span v-if="source?.active_probe" class="inline-flex flex-wrap items-center gap-1.5">
-    <span class="badge" :class="sourceHealthy ? 'badge-success' : 'badge-danger'">{{ t('channelMonitorV2ActiveProbes.source.active') }}</span>
+    <span class="badge" :class="sourceStateClass">{{ t('channelMonitorV2ActiveProbes.source.active') }}</span>
     <span v-if="source.passive_traffic" class="badge badge-gray">{{ t('channelMonitorV2ActiveProbes.source.passive') }}</span>
     <span v-if="source.last_active_probe_at" class="text-xs text-gray-400">
       {{ t('channelMonitorV2ActiveProbes.source.checkedAt', { time: formatTime(source.last_active_probe_at) }) }}
@@ -26,7 +26,13 @@ const source = computed<ActiveProbeSource | undefined>(() => {
   const value = props.extensions?.channel_monitor_v2_active_probes
   return value && typeof value === 'object' ? value as ActiveProbeSource : undefined
 })
-const sourceHealthy = computed(() => ['operational', 'degraded'].includes(source.value?.active_probe_status || ''))
+const sourceStateClass = computed(() => {
+  switch (source.value?.active_probe_status) {
+    case 'operational': return 'badge-success'
+    case 'degraded': return 'badge-warning'
+    default: return 'badge-danger'
+  }
+})
 
 const { t, locale } = useI18n()
 function formatTime(value: string) {

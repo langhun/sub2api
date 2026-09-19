@@ -60,6 +60,13 @@ describe('channel monitor V2 active-probe Overlay', () => {
 
     await wrapper.setProps({
       extensions: {
+        channel_monitor_v2_active_probes: { active_probe: true, active_probe_status: 'degraded' },
+      },
+    })
+    expect(wrapper.find('.badge-warning').exists()).toBe(true)
+
+    await wrapper.setProps({
+      extensions: {
         channel_monitor_v2_active_probes: { active_probe: true, active_probe_status: 'failed' },
       },
     })

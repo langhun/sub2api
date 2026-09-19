@@ -467,14 +467,19 @@ func sourceForFacts(facts []probeFact, passive bool) probeSource {
 			}
 		}
 	}
-	anyHealthy := false
+	anyOperational := false
+	anyDegraded := false
 	for _, fact := range latestByTarget {
-		anyHealthy = anyHealthy || successful(fact.Status)
+		anyOperational = anyOperational || fact.Status == service.MonitorStatusOperational
+		anyDegraded = anyDegraded || fact.Status == service.MonitorStatusDegraded
 	}
 	if len(latestByTarget) > 0 {
-		if anyHealthy {
+		switch {
+		case anyOperational:
 			source.ActiveProbeStatus = service.MonitorStatusOperational
-		} else {
+		case anyDegraded:
+			source.ActiveProbeStatus = service.MonitorStatusDegraded
+		default:
 			source.ActiveProbeStatus = service.MonitorStatusFailed
 		}
 	}
@@ -486,11 +491,16 @@ func activeOnlyHealth(source probeSource, thresholds service.ChannelMonitorV2Hea
 	if !source.ActiveProbe {
 		return health
 	}
-	if successful(source.ActiveProbeStatus) {
+	switch source.ActiveProbeStatus {
+	case service.MonitorStatusOperational:
 		health.Overall, health.ErrorRate = "healthy", "healthy"
 		score := float64(100)
 		health.Score, health.ErrorRateScore = &score, &score
-	} else {
+	case service.MonitorStatusDegraded:
+		health.Overall, health.ErrorRate = "warning", "warning"
+		score := float64(50)
+		health.Score, health.ErrorRateScore = &score, &score
+	default:
 		health.Overall, health.ErrorRate = "critical", "critical"
 		score := float64(0)
 		health.Score, health.ErrorRateScore = &score, &score

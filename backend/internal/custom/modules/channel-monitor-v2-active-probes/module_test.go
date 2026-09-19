@@ -219,6 +219,19 @@ func TestExtendModelsUsesAnyHealthyLatestTargetWithoutTokenUsage(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestSourceForFactsPreservesDegradedWhenNoTargetIsOperational(t *testing.T) {
+	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
+	source := sourceForFacts([]probeFact{
+		{MonitorID: 1, MappedModel: "gpt-5", Status: service.MonitorStatusFailed, CheckedAt: now.Add(-time.Minute)},
+		{MonitorID: 2, MappedModel: "gpt-5", Status: service.MonitorStatusDegraded, CheckedAt: now},
+	}, false)
+	require.Equal(t, service.MonitorStatusDegraded, source.ActiveProbeStatus)
+	health := activeOnlyHealth(source, service.DefaultChannelMonitorV2HealthThresholds())
+	require.Equal(t, "warning", health.Overall)
+	require.NotNil(t, health.Score)
+	require.Equal(t, float64(50), *health.Score)
+}
+
 func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
