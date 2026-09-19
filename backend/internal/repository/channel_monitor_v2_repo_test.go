@@ -86,6 +86,27 @@ func TestChannelMonitorV2MetricIncludesSuccessRate(t *testing.T) {
 	require.NotNil(t, adminMetric.UpstreamAffectedRequests)
 }
 
+func TestChannelMonitorV2CNPlatformsEnterQueryAndMatrixScope(t *testing.T) {
+	platforms := []string{"kimi", "zhipu", "deepseek"}
+	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{
+		{Platform: platforms[0], Enabled: true, Models: []string{}},
+		{Platform: platforms[1], Enabled: true, Models: []string{}},
+		{Platform: platforms[2], Enabled: true, Models: []string{}},
+	}}
+	filter := service.ChannelMonitorV2Filter{Start: time.Unix(1, 0), End: time.Unix(2, 0)}
+
+	where, args := channelMonitorV2Where(filter, cfg, "m")
+	require.Contains(t, where, "m.platform = ANY($3)")
+	require.Len(t, args, 3)
+	require.Equal(t, pq.Array(platforms), args[2])
+
+	accs := seedChannelMonitorV2MatrixAccumulators(filter, cfg, service.ChannelMonitorV2GroupByPlatform, nil)
+	for _, platform := range platforms {
+		require.Contains(t, accs, channelMonitorV2MatrixKey{platform: platform})
+		require.Equal(t, platform+"-model", channelMonitorV2DisplayModel(cfg, platform, platform+"-model"))
+	}
+}
+
 func TestChannelMonitorV2WhereUsesConfiguredScopeAndEmptyFilterMeansAllConfigured(t *testing.T) {
 	filter := service.ChannelMonitorV2Filter{Start: time.Unix(1, 0), End: time.Unix(2, 0)}
 	cfg := service.ChannelMonitorV2Config{
