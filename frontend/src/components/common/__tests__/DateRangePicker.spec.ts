@@ -34,6 +34,27 @@ const formatLocalDate = (date: Date): string => {
 }
 
 describe('DateRangePicker', () => {
+  it('renders the open dropdown above dashboard content', async () => {
+    const today = formatLocalDate(new Date())
+    const wrapper = mount(DateRangePicker, {
+      props: {
+        startDate: today,
+        endDate: today
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.find('.date-picker-trigger').trigger('click')
+
+    const dropdown = wrapper.find('.date-picker-dropdown')
+    expect(dropdown.exists()).toBe(true)
+    expect(dropdown.classes()).toContain('z-[1000]')
+  })
+
   it('uses last 24 hours as the default recognized preset', () => {
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)

@@ -115,8 +115,8 @@ describe('admin DashboardView', () => {
     })
   })
 
-  it('uses last 24 hours as default dashboard range', async () => {
-    mount(DashboardView, {
+  it('uses last 24 hours as default dashboard range and keeps the date menu above charts', async () => {
+    const wrapper = mount(DashboardView, {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
@@ -142,5 +142,6 @@ describe('admin DashboardView', () => {
       end_date: formatLocalDate(now),
       granularity: 'hour'
     }))
+    expect(wrapper.find('.card.relative.z-30.overflow-visible').exists()).toBe(true)
   })
 })
