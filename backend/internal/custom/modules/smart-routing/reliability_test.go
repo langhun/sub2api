@@ -91,6 +91,28 @@ func TestRoutingAccountMetricsFallsBackToReliableHourlyWindow(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestRoutingWeightsOwnVisibleStrategyPresets(t *testing.T) {
+	tests := []struct {
+		name                              string
+		profile                           *Profile
+		wantPrice, wantSpeed, wantSuccess float64
+	}{
+		{name: "auto", profile: &Profile{Strategy: "auto", PriceWeight: 1, SpeedWeight: 1, SuccessWeight: 98}, wantPrice: 40, wantSpeed: 30, wantSuccess: 30},
+		{name: "price", profile: &Profile{Strategy: "price"}, wantPrice: 100, wantSpeed: 0, wantSuccess: 0},
+		{name: "speed", profile: &Profile{Strategy: "speed"}, wantPrice: 15, wantSpeed: 70, wantSuccess: 15},
+		{name: "success", profile: &Profile{Strategy: "success"}, wantPrice: 15, wantSpeed: 15, wantSuccess: 70},
+		{name: "custom", profile: &Profile{Strategy: "custom", PriceWeight: 60, SpeedWeight: 25, SuccessWeight: 15}, wantPrice: 60, wantSpeed: 25, wantSuccess: 15},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			price, speed, success := routingWeights(tt.profile)
+			require.Equal(t, tt.wantPrice, price)
+			require.Equal(t, tt.wantSpeed, speed)
+			require.Equal(t, tt.wantSuccess, success)
+		})
+	}
+}
+
 func TestResolveFailureAfterAttemptCannotReplayPrimary(t *testing.T) {
 	for _, attempted := range []bool{false, true} {
 		db, mock, err := sqlmock.New()

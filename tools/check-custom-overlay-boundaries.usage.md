@@ -5,7 +5,7 @@ accepts a floating `origin/main` reference: upstream synchronization can
 legitimately change shared files, so every review records an immutable SHA.
 
 `IncrementalOverlay` is the default. It compares the target to the reviewed
-post-sync product checkpoint `c27d1237628cac3e41a8586c3fb5c9dcbd2bc19c`.
+post-sync product checkpoint `54dcc7eacebe5075077ce6ab5bfed18321e05c67`.
 Use it for the current migration: identity, admin, and other shared-path debt
 that existed before this checkpoint is inventory, not a new regression.
 
@@ -59,7 +59,7 @@ The gate reports the following ownership categories separately:
 | `verification-test` | Tests only; production behavior is still checked by the other categories. |
 | `published-immutable-migration` | A known migration that predates the chosen baseline. |
 | `historical-upstream-revert` | A shared path whose final content exactly matches the immutable upstream SHA for the current incremental baseline. |
-| `reviewed-upstream-hotfix` | A core fix pinned to one immutable upstream base and exact final Git blob hashes. Any later edit is rejected as shared. |
+| `reviewed-upstream-hotfix` | A reviewed shared fix pinned to one immutable upstream or incremental base and exact final Git blob hashes. Any later edit is rejected as shared. |
 
 The channel-monitor V2 Overlay uses three restricted backend ports for
 scheduling, result observation, and query-result extension, plus four fixed

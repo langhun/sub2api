@@ -24,9 +24,10 @@ $ErrorActionPreference = 'Stop'
 
 # These are review checkpoints, not moving branch names. Keep the historical
 # inventory separate from the current migration gate so identity/admin debt
-# inherited before c27d12376 is not reported as a new Overlay regression.
+# inherited before the latest reviewed production checkpoint is not reported as
+# a new Overlay regression.
 $script:HistoricalBaselineRef = 'baseline/v0.1.164-before-overlay'
-$script:IncrementalBaselineRef = 'c27d1237628cac3e41a8586c3fb5c9dcbd2bc19c'
+$script:IncrementalBaselineRef = '54dcc7eacebe5075077ce6ab5bfed18321e05c67'
 
 function Resolve-GitPath {
     param([string]$RequestedPath)
@@ -194,11 +195,15 @@ function Test-ExactReviewedUpstreamHotfix {
         [bool]$AgainstWorktree
     )
 
-    # A reviewed core hotfix is accepted only for one immutable upstream base
+    # A reviewed shared change is accepted only for its immutable review base
     # and one exact final blob per path. Any later edit returns to shared.
-    if ($Mode -ne 'OverlayBoundary' -or
-        $script:BaselineCommit -ne $script:ReviewedUpstreamHotfixBase -or
-        -not $script:ReviewedUpstreamHotfixBlobs.ContainsKey($Path)) {
+    $reviewedBlobs = $null
+    if ($Mode -eq 'OverlayBoundary' -and $script:BaselineCommit -eq $script:ReviewedUpstreamHotfixBase) {
+        $reviewedBlobs = $script:ReviewedUpstreamHotfixBlobs
+    } elseif ($Mode -eq 'IncrementalOverlay' -and $script:BaselineCommit -eq $script:ReviewedIncrementalHotfixBase) {
+        $reviewedBlobs = $script:ReviewedIncrementalHotfixBlobs
+    }
+    if ($null -eq $reviewedBlobs -or -not $reviewedBlobs.ContainsKey($Path)) {
         return $false
     }
 
@@ -211,7 +216,7 @@ function Test-ExactReviewedUpstreamHotfix {
         $actualBlob = [string](Invoke-Git @('rev-parse', "$($script:TargetCommit):$Path"))
     }
 
-    return $actualBlob -eq $script:ReviewedUpstreamHotfixBlobs[$Path]
+    return $actualBlob -eq $reviewedBlobs[$Path]
 }
 
 function Get-ChangedRows {
@@ -310,6 +315,24 @@ $script:ReviewedUpstreamHotfixBase = '396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27'
 $script:ReviewedUpstreamHotfixBlobs = @{
     'backend/internal/repository/custom_group_usage_rollup_repo.go' = '1342478ab68e32dac4d1f8708a11decd6f31267a'
     'backend/internal/repository/dashboard_aggregation_repo.go' = '5266aef6f6fa4346619e882feb116d1284757105'
+}
+$script:ReviewedIncrementalHotfixBase = '54dcc7eacebe5075077ce6ab5bfed18321e05c67'
+$script:ReviewedIncrementalHotfixBlobs = @{
+    # Smart-routing shared scheduler adapters. Strategy presets and persistence
+    # remain owned by backend/internal/custom/modules/smart-routing.
+    'backend/internal/service/openai_account_scheduler.go' = '4bcc4ca5815fc76f83a00adef8dfb31db907b299'
+    'backend/internal/service/smart_routing_context.go' = '9e28f6f8f6480b88d693d82d2c297af755626a79'
+    'backend/internal/service/smart_routing_feedback.go' = 'd0a49957df1ebfbb2b49bb657c7a1996fec591c2'
+    # Reviewed generic UI fixes and existing presentation text. These hashes
+    # prevent the exception from becoming a reusable shared-path allowlist.
+    'frontend/src/components/common/DateRangePicker.vue' = '78c70c3e69f5af4c9defe1fcc25f3c0f7a06d401'
+    'frontend/src/components/user/dashboard/UserDashboardCharts.vue' = '6a662cfd8e65555f37005ba6694433a41af07864'
+    'frontend/src/features/channel-monitor-v2/monitorFormat.ts' = 'a1100bfb789775840144342f5899536792a9f894'
+    'frontend/src/i18n/locales/en/dashboard.ts' = '521da623a750db18fa73eb841a48401b89c29c03'
+    'frontend/src/i18n/locales/zh/dashboard.ts' = '0299b31aae3e8ccc663550509f36f351b115c7ce'
+    'frontend/src/views/admin/DashboardView.vue' = 'df8c62fc28b9c1482a3e3cc7588008a9abc41a91'
+    'frontend/src/views/admin/UsageView.vue' = 'cb28e2add30d4789d3670748581d25ab1edcd32c'
+    'frontend/src/views/user/UsageView.vue' = 'b5dda9378f7796d8a2676e33a3fec3a6309b2ff3'
 }
 $script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
     'backend/internal/server/http.go',

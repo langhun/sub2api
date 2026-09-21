@@ -1057,7 +1057,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 				// The request normally carries resolver weights. Keep a named,
 				// strategy-aware fallback for legacy scheduler callers so a
 				// missing transport field cannot disable speed routing.
-				_, speedWeight, successWeight = SmartRoutingEffectiveWeights(SmartRoutingStateFromContext(ctx))
+				speedWeight, successWeight = smartRoutingQualityWeights(SmartRoutingStateFromContext(ctx))
 			}
 			// Route-profile weights control the quality dimensions. Load and
 			// queue remain small operational tie-breakers so a full account is

@@ -154,28 +154,13 @@ func TestSmartRoutingGatewaySpeedOrdersActualAccounts(t *testing.T) {
 	require.False(t, decisive)
 }
 
-func TestSmartRoutingEffectiveWeightsMatchVisibleStrategies(t *testing.T) {
-	tests := []struct {
-		strategy                          string
-		price, speed, success             float64
-		wantPrice, wantSpeed, wantSuccess float64
-	}{
-		{strategy: "auto", price: 1, speed: 1, success: 98, wantPrice: 40, wantSpeed: 30, wantSuccess: 30},
-		{strategy: "price", price: 40, speed: 30, success: 30, wantPrice: 100, wantSpeed: 0, wantSuccess: 0},
-		{strategy: "speed", price: 40, speed: 30, success: 30, wantPrice: 15, wantSpeed: 70, wantSuccess: 15},
-		{strategy: "success", price: 40, speed: 30, success: 30, wantPrice: 15, wantSpeed: 15, wantSuccess: 70},
-		{strategy: "custom", price: 60, speed: 25, success: 15, wantPrice: 60, wantSpeed: 25, wantSuccess: 15},
-	}
-	for _, tt := range tests {
-		t.Run(tt.strategy, func(t *testing.T) {
-			price, speed, success := SmartRoutingEffectiveWeights(&SmartRoutingRequestState{
-				Strategy: tt.strategy, PriceWeight: tt.price, SpeedWeight: tt.speed, SuccessWeight: tt.success,
-			})
-			require.Equal(t, tt.wantPrice, price)
-			require.Equal(t, tt.wantSpeed, speed)
-			require.Equal(t, tt.wantSuccess, success)
-		})
-	}
+func TestSmartRoutingQualityWeightsUseResolvedOverlayValues(t *testing.T) {
+	speed, success := smartRoutingQualityWeights(&SmartRoutingRequestState{SpeedWeight: 70, SuccessWeight: 15})
+	require.Equal(t, 70.0, speed)
+	require.Equal(t, 15.0, success)
+	speed, success = smartRoutingQualityWeights(&SmartRoutingRequestState{})
+	require.Equal(t, 30.0, speed)
+	require.Equal(t, 30.0, success)
 }
 
 func TestSmartRoutingSpeedRequiresReliableSamples(t *testing.T) {

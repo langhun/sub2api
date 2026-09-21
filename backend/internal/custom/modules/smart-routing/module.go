@@ -298,9 +298,21 @@ func routingProfileUsable(p *Profile) bool {
 
 func routingWeights(p *Profile) (price, speed, success float64) {
 	if p == nil {
-		return service.SmartRoutingStrategyWeights("auto", 0, 0, 0)
+		return 40, 30, 30
 	}
-	return service.SmartRoutingStrategyWeights(p.Strategy, p.PriceWeight, p.SpeedWeight, p.SuccessWeight)
+	switch p.Strategy {
+	case "price":
+		return 100, 0, 0
+	case "speed":
+		return 15, 70, 15
+	case "success":
+		return 15, 15, 70
+	case "custom":
+		if p.PriceWeight > 0 || p.SpeedWeight > 0 || p.SuccessWeight > 0 {
+			return p.PriceWeight, p.SpeedWeight, p.SuccessWeight
+		}
+	}
+	return 40, 30, 30
 }
 
 type Module struct {
