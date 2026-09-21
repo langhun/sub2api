@@ -33,6 +33,7 @@
                 v-for="extension in customChannelMonitorV2SourceExtensions"
                 :key="extension.id"
                 :extensions="snapshot?.extensions"
+                :admin="isAdmin"
               />
               <span
                 v-if="snapshot && !snapshot.coverage.coverage_complete && !bootstrapActive"
@@ -224,9 +225,9 @@
         />
         <MetricCell
           :label="t('channelMonitorV2.metrics.cacheRate')"
-          :value="formatPercent(snapshot.metrics.cache_rate)"
+          :value="formatCacheRate(snapshot.metrics)"
           :detail="t('channelMonitorV2.metrics.cacheDetail')"
-          :state="snapshot.health.cache || snapshot.health.overall"
+          :state="snapshot.metrics.cache_rate_denominator > 0 ? (snapshot.health.cache || snapshot.health.overall) : 'unknown'"
         />
         <MetricCell
           v-if="showThroughput"
@@ -321,6 +322,7 @@
                           v-for="extension in customChannelMonitorV2SourceExtensions"
                           :key="extension.id"
                           :extensions="row.extensions"
+                          :admin="isAdmin"
                         />
                       </div>
                     </div>
@@ -334,7 +336,7 @@
                     <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics.ttft) }}</small>
                   </td>
                   <td v-if="showThroughput" :title="exactTps(row.metrics.tpm)">{{ formatTps(row.metrics.tpm) }}</td>
-                  <td>{{ formatPercent(row.metrics.cache_rate) }}</td>
+                  <td>{{ formatCacheRate(row.metrics) }}</td>
                   <td v-if="showThroughput">{{ formatRate(row.metrics.rpm) }}</td>
                 </tr>
               </tbody>
@@ -435,7 +437,7 @@
                     <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics.ttft) }}</small>
                   </td>
                   <td v-if="showThroughput" :title="exactTps(row.metrics.tpm)">{{ formatTps(row.metrics.tpm) }}</td>
-                  <td>{{ formatPercent(row.metrics.cache_rate) }}</td>
+                  <td>{{ formatCacheRate(row.metrics) }}</td>
                   <td v-if="showThroughput">{{ formatRate(row.metrics.rpm) }}</td>
                 </tr>
               </tbody>
@@ -852,6 +854,9 @@ function exactTps(tpm: number | null | undefined) {
 }
 function formatPercent(value: number) {
   return formatMonitorPercent(value)
+}
+function formatCacheRate(metric: { cache_rate: number; cache_rate_denominator: number }) {
+  return metric.cache_rate_denominator > 0 ? formatPercent(metric.cache_rate) : '-'
 }
 function formatMs(value: number | null) {
   return formatMonitorMs(value)

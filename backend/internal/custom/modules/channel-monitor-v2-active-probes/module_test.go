@@ -210,6 +210,8 @@ func TestExtendModelsUsesAnyHealthyLatestTargetWithoutTokenUsage(t *testing.T) {
 	require.Zero(t, row.Metrics.CacheRateNumerator)
 	require.Zero(t, row.Metrics.CacheRateDenominator)
 	require.Equal(t, "healthy", row.Health.Overall)
+	require.Equal(t, "unknown", row.Health.Cache)
+	require.Nil(t, row.Health.CacheScore)
 	require.NotNil(t, row.Health.Score)
 	require.Equal(t, float64(100), *row.Health.Score)
 	source, ok := row.Extensions[extensionKey].(probeSource)

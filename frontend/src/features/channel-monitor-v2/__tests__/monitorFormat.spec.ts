@@ -129,6 +129,21 @@ describe('monitorFormat accuracy', () => {
     expect(ttftDisplayState('healthy', { p50_ms: 400, sample_count: 20 })).toBe('healthy')
   })
 
+  it('keeps missing cache samples neutral instead of falling back to red', () => {
+    const health: MonitorHealth = {
+      overall: 'healthy',
+      error_rate: 'healthy',
+      ttft: 'unknown',
+      cache: 'critical',
+      score: 100,
+      error_rate_score: 100,
+      ttft_score: null,
+      cache_score: null,
+      minimum_sample: 20,
+    }
+    expect(healthScoreClass(health, 'cache', 10)).toBe('health-unknown')
+  })
+
   it('formats privacy-safe latency lines with avg/p50/p90', () => {
     expect(formatLatencyPrivacy(100, 250, 120, 300)).toBe('AVG 120ms · P50 100ms · P90 250ms')
     expect(formatLatencyPrivacy(100, null, null, 300)).toBe('P50 100ms · P95 300ms')

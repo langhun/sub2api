@@ -52,6 +52,7 @@ describe('channel monitor V2 active-probe Overlay', () => {
             last_active_probe_at: '2026-09-19T10:00:00Z',
           },
         },
+        admin: true,
       },
     })
     expect(wrapper.text()).toContain('channelMonitorV2ActiveProbes.source.active')
@@ -73,6 +74,14 @@ describe('channel monitor V2 active-probe Overlay', () => {
     expect(wrapper.find('.badge-danger').exists()).toBe(true)
 
     await wrapper.setProps({ extensions: { unrelated: { active_probe: true } } })
+    expect(wrapper.text()).toBe('')
+
+    await wrapper.setProps({
+      admin: false,
+      extensions: {
+        channel_monitor_v2_active_probes: { active_probe: true, passive_traffic: true },
+      },
+    })
     expect(wrapper.text()).toBe('')
   })
 

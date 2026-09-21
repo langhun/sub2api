@@ -116,6 +116,10 @@ export function healthScoreClass(
   const score = healthModeScore(health, mode)
   // Sync-only traffic has no first-token samples. Never paint TTFT as red/empty-fail.
   if (mode === 'ttft' && score == null) return 'health-unknown'
+  // Active probes do not report provider cache usage. Missing cache samples are
+  // not cache misses and must remain neutral instead of falling back to a
+  // stale/coarse red cache state.
+  if (mode === 'cache' && score == null) return 'health-unknown'
   if (score == null) {
     if (requestCount <= 0) return 'health-unknown'
     // Fall back to coarse state when score is absent (older payloads).

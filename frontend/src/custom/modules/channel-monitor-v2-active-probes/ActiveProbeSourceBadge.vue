@@ -1,5 +1,5 @@
 <template>
-  <span v-if="source?.active_probe" class="inline-flex flex-wrap items-center gap-1.5">
+  <span v-if="admin && source?.active_probe" class="inline-flex flex-wrap items-center gap-1.5">
     <span class="badge" :class="sourceStateClass">{{ t('channelMonitorV2ActiveProbes.source.active') }}</span>
     <span v-if="source.passive_traffic" class="badge badge-gray">{{ t('channelMonitorV2ActiveProbes.source.passive') }}</span>
     <span v-if="source.last_active_probe_at" class="text-xs text-gray-400">
@@ -21,7 +21,7 @@ interface ActiveProbeSource {
   active_probe_status?: string
 }
 
-const props = defineProps<{ extensions?: MonitorExtensions }>()
+const props = defineProps<{ extensions?: MonitorExtensions; admin?: boolean }>()
 const source = computed<ActiveProbeSource | undefined>(() => {
   const value = props.extensions?.channel_monitor_v2_active_probes
   return value && typeof value === 'object' ? value as ActiveProbeSource : undefined
