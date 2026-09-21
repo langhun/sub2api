@@ -142,7 +142,7 @@ func TestSmartRoutingSpeedDoesNotForceSlowStickyToFront(t *testing.T) {
 
 func TestSmartRoutingGatewaySpeedOrdersActualAccounts(t *testing.T) {
 	ctx := WithSmartRoutingState(context.Background(), &SmartRoutingRequestState{SmartRoutingActive: true, Strategy: "speed", AccountMetrics: map[int64]SmartRoutingAccountMetric{
-		11: {SpeedMs: 60000}, 12: {SpeedMs: 100},
+		11: {SpeedMs: 60000, Samples: 20}, 12: {SpeedMs: 100, Samples: 20},
 	}})
 	accounts := []accountWithLoad{{account: &Account{ID: 11}}, {account: &Account{ID: 12}}}
 	require.Equal(t, int64(12), smartRoutingOrderBySpeed(ctx, accounts)[0].account.ID)
@@ -154,11 +154,68 @@ func TestSmartRoutingGatewaySpeedOrdersActualAccounts(t *testing.T) {
 	require.False(t, decisive)
 }
 
+func TestSmartRoutingEffectiveWeightsMatchVisibleStrategies(t *testing.T) {
+	tests := []struct {
+		strategy                          string
+		price, speed, success             float64
+		wantPrice, wantSpeed, wantSuccess float64
+	}{
+		{strategy: "auto", price: 1, speed: 1, success: 98, wantPrice: 40, wantSpeed: 30, wantSuccess: 30},
+		{strategy: "price", price: 40, speed: 30, success: 30, wantPrice: 100, wantSpeed: 0, wantSuccess: 0},
+		{strategy: "speed", price: 40, speed: 30, success: 30, wantPrice: 15, wantSpeed: 70, wantSuccess: 15},
+		{strategy: "success", price: 40, speed: 30, success: 30, wantPrice: 15, wantSpeed: 15, wantSuccess: 70},
+		{strategy: "custom", price: 60, speed: 25, success: 15, wantPrice: 60, wantSpeed: 25, wantSuccess: 15},
+	}
+	for _, tt := range tests {
+		t.Run(tt.strategy, func(t *testing.T) {
+			price, speed, success := SmartRoutingEffectiveWeights(&SmartRoutingRequestState{
+				Strategy: tt.strategy, PriceWeight: tt.price, SpeedWeight: tt.speed, SuccessWeight: tt.success,
+			})
+			require.Equal(t, tt.wantPrice, price)
+			require.Equal(t, tt.wantSpeed, speed)
+			require.Equal(t, tt.wantSuccess, success)
+		})
+	}
+}
+
+func TestSmartRoutingSpeedRequiresReliableSamples(t *testing.T) {
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		Strategy:           "speed",
+		AccountMetrics: map[int64]SmartRoutingAccountMetric{
+			11: {SpeedMs: 80, Samples: minSamplesForSmartRoutingMetric - 1},
+			12: {SpeedMs: 800, Samples: minSamplesForSmartRoutingMetric - 1},
+		},
+	}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	accounts := []accountWithLoad{{account: &Account{ID: 11}}, {account: &Account{ID: 12}}}
+	ordered := smartRoutingOrderBySpeed(ctx, accounts)
+	require.Equal(t, []int64{11, 12}, []int64{ordered[0].account.ID, ordered[1].account.ID}, "cold accounts keep scheduler order")
+}
+
+func TestSmartRoutingCustomAccountWeightsAffectSchedulerScore(t *testing.T) {
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		Strategy:           "custom",
+		PriceWeight:        5,
+		SpeedWeight:        90,
+		SuccessWeight:      5,
+		AccountMetrics: map[int64]SmartRoutingAccountMetric{
+			11: {SpeedMs: 900, ErrorRate: 0, Samples: minSamplesForSmartRoutingMetric},
+			12: {SpeedMs: 100, ErrorRate: 1, Samples: minSamplesForSmartRoutingMetric},
+		},
+	}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{}}
+	plan := scheduler.buildOpenAIAccountLoadPlan(ctx, OpenAIAccountScheduleRequest{SmartRouting: true, SpeedPreferred: true}, []*Account{{ID: 11}, {ID: 12}}, nil)
+	require.Greater(t, plan.allCandidates[1].score, plan.allCandidates[0].score, "custom speed weight must favor the lower P50 account")
+}
+
 func TestSmartRoutingAccountScoringIgnoresUnrelatedRuntimeTTFT(t *testing.T) {
 	stats := newOpenAIAccountRuntimeStats()
 	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{}, stats: stats}
 	accounts := []*Account{{ID: 11}, {ID: 12}}
-	state := &SmartRoutingRequestState{SmartRoutingActive: true, Strategy: "speed", AccountMetrics: map[int64]SmartRoutingAccountMetric{11: {SpeedMs: 60000}, 12: {SpeedMs: 100}}}
+	state := &SmartRoutingRequestState{SmartRoutingActive: true, Strategy: "speed", SpeedWeight: 70, SuccessWeight: 15, AccountMetrics: map[int64]SmartRoutingAccountMetric{11: {SpeedMs: 60000, Samples: 20}, 12: {SpeedMs: 100, Samples: 20}}}
 	ctx := WithSmartRoutingState(context.Background(), state)
 	plan := scheduler.buildOpenAIAccountLoadPlan(ctx, OpenAIAccountScheduleRequest{SmartRouting: true, SpeedPreferred: true}, accounts, nil)
 	require.Equal(t, int64(12), plan.selectionOrder[0].account.ID)

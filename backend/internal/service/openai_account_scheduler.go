@@ -68,17 +68,19 @@ var openAIAdvancedSchedulerSettingCache atomic.Value // *cachedOpenAIAdvancedSch
 var openAIAdvancedSchedulerSettingSF singleflight.Group
 
 type OpenAIAccountScheduleRequest struct {
-	GroupID                 *int64
-	Platform                string
-	SessionHash             string
-	StickyAccountID         int64
-	GuardianParentAccountID int64
-	StickyPreviousAccountID int64
-	StickyWeighted          bool
-	SmartRouting            bool
-	SpeedPreferred          bool
-	SubscriptionPriority    bool
-	PreserveStickyBinding   bool
+	GroupID                   *int64
+	Platform                  string
+	SessionHash               string
+	StickyAccountID           int64
+	GuardianParentAccountID   int64
+	StickyPreviousAccountID   int64
+	StickyWeighted            bool
+	SmartRouting              bool
+	SpeedPreferred            bool
+	SmartRoutingSpeedWeight   float64
+	SmartRoutingSuccessWeight float64
+	SubscriptionPriority      bool
+	PreserveStickyBinding     bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
 	// generic sticky health or concurrency heuristics would prefer another.
 	DisableStickyEscape     bool
@@ -882,8 +884,8 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
 			// Generic runtime TTFT mixes models and request types. Smart routes
 			// use only their matching endpoint/model/stream observations.
-			errorRate, ttft, hasTTFT = 0, 0, false
-			if metric, ok := state.AccountMetrics[account.ID]; ok {
+			errorRate, ttft, hasTTFT = 0.5, 0, false
+			if metric, ok := state.AccountMetrics[account.ID]; ok && metric.Samples >= minSamplesForSmartRoutingMetric {
 				errorRate = metric.ErrorRate
 				if metric.SpeedMs > 0 {
 					ttft, hasTTFT = metric.SpeedMs, true
@@ -1050,7 +1052,17 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 			weights.QuotaHeadroom*quotaHeadroomFactor +
 			weights.UpstreamCost*(upstreamCostFactor-openAIUpstreamCostNeutralFactor)
 		if req.SpeedPreferred {
-			item.score = 7*ttftFactor + 1.5*errorFactor + loadFactor + 0.5*queueFactor
+			speedWeight, successWeight := req.SmartRoutingSpeedWeight, req.SmartRoutingSuccessWeight
+			if speedWeight <= 0 && successWeight <= 0 {
+				// The request normally carries resolver weights. Keep a named,
+				// strategy-aware fallback for legacy scheduler callers so a
+				// missing transport field cannot disable speed routing.
+				_, speedWeight, successWeight = SmartRoutingEffectiveWeights(SmartRoutingStateFromContext(ctx))
+			}
+			// Route-profile weights control the quality dimensions. Load and
+			// queue remain small operational tie-breakers so a full account is
+			// never preferred solely because its historical TTFT is lower.
+			item.score = speedWeight*ttftFactor + successWeight*errorFactor + loadFactor + 0.5*queueFactor
 		}
 		if req.StickyWeighted {
 			if req.PreviousResponseCanMove && req.StickyPreviousAccountID > 0 && item.account.ID == req.StickyPreviousAccountID {
@@ -2687,27 +2699,29 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	}
 
 	return scheduler.Select(ctx, OpenAIAccountScheduleRequest{
-		GroupID:                 groupID,
-		Platform:                platform,
-		SessionHash:             sessionHash,
-		StickyAccountID:         stickyAccountID,
-		GuardianParentAccountID: guardianParentAccountID,
-		StickyPreviousAccountID: stickyPreviousAccountID,
-		StickyWeighted:          stickyWeighted,
-		SmartRouting:            smartRouting,
-		SpeedPreferred:          SmartRoutingSpeedPreferred(ctx),
-		SubscriptionPriority:    subscriptionPriority,
-		PreserveStickyBinding:   preserveGuardianParentBinding,
-		RequirePrivacySet:       s.openAIGroupRequiresPrivacySet(ctx, groupID),
-		PreviousResponseID:      previousResponseID,
-		PreviousResponseCanMove: previousResponseCanMove,
-		UseUpstreamTokenCost:    useUpstreamTokenCost,
-		RequestedModel:          requestedModel,
-		RequiredTransport:       requiredTransport,
-		RequiredCapability:      requiredCapability,
-		RequiredImageCapability: requiredImageCapability,
-		RequireCompact:          requireCompact,
-		ExcludedIDs:             excludedIDs,
+		GroupID:                   groupID,
+		Platform:                  platform,
+		SessionHash:               sessionHash,
+		StickyAccountID:           stickyAccountID,
+		GuardianParentAccountID:   guardianParentAccountID,
+		StickyPreviousAccountID:   stickyPreviousAccountID,
+		StickyWeighted:            stickyWeighted,
+		SmartRouting:              smartRouting,
+		SpeedPreferred:            SmartRoutingSpeedPreferred(ctx),
+		SmartRoutingSpeedWeight:   smartRoutingSpeedWeight(ctx),
+		SmartRoutingSuccessWeight: smartRoutingSuccessWeight(ctx),
+		SubscriptionPriority:      subscriptionPriority,
+		PreserveStickyBinding:     preserveGuardianParentBinding,
+		RequirePrivacySet:         s.openAIGroupRequiresPrivacySet(ctx, groupID),
+		PreviousResponseID:        previousResponseID,
+		PreviousResponseCanMove:   previousResponseCanMove,
+		UseUpstreamTokenCost:      useUpstreamTokenCost,
+		RequestedModel:            requestedModel,
+		RequiredTransport:         requiredTransport,
+		RequiredCapability:        requiredCapability,
+		RequiredImageCapability:   requiredImageCapability,
+		RequireCompact:            requireCompact,
+		ExcludedIDs:               excludedIDs,
 	})
 }
 

@@ -56,6 +56,9 @@ type Group struct {
 	Samples       int64   `json:"samples"`
 	CapacityRatio float64 `json:"capacity_ratio"`
 	Score         float64 `json:"score"`
+	PriceScore    float64 `json:"price_score"`
+	SpeedScore    float64 `json:"speed_score"`
+	SuccessScore  float64 `json:"success_score"`
 	Eligible      bool    `json:"eligible"`
 	Reason        string  `json:"reason,omitempty"`
 }
@@ -111,7 +114,13 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
 		COUNT(*), COUNT(*) FILTER (WHERE success),
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0),0)::bigint
-		FROM custom_route_attempts WHERE group_id=$1 AND requested_model=$2 AND endpoint_type=$3 AND stream=$4 AND created_at>=NOW()-INTERVAL '1 hour'`, groupID, model, endpoint, stream).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
+		FROM (
+			SELECT DISTINCT ON (request_id, group_id) success, speed_ms, created_at
+			FROM custom_route_attempts
+			WHERE group_id=$1 AND requested_model=$2 AND endpoint_type=$3 AND stream=$4
+			  AND created_at>=NOW()-INTERVAL '1 hour'
+			ORDER BY request_id, group_id, attempt DESC
+		) final_attempts`, groupID, model, endpoint, stream).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
 		slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err)
 	}
 	return st
@@ -285,6 +294,13 @@ func routingProfileUsable(p *Profile) bool {
 		seen[group.GroupID] = struct{}{}
 	}
 	return true
+}
+
+func routingWeights(p *Profile) (price, speed, success float64) {
+	if p == nil {
+		return service.SmartRoutingStrategyWeights("auto", 0, 0, 0)
+	}
+	return service.SmartRoutingStrategyWeights(p.Strategy, p.PriceWeight, p.SpeedWeight, p.SuccessWeight)
 }
 
 type Module struct {
@@ -570,7 +586,8 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		state.NoRoute = false
 	}
 	state.Observer = m
-	state.Strategy, state.SpeedWeight, state.SuccessWeight = p.Strategy, p.SpeedWeight, p.SuccessWeight
+	state.Strategy = p.Strategy
+	state.PriceWeight, state.SpeedWeight, state.SuccessWeight = routingWeights(p)
 	if state.NoRoute {
 		return nil, nil
 	}
@@ -1123,17 +1140,19 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			g.Eligible = true
 		}
 		st := m.loadStats(ctx, g.GroupID, model)
-		if st.Samples < minSamples && st.FallbackSamples > st.Samples {
+		reliableSamples := st.Samples >= minSamples
+		if !reliableSamples && st.FallbackSamples >= minSamples {
 			st.Samples = st.FallbackSamples
 			st.Success = st.FallbackSuccess
 			st.SpeedMs = st.FallbackSpeedMs
+			reliableSamples = true
 		}
 		g.Samples = st.Samples
 		g.SuccessRate = 0.5
-		if st.Samples > 0 {
+		if reliableSamples {
 			g.SuccessRate = float64(st.Success+1) / float64(st.Samples+2)
 		}
-		if st.SpeedMs.Valid {
+		if reliableSamples && st.SpeedMs.Valid {
 			g.SpeedMs = st.SpeedMs.Int64
 		}
 		out = append(out, g)
@@ -1184,17 +1203,10 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			successScore = 100 * (g.SuccessRate - minS) / (maxS - minS)
 		}
 		speedScore := relativeSpeedScore(g.SpeedMs, minSpeed, maxSpeed)
-		wP, wS, wE := p.PriceWeight, p.SpeedWeight, p.SuccessWeight
-		switch p.Strategy {
-		case "price":
-			wP, wS, wE = 100, 0, 0
-		case "speed":
-			wP, wS, wE = 15, 70, 15
-		case "success":
-			wP, wS, wE = 15, 15, 70
-		}
+		wP, wS, wE := routingWeights(p)
+		g.PriceScore, g.SpeedScore, g.SuccessScore = priceScore, speedScore, successScore
 		g.Score = priceScore*wP/100 + speedScore*wS/100 + successScore*wE/100
-		g.Reason = fmt.Sprintf("score=%.2f price=%.4f success=%.2f", g.Score, g.Price, g.SuccessRate)
+		g.Reason = fmt.Sprintf("score=%.2f price_score=%.2f speed_score=%.2f success_score=%.2f samples=%d", g.Score, priceScore, speedScore, successScore, g.Samples)
 	}
 	sortRankedGroups(out)
 	return out, nil

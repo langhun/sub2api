@@ -163,7 +163,7 @@ export default {
     routingCandidates: 'Candidate groups',
     routingActiveGroups: 'Groups in the routing pool',
     routingMetricsTitle: 'Selection follows recent performance',
-    routingMetricsHint: 'Your strategy weighs price, response speed and recent success rate. Groups in failure cooldown or without capacity are excluded.',
+    routingMetricsHint: 'Speed uses the recent P50 for the same model and endpoint (TTFT for streaming). Scores use the current weights; sparse samples stay neutral instead of deciding from one request.',
     routingCandidatesHint: 'Only groups with the same platform and billing type are shown. Selection order breaks scoring ties.',
     routingCandidatesEmpty: 'No candidate groups yet. Select one below.',
     routingCandidatesRequired: 'Smart routing requires at least two groups.',

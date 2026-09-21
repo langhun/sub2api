@@ -89,6 +89,7 @@ type SmartRoutingRequestState struct {
 	AccountExclusions map[int64]string
 	NoRoute           bool
 	Strategy          string
+	PriceWeight       float64
 	SpeedWeight       float64
 	SuccessWeight     float64
 	RequestedModel    string

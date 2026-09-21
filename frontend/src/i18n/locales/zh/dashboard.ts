@@ -163,7 +163,7 @@ export default {
     routingCandidates: '候选分组',
     routingActiveGroups: '参与路由的分组',
     routingMetricsTitle: '按近期表现动态选择',
-    routingMetricsHint: '按所选策略评估分组的价格、响应速度和近期成功率；故障或容量不足的分组会被排除。',
+    routingMetricsHint: '速度取同模型、同端点近期成功请求的 P50（流式为首 token）；按当前权重合成价格、速度和成功率得分。样本不足时使用中性分，不会凭单次请求下结论。',
     routingCandidatesHint: '仅显示同平台、同计费类型的分组。评分相同时，按所选顺序优先选择。',
     routingCandidatesEmpty: '还没有候选分组，请从下方选择。',
     routingCandidatesRequired: '智能路由至少需要选择两个分组',

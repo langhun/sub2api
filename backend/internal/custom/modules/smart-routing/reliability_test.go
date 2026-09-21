@@ -77,6 +77,20 @@ func TestAttemptStatsIncludeFailuresAndSeparateRequestTypes(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestRoutingAccountMetricsFallsBackToReliableHourlyWindow(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+	m := &Module{repo: NewRepository(db)}
+	mock.ExpectQuery("SELECT account_id").WithArgs(int64(2), "gpt-5", "responses", true).WillReturnRows(
+		sqlmock.NewRows([]string{"account_id", "recent_samples", "recent_speed", "recent_error", "fallback_samples", "fallback_speed", "fallback_error"}).
+			AddRow(int64(12), int64(3), 120.0, 0.0, int64(minSamples), 640.0, 0.2),
+	)
+	metrics := m.RoutingAccountMetrics(context.Background(), 2, "gpt-5", "responses", true)
+	require.Equal(t, service.SmartRoutingAccountMetric{Samples: minSamples, SpeedMs: 640, ErrorRate: 0.2}, metrics[12])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestResolveFailureAfterAttemptCannotReplayPrimary(t *testing.T) {
 	for _, attempted := range []bool{false, true} {
 		db, mock, err := sqlmock.New()

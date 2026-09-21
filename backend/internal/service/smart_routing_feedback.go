@@ -38,6 +38,10 @@ type SmartRoutingAttemptObserver interface {
 type SmartRoutingAccountMetric struct {
 	SpeedMs   float64
 	ErrorRate float64
+	// Samples is the number of request-level outcomes in the metric window.
+	// Speed preference is ignored until this reaches the routing cold-start
+	// threshold, so one lucky request cannot label an account as fastest.
+	Samples int64
 }
 
 type SmartRoutingAccountMetricProvider interface {
@@ -99,7 +103,11 @@ func smartRoutingOrderBySpeed(ctx context.Context, accounts []accountWithLoad) [
 	s := SmartRoutingStateFromContext(ctx)
 	minSpeed, maxSpeed := 0.0, 0.0
 	for _, a := range accounts {
-		v := s.AccountMetrics[a.account.ID].SpeedMs
+		metric := s.AccountMetrics[a.account.ID]
+		if metric.Samples < minSamplesForSmartRoutingMetric {
+			continue
+		}
+		v := metric.SpeedMs
 		if v > 0 && (minSpeed == 0 || v < minSpeed) {
 			minSpeed = v
 		}
@@ -112,14 +120,17 @@ func smartRoutingOrderBySpeed(ctx context.Context, accounts []accountWithLoad) [
 	}
 	score := func(id int64) float64 {
 		m := s.AccountMetrics[id]
-		speed := 0.5
-		if m.SpeedMs > 0 {
+		speed, success := 0.5, 0.5
+		if m.Samples >= minSamplesForSmartRoutingMetric && m.SpeedMs > 0 {
 			speed = 1
 			if maxSpeed > minSpeed {
 				speed = (maxSpeed - m.SpeedMs) / (maxSpeed - minSpeed)
 			}
 		}
-		return speed*0.7 + (1-m.ErrorRate)*0.3
+		if m.Samples >= minSamplesForSmartRoutingMetric {
+			success = 1 - m.ErrorRate
+		}
+		return smartRoutingAccountMetricScore(s, speed, success)
 	}
 	ordered := append([]accountWithLoad(nil), accounts...)
 	sort.SliceStable(ordered, func(i, j int) bool { return score(ordered[i].account.ID) > score(ordered[j].account.ID) })
@@ -133,16 +144,90 @@ func smartRoutingPreferAccountBySpeed(ctx context.Context, account, selected *Ac
 		return false, false
 	}
 	state := SmartRoutingStateFromContext(ctx)
-	score := func(id int64) float64 {
-		metric := state.AccountMetrics[id]
-		speed := 0.5
-		if metric.SpeedMs > 0 {
-			speed = 1000 / (1000 + metric.SpeedMs)
+	aMetric := state.AccountMetrics[account.ID]
+	bMetric := state.AccountMetrics[selected.ID]
+	minSpeed, maxSpeed := 0.0, 0.0
+	for _, metric := range []SmartRoutingAccountMetric{aMetric, bMetric} {
+		if metric.Samples < minSamplesForSmartRoutingMetric || metric.SpeedMs <= 0 {
+			continue
 		}
-		return speed*0.7 + (1-metric.ErrorRate)*0.3
+		if minSpeed == 0 || metric.SpeedMs < minSpeed {
+			minSpeed = metric.SpeedMs
+		}
+		if metric.SpeedMs > maxSpeed {
+			maxSpeed = metric.SpeedMs
+		}
 	}
-	a, b := score(account.ID), score(selected.ID)
+	score := func(metric SmartRoutingAccountMetric) float64 {
+		speed, success := 0.5, 0.5
+		if metric.Samples >= minSamplesForSmartRoutingMetric && metric.SpeedMs > 0 {
+			speed = 1
+			if maxSpeed > minSpeed {
+				speed = (maxSpeed - metric.SpeedMs) / (maxSpeed - minSpeed)
+			}
+		}
+		if metric.Samples >= minSamplesForSmartRoutingMetric {
+			success = 1 - metric.ErrorRate
+		}
+		return smartRoutingAccountMetricScore(state, speed, success)
+	}
+	a, b := score(aMetric), score(bMetric)
 	return a > b, a != b
+}
+
+const minSamplesForSmartRoutingMetric = 20
+
+func smartRoutingAccountMetricScore(state *SmartRoutingRequestState, speed, success float64) float64 {
+	_, speedWeight, successWeight := SmartRoutingEffectiveWeights(state)
+	return speed*speedWeight/100 + success*successWeight/100
+}
+
+// SmartRoutingEffectiveWeights is the single fallback for request-local
+// routing weights. Resolver-populated requests already carry the profile's
+// values; tests, legacy callers, and rehydrated contexts may only carry the
+// strategy, so account scheduling must not silently lose the speed policy.
+func SmartRoutingEffectiveWeights(state *SmartRoutingRequestState) (price, speed, success float64) {
+	if state == nil {
+		return SmartRoutingStrategyWeights("auto", 0, 0, 0)
+	}
+	return SmartRoutingStrategyWeights(state.Strategy, state.PriceWeight, state.SpeedWeight, state.SuccessWeight)
+}
+
+// SmartRoutingStrategyWeights defines the user-visible presets. The Overlay
+// group ranker and the core account scheduler both call this function so the
+// configured strategy has exactly one interpretation.
+func SmartRoutingStrategyWeights(strategy string, price, speed, success float64) (float64, float64, float64) {
+	switch strategy {
+	case "price":
+		return 100, 0, 0
+	case "speed":
+		return 15, 70, 15
+	case "success":
+		return 15, 15, 70
+	case "custom":
+		if price > 0 || speed > 0 || success > 0 {
+			return price, speed, success
+		}
+	default:
+		return 40, 30, 30
+	}
+	return 40, 30, 30
+}
+
+func smartRoutingSpeedWeight(ctx context.Context) float64 {
+	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		_, speed, _ := SmartRoutingEffectiveWeights(state)
+		return speed
+	}
+	return 30
+}
+
+func smartRoutingSuccessWeight(ctx context.Context) float64 {
+	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		_, _, success := SmartRoutingEffectiveWeights(state)
+		return success
+	}
+	return 30
 }
 
 func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bool, duration time.Duration, firstTokenMs *int, err error) {

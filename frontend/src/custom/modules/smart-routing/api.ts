@@ -12,6 +12,9 @@ export interface SmartRoutingGroup {
   samples: number
   capacity_ratio: number
   score: number
+  price_score?: number
+  speed_score?: number
+  success_score?: number
   eligible: boolean
   reason?: string
 }
