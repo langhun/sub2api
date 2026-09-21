@@ -549,12 +549,20 @@ const matrixGroupOptions = computed(() => [
   { value: 'platform_model' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platformModel') },
   { value: 'platform_group_model' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platformGroupModel') },
 ])
-const healthModeOptions = computed(() => [
-  { value: 'overall' as HealthMode, label: t('channelMonitorV2.healthMode.overall') },
-  { value: 'success' as HealthMode, label: t('channelMonitorV2.healthMode.success') },
-  { value: 'ttft' as HealthMode, label: t('channelMonitorV2.healthMode.ttft') },
-  { value: 'cache' as HealthMode, label: t('channelMonitorV2.healthMode.cache') },
-])
+const healthModeOptions = computed(() => {
+  const options: Array<{ value: HealthMode; label: string }> = [
+    { value: 'overall', label: t('channelMonitorV2.healthMode.overall') },
+    { value: 'success', label: t('channelMonitorV2.healthMode.success') },
+    { value: 'ttft', label: t('channelMonitorV2.healthMode.ttft') },
+  ]
+  // Cache usage is not available from active probes. Keep this diagnostic
+  // dimension for administrators without making the user-facing availability
+  // view look unhealthy when no cache sample exists.
+  if (isAdmin.value) {
+    options.push({ value: 'cache', label: t('channelMonitorV2.healthMode.cache') })
+  }
+  return options
+})
 
 const filter = ref<MonitorFilter>({
   range: parseRange(route.query.range),
