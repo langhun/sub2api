@@ -2,7 +2,7 @@
   <header class="app-header glass sticky top-3 z-30 mx-3 rounded-[20px] border border-gray-200/50 shadow-sm dark:border-dark-700/50 lg:mx-5">
     <div class="flex h-14 min-w-0 items-center justify-between gap-2 px-2 sm:px-4 md:px-5">
       <!-- Left: Mobile Menu Toggle + Page Title -->
-      <div class="flex shrink-0 items-center gap-2 sm:gap-4">
+      <div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <button
           @click="toggleMobileSidebar"
           class="btn-ghost btn-icon lg:hidden"
@@ -11,7 +11,7 @@
           <Icon name="menu" size="md" />
         </button>
 
-        <div v-if="!hideHeaderTitle" class="hidden min-w-0 max-w-[45%] lg:block">
+        <div v-if="!hideHeaderTitle" class="hidden min-w-0 flex-1 lg:block">
           <h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
           </h1>
@@ -22,7 +22,7 @@
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-visible sm:gap-3">
+      <div class="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-visible sm:gap-3">
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
