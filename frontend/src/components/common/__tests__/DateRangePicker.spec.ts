@@ -53,6 +53,7 @@ describe('DateRangePicker', () => {
     const dropdown = wrapper.find('.date-picker-dropdown')
     expect(dropdown.exists()).toBe(true)
     expect(dropdown.classes()).toContain('z-[1000]')
+    expect(wrapper.find('.date-picker-container').exists()).toBe(true)
   })
 
   it('uses last 24 hours as the default recognized preset', () => {

@@ -200,6 +200,14 @@ describe('admin UsageView route filters', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the date menu container above the chart cards', async () => {
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+
+    expect(wrapper.find('.card.relative.z-20.overflow-visible').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('cancels the deferred chart request when leaving the page', async () => {
     const wrapper = mountRouteFilteredUsageView()
     await flushPromises()

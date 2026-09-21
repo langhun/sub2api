@@ -142,6 +142,6 @@ describe('admin DashboardView', () => {
       end_date: formatLocalDate(now),
       granularity: 'hour'
     }))
-    expect(wrapper.find('.card.relative.z-30.overflow-visible').exists()).toBe(true)
+    expect(wrapper.find('.card.relative.z-20.overflow-visible').exists()).toBe(true)
   })
 })

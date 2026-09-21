@@ -1,5 +1,5 @@
 <template>
-  <div class="relative" ref="containerRef">
+  <div class="date-picker-container relative" ref="containerRef">
     <button
       type="button"
       @click="toggle"
@@ -365,10 +365,16 @@ onUnmounted(() => {
 }
 
 @media (max-width: 639px) {
+  .date-picker-container {
+    position: static;
+  }
+
   .date-picker-dropdown {
-    left: auto;
-    right: 0;
-    min-width: min(320px, calc(100vw - 1rem));
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    min-width: 0;
+    max-width: none;
   }
 
   .date-picker-custom {

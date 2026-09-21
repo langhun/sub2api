@@ -216,6 +216,13 @@ describe('user UsageView', () => {
     getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
   })
 
+  it('keeps the date menu container above the chart cards', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+
+    expect(wrapper.find('.card.relative.z-20.overflow-visible').exists()).toBe(true)
+  })
+
   it('loads logs, stats, model stats, and snapshot on first render', async () => {
     mountUsageView()
     await flushPromises()
