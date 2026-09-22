@@ -97,3 +97,39 @@ func TestCheckinUserAccessMigrationStaysInCustomSchema(t *testing.T) {
 		t.Fatal("custom migration must not modify the upstream users table")
 	}
 }
+
+func TestSmartRoutingOutcomeMigrationStoresFinalRequestResult(t *testing.T) {
+	content, err := files.ReadFile("018_smart_routing_outcomes.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"CREATE TABLE IF NOT EXISTS custom_route_outcomes",
+		"request_id TEXT PRIMARY KEY",
+		"final_success BOOLEAN NOT NULL",
+		"group_switches INTEGER NOT NULL",
+		"custom_route_outcomes_key_created_idx",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+}
+
+func TestSmartRoutingExplorationMigrationCapsHistoricalProfiles(t *testing.T) {
+	content, err := files.ReadFile("019_smart_routing_exploration_cap.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"SET exploration_rate = 0.01",
+		"WHERE exploration_rate > 0.01",
+		"CHECK (exploration_rate >= 0 AND exploration_rate <= 0.01)",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+}

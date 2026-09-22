@@ -91,7 +91,7 @@ func TestRoutingProfileUsableRejectsMalformedPersistedValues(t *testing.T) {
 		SpeedWeight:     30,
 		SuccessWeight:   30,
 		StickyTTL:       1800,
-		ExplorationRate: 0.05,
+		ExplorationRate: 0.01,
 		Groups:          []Group{{GroupID: 7, Enabled: true}},
 	}
 	if !routingProfileUsable(base) {
@@ -166,7 +166,7 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(43)).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("SELECT version FROM custom_api_key_route_profiles").WithArgs(int64(43)).WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("INSERT INTO custom_api_key_route_profiles").WithArgs(
-		int64(43), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05,
+		int64(43), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.01,
 	).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("DELETE FROM custom_api_key_route_groups").WithArgs(int64(43)).WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("INSERT INTO custom_api_key_route_groups").WithArgs(int64(43), int64(9), 0).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -174,7 +174,7 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT api_key_id").WithArgs(int64(43)).WillReturnRows(sqlmock.NewRows([]string{
 		"api_key_id", "enabled", "mode", "strategy", "price_weight", "speed_weight", "success_weight", "sticky_ttl_seconds", "exploration_rate", "version",
-	}).AddRow(int64(43), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05, 2))
+	}).AddRow(int64(43), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.01, 2))
 	mock.ExpectQuery("SELECT rg.group_id").WithArgs(int64(43)).WillReturnRows(sqlmock.NewRows([]string{
 		"group_id", "sort_order", "enabled", "name", "platform",
 	}).AddRow(int64(9), 0, true, "first", "openai").AddRow(int64(7), 1, true, "second", "openai"))
@@ -187,7 +187,7 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 		SpeedWeight:     30,
 		SuccessWeight:   30,
 		StickyTTL:       1800,
-		ExplorationRate: 0.05,
+		ExplorationRate: 0.01,
 		GroupIDs:        []int64{9, 7},
 	})
 	if err != nil {
@@ -224,7 +224,7 @@ func TestRepositorySaveRejectsVersionZeroWhenProfileExists(t *testing.T) {
 		SpeedWeight:     30,
 		SuccessWeight:   30,
 		StickyTTL:       1800,
-		ExplorationRate: 0.05,
+		ExplorationRate: 0.01,
 	})
 	if err == nil || err.Error() != "routing profile version conflict" {
 		t.Fatalf("Save error = %v, want version conflict", err)
@@ -254,7 +254,7 @@ func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
 		SpeedWeight:     30,
 		SuccessWeight:   30,
 		StickyTTL:       1800,
-		ExplorationRate: 0.05,
+		ExplorationRate: 0.01,
 		GroupIDs:        []int64{9},
 	}); err == nil || !strings.Contains(err.Error(), "version conflict") {
 		t.Fatalf("version 0 against existing profile error = %v, want conflict", err)
@@ -281,7 +281,7 @@ func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
 		SpeedWeight:     30,
 		SuccessWeight:   30,
 		StickyTTL:       1800,
-		ExplorationRate: 0.05,
+		ExplorationRate: 0.01,
 		GroupIDs:        []int64{9},
 	}); err == nil || !strings.Contains(err.Error(), "version conflict") {
 		t.Fatalf("nonzero version against missing profile error = %v, want conflict", err)
@@ -316,7 +316,7 @@ func allowRoutingGroups(ids ...int64) availableGroupsChecker {
 }
 
 func TestValidateUpdateWeightsAndCandidates(t *testing.T) {
-	valid := UpdateRequest{Mode: "smart", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 1800, ExplorationRate: 0.05, GroupIDs: []int64{2}}
+	valid := UpdateRequest{Mode: "smart", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 1800, ExplorationRate: 0.01, GroupIDs: []int64{2}}
 	if err := validateUpdate(valid); err != nil {
 		t.Fatalf("valid request rejected: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestValidateUpdateRejectsExplorationAboveCap(t *testing.T) {
 }
 
 func TestValidateUpdateRejectsNonFiniteNumbers(t *testing.T) {
-	valid := UpdateRequest{Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, ExplorationRate: 0.05}
+	valid := UpdateRequest{Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, ExplorationRate: 0.01}
 	for name, mutate := range map[string]func(*UpdateRequest){
 		"nan price":        func(req *UpdateRequest) { req.PriceWeight = math.NaN() },
 		"infinite speed":   func(req *UpdateRequest) { req.SpeedWeight = math.Inf(1) },
@@ -921,14 +921,14 @@ func TestDispatchModelForGroupUsesCandidateMessagesMapping(t *testing.T) {
 }
 
 func TestExplorationIndexOnlyTargetsColdEligibleCandidates(t *testing.T) {
-	profile := &Profile{Version: 1, ExplorationRate: 0.05}
+	profile := &Profile{Version: 1, Strategy: "auto", ExplorationRate: 0.01}
 	key := &service.APIKey{ID: 17}
 	ranked := []Group{
 		{GroupID: 1, Eligible: true, Samples: 100},
 		{GroupID: 2, Eligible: true, Samples: 0},
 		{GroupID: 3, Eligible: false, Samples: 0},
 	}
-	// Find a deterministic session that falls inside the 5% bucket. The test
+	// Find a deterministic session that falls inside the 1% bucket. The test
 	// does not depend on a particular hash byte so changes to the digest remain
 	// harmless.
 	found := -1
@@ -945,6 +945,19 @@ func TestExplorationIndexOnlyTargetsColdEligibleCandidates(t *testing.T) {
 	ranked[1].Samples = minSamples
 	if idx := (&Module{}).explorationIndex(key, profile, ranked, 1, fmt.Sprintf("session-%d", found), "gpt-test"); idx >= 0 {
 		t.Fatalf("sample-complete candidate should not be explored, got index %d", idx)
+	}
+}
+
+func TestExplorationIndexDisabledForExplicitStrategies(t *testing.T) {
+	key := &service.APIKey{ID: 17}
+	ranked := []Group{{GroupID: 1, Eligible: true, Samples: 100}, {GroupID: 2, Eligible: true, Samples: 0}}
+	for _, strategy := range []string{"price", "speed", "success", "custom"} {
+		p := &Profile{Version: 1, Strategy: strategy, ExplorationRate: 0.01}
+		for i := 0; i < 500; i++ {
+			if got := (&Module{}).explorationIndex(key, p, ranked, 1, fmt.Sprintf("%s-%d", strategy, i), "gpt-test"); got >= 0 {
+				t.Fatalf("strategy %q unexpectedly explored index %d", strategy, got)
+			}
+		}
 	}
 }
 

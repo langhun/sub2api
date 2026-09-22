@@ -16,6 +16,15 @@ func (c *routeAttemptCollector) ObserveRoutingAttempt(a SmartRoutingAttempt) {
 	c.attempts = append(c.attempts, a)
 }
 
+type routeOutcomeCollector struct {
+	routeAttemptCollector
+	outcomes []SmartRoutingOutcome
+}
+
+func (c *routeOutcomeCollector) RecordRoutingOutcome(a SmartRoutingOutcome) {
+	c.outcomes = append(c.outcomes, a)
+}
+
 func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T) {
 	collector := &routeAttemptCollector{}
 	s := &SmartRoutingRequestState{SmartRoutingActive: true, CurrentGroupID: 2, RequestedModel: "gpt-5", EndpointType: "responses", Observer: collector}
@@ -46,6 +55,52 @@ func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T
 	s.SmartRoutingActive = false
 	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, nil)
 	require.Len(t, collector.attempts, 2, "single-group requests have no new feedback behavior")
+}
+
+func TestSmartRoutingOutcomeUsesFinalRequestResult(t *testing.T) {
+	collector := &routeOutcomeCollector{}
+	state := &SmartRoutingRequestState{SmartRoutingActive: true, CurrentGroupID: 2, RequestedModel: "gpt-5", EndpointType: "responses", Observer: collector, SmartRoutingStartedAt: time.Now(), TotalAttempts: 2}
+	ctx := WithSmartRoutingState(WithAPIKeyContext(context.WithValue(context.Background(), ctxkey.RequestID, "request-outcome"), &APIKey{ID: 9}), state)
+	account := &Account{ID: 11}
+	ObserveSmartRoutingAttempt(ctx, account, true, 2*time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
+	state.CurrentGroupID = 21
+	ttft := 120
+	ObserveSmartRoutingAttempt(ctx, account, true, 500*time.Millisecond, &ttft, nil)
+	RecordSmartRoutingOutcome(ctx, true, state.CurrentGroupID, account.ID, 2500*time.Millisecond)
+	RecordSmartRoutingOutcome(ctx, false, 2, account.ID, 3*time.Second)
+	require.Len(t, collector.outcomes, 1)
+	require.True(t, collector.outcomes[0].FinalSuccess)
+	require.Equal(t, int64(21), collector.outcomes[0].FinalGroupID)
+	require.Equal(t, int64(11), collector.outcomes[0].FinalAccountID)
+	require.Equal(t, 2, collector.outcomes[0].Attempts)
+	require.Equal(t, int64(120), collector.outcomes[0].FirstTokenMs)
+	require.Equal(t, 503, collector.outcomes[0].ErrorStatus)
+}
+
+func TestSmartRoutingOutcomeCapturesRequestScopedFailureAttribution(t *testing.T) {
+	collector := &routeOutcomeCollector{}
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive:    true,
+		CurrentGroupID:        21,
+		RequestedModel:        "gpt-5",
+		EndpointType:          "responses",
+		Observer:              collector,
+		SmartRoutingStartedAt: time.Now(),
+		TotalAttempts:         1,
+	}
+	ctx := WithSmartRoutingState(WithAPIKeyContext(context.WithValue(context.Background(), ctxkey.RequestID, "request-budget"), &APIKey{ID: 9}), state)
+	account := &Account{ID: 12}
+	ObserveSmartRoutingAttempt(ctx, account, false, time.Second, nil, &UpstreamFailoverError{
+		StatusCode: 503,
+		Reason:     SmartRoutingAttemptBudgetExceededReason,
+		Scope:      GatewayFailureScopeRequest,
+	})
+	RecordSmartRoutingOutcome(ctx, false, 0, 0, time.Second)
+	require.Len(t, collector.outcomes, 1)
+	require.False(t, collector.outcomes[0].FinalSuccess)
+	require.Equal(t, int64(21), collector.outcomes[0].FinalGroupID)
+	require.Equal(t, int64(12), collector.outcomes[0].FinalAccountID)
+	require.Equal(t, 503, collector.outcomes[0].ErrorStatus)
 }
 
 func TestSmartRoutingPoolFailureIsFinalizedOnlyAfterHandlerExhaustion(t *testing.T) {
@@ -161,6 +216,23 @@ func TestSmartRoutingQualityWeightsUseResolvedOverlayValues(t *testing.T) {
 	speed, success = smartRoutingQualityWeights(&SmartRoutingRequestState{})
 	require.Equal(t, 30.0, speed)
 	require.Equal(t, 30.0, success)
+}
+
+func TestSmartRoutingAttemptBudgetIsRequestLocal(t *testing.T) {
+	state := &SmartRoutingRequestState{SmartRoutingActive: true, SmartRoutingMaxAttempts: 2, SmartRoutingMaxDuration: time.Minute}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	require.True(t, SmartRoutingAttemptBudgetAvailable(ctx))
+	require.True(t, SmartRoutingAttemptBudgetAvailable(ctx))
+	require.False(t, SmartRoutingAttemptBudgetAvailable(ctx))
+	require.Equal(t, 2, state.TotalAttempts)
+}
+
+func TestSmartRoutingDeterministicFailureSkipsPoolRetryOnlyForKnownMessages(t *testing.T) {
+	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 403, ResponseBody: []byte("Insufficient account balance")}))
+	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte("model is not supported")}))
+	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("All available accounts are currently rate-limited")}))
+	require.False(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("temporary rate limit")}))
+	require.False(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 503, ResponseBody: []byte("service busy")}))
 }
 
 func TestSmartRoutingSpeedRequiresReliableSamples(t *testing.T) {

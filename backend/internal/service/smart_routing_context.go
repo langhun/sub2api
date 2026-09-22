@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,23 @@ type SmartRoutingResolver interface {
 // writer fill the account field asynchronously.
 type SmartRoutingAuditRecorder interface {
 	RecordSelectedAccount(ctx context.Context, apiKeyID, groupID, accountID int64)
+}
+
+type SmartRoutingOutcome struct {
+	RequestID      string
+	APIKeyID       int64
+	FinalGroupID   int64
+	FinalAccountID int64
+	FinalSuccess   bool
+	Attempts       int
+	GroupSwitches  int
+	DurationMs     int64
+	FirstTokenMs   int64
+	ErrorStatus    int
+}
+
+type SmartRoutingOutcomeRecorder interface {
+	RecordRoutingOutcome(SmartRoutingOutcome)
 }
 
 // CommitSmartRoutingAdmission publishes the two side effects that are safe
@@ -95,7 +113,15 @@ type SmartRoutingRequestState struct {
 	RequestedModel    string
 	Stream            bool
 	Attempt           int
-	CapacityRetries   int
+	// TotalAttempts counts every upstream forward started by this request,
+	// including attempts whose error is not eligible for telemetry. It is the
+	// hard request-level safety budget; Attempt remains the historical
+	// telemetry counter.
+	TotalAttempts           int
+	SmartRoutingStartedAt   time.Time
+	SmartRoutingMaxAttempts int
+	SmartRoutingMaxDuration time.Duration
+	CapacityRetries         int
 	// RetryAccountID pins only the next pool-mode retry to the same upstream
 	// website. It is request-local and cleared as soon as that website is
 	// selected; it is not session stickiness.
@@ -160,6 +186,111 @@ type SmartRoutingRequestState struct {
 	// response chain to another group would produce an upstream 404/401 or,
 	// worse, a semantically different conversation.
 	ContinuityLocked bool
+	FinalSuccess     bool
+	FinalGroupID     int64
+	FinalAccountID   int64
+	FinalErrorStatus int
+	FirstTokenMs     int64
+	OutcomeRecorded  bool
+}
+
+const (
+	// SmartRoutingDefaultMaxAttempts bounds stacked pool-mode retries and
+	// cross-account/group failover. A pool website still gets its configured
+	// same-site retry budget, while the request cannot fan out indefinitely.
+	SmartRoutingDefaultMaxAttempts = 12
+	// SmartRoutingDefaultMaxDuration bounds wall-clock time spent attempting
+	// upstreams. It only applies after smart routing has been activated.
+	SmartRoutingDefaultMaxDuration = 30 * time.Second
+)
+
+const SmartRoutingAttemptBudgetExceededReason GatewayFailureReason = "smart_routing_attempt_budget_exceeded"
+
+// SmartRoutingAttemptBudgetAvailable reserves one upstream attempt. It is
+// intentionally request-local, so concurrent requests never share a budget.
+func SmartRoutingAttemptBudgetAvailable(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || ctx == nil || ctx.Err() != nil {
+		return false
+	}
+	if state.SmartRoutingStartedAt.IsZero() {
+		state.SmartRoutingStartedAt = time.Now()
+	}
+	if state.SmartRoutingMaxAttempts <= 0 {
+		state.SmartRoutingMaxAttempts = SmartRoutingDefaultMaxAttempts
+	}
+	if state.SmartRoutingMaxDuration <= 0 {
+		state.SmartRoutingMaxDuration = SmartRoutingDefaultMaxDuration
+	}
+	if state.TotalAttempts >= state.SmartRoutingMaxAttempts {
+		return false
+	}
+	if time.Since(state.SmartRoutingStartedAt) >= state.SmartRoutingMaxDuration {
+		return false
+	}
+	state.TotalAttempts++
+	return true
+}
+
+// SmartRoutingRetryBudgetAllows is used before sleeping for a same-site pool
+// retry. It prevents a retry delay from starting after the request budget has
+// already expired, while leaving ordinary single-group retry behavior intact.
+func SmartRoutingRetryBudgetAllows(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return true
+	}
+	if state.SmartRoutingStartedAt.IsZero() {
+		return true
+	}
+	if state.SmartRoutingMaxAttempts > 0 && state.TotalAttempts >= state.SmartRoutingMaxAttempts {
+		return false
+	}
+	return state.SmartRoutingMaxDuration <= 0 || time.Since(state.SmartRoutingStartedAt) < state.SmartRoutingMaxDuration
+}
+
+// SmartRoutingAttemptContext derives the request context used by one upstream
+// forward. The pre-forward budget check prevents unbounded fan-out, while this
+// deadline also interrupts a single provider call that hangs past the request
+// wall-clock budget. Existing caller deadlines remain the stricter boundary.
+func SmartRoutingAttemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		return context.Background(), func() {}
+	}
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || state.SmartRoutingStartedAt.IsZero() || state.SmartRoutingMaxDuration <= 0 {
+		return ctx, func() {}
+	}
+	deadline := state.SmartRoutingStartedAt.Add(state.SmartRoutingMaxDuration)
+	if current, ok := ctx.Deadline(); ok && !deadline.Before(current) {
+		return ctx, func() {}
+	}
+	return context.WithDeadline(ctx, deadline)
+}
+
+// SmartRoutingDeterministicFailure identifies errors where retrying hidden
+// members of the same upstream website cannot improve the result. The match
+// is deliberately narrow: generic 429/503 responses remain eligible for a
+// configured pool retry because they may be transient at the provider.
+func SmartRoutingDeterministicFailure(err *UpstreamFailoverError) bool {
+	if err == nil {
+		return false
+	}
+	text := strings.ToLower(string(err.Reason) + " " + string(err.ResponseBody) + " " + err.ClientMessage)
+	if err.StatusCode == 404 && (strings.Contains(text, "model") || strings.Contains(text, "support") || strings.Contains(text, "not found")) {
+		return true
+	}
+	if err.StatusCode == 403 {
+		for _, marker := range []string{"insufficient", "balance", "quota", "credit", "payment required", "额度不足", "余额不足", "配额不足"} {
+			if strings.Contains(text, marker) {
+				return true
+			}
+		}
+	}
+	if err.StatusCode == 429 && (strings.Contains(text, "all available accounts") || strings.Contains(text, "all accounts") || strings.Contains(text, "no available accounts")) {
+		return true
+	}
+	return false
 }
 
 // SmartRoutingContractValid is the request-level fail-closed gate. Ordinary

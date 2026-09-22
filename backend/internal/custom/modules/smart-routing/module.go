@@ -145,7 +145,7 @@ func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 		// Version 0 is the optimistic-lock sentinel for a profile that does
 		// not exist yet. Returning 1 here lets two clients both submit their
 		// first edit with the same version and silently overwrite each other.
-		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 0, ExplorationRate: 0.05, Version: 0, Groups: []Group{}}, nil
+		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 0, ExplorationRate: 0.01, Version: 0, Groups: []Group{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -239,8 +239,8 @@ func validateUpdate(req UpdateRequest) error {
 	if req.StickyTTL < 0 || req.StickyTTL > 86400 {
 		return fmt.Errorf("sticky_ttl_seconds out of range")
 	}
-	if !finiteNonNegative(req.ExplorationRate) || req.ExplorationRate > 0.05 {
-		return fmt.Errorf("exploration_rate must be between 0 and 0.05")
+	if !finiteNonNegative(req.ExplorationRate) || req.ExplorationRate > 0.01 {
+		return fmt.Errorf("exploration_rate must be between 0 and 0.01")
 	}
 	if req.Mode == "smart" && len(req.GroupIDs) == 0 {
 		return fmt.Errorf("smart mode requires at least one group")
@@ -1266,12 +1266,26 @@ func finiteNonNegative(value float64) bool {
 }
 
 func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Group, primaryGroupID int64, requestID, model string) int {
-	if key == nil || p == nil || !finiteNonNegative(p.ExplorationRate) || p.ExplorationRate <= 0 || p.ExplorationRate > 0.05 || len(ranked) < 2 {
+	// Exploration is only a cold-start aid for the automatic strategy. A
+	// user-selected price/speed/success/custom strategy is an explicit policy,
+	// so silently sending traffic to an unknown candidate would violate it.
+	if p == nil {
 		return -1
 	}
+	strategy := strings.ToLower(strings.TrimSpace(p.Strategy))
+	if strategy == "" {
+		strategy = "auto"
+	}
+	if strategy != "auto" || key == nil || !finiteNonNegative(p.ExplorationRate) || p.ExplorationRate <= 0 || len(ranked) < 2 {
+		return -1
+	}
+	// Profiles created before the 1% cap may still carry the historical 5%
+	// value until the normalization migration runs. Clamp them instead of
+	// silently disabling exploration or preserving excessive traffic.
+	explorationRate := min(p.ExplorationRate, 0.01)
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s:%s", key.ID, p.Version, requestID, model)))
 	bucket := uint32(digest[0])<<16 | uint32(digest[1])<<8 | uint32(digest[2])
-	if bucket >= uint32(p.ExplorationRate*(1<<24)) {
+	if bucket >= uint32(explorationRate*(1<<24)) {
 		return -1
 	}
 	candidates := make([]int, 0, len(ranked))

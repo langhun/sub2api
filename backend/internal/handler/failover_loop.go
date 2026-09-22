@@ -102,6 +102,16 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 	return retryLimit > 0 && retryCount < retryLimit
 }
 
+func smartRoutingSameAccountRetryAllowed(ctx context.Context, failoverErr *service.UpstreamFailoverError, retryCount, retryLimit int) bool {
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && service.SmartRoutingDeterministicFailure(failoverErr) {
+		return false
+	}
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && !service.SmartRoutingRetryBudgetAllows(ctx) {
+		return false
+	}
+	return sameAccountRetryAllowed(failoverErr, retryCount, retryLimit)
+}
+
 // sameAccountRetryDeadlineAllows prevents a retry from starting after the
 // service-provided same-account retry window has elapsed.
 func sameAccountRetryDeadlineAllows(failoverErr *service.UpstreamFailoverError) bool {
@@ -210,7 +220,7 @@ func (s *FailoverState) HandleFailoverError(
 
 	// 同账号重试不算切换账号，粘性会话仅在实际切换时强制缓存计费。
 	retryCount := s.SameAccountRetryCount[accountID]
-	sameAccountRetry := sameAccountRetryAllowed(failoverErr, retryCount, retryLimit)
+	sameAccountRetry := smartRoutingSameAccountRetryAllowed(ctx, failoverErr, retryCount, retryLimit)
 	if needForceCacheBilling(s.hasBoundSession, failoverErr, sameAccountRetry) {
 		s.ForceCacheBilling = true
 	}

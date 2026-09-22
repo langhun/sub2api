@@ -95,6 +95,34 @@ func (m *Module) ObserveRoutingAttempt(a service.SmartRoutingAttempt) {
 	}
 }
 
+func (m *Module) RecordRoutingOutcome(a service.SmartRoutingOutcome) {
+	if m == nil || m.repo == nil || m.repo.db == nil || a.RequestID == "" || a.APIKeyID <= 0 {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, err := m.repo.db.ExecContext(ctx, `INSERT INTO custom_route_outcomes
+            (request_id,api_key_id,final_group_id,final_account_id,final_success,attempts,group_switches,duration_ms,first_token_ms,error_status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            ON CONFLICT (request_id) DO UPDATE SET final_group_id=EXCLUDED.final_group_id,
+            final_account_id=EXCLUDED.final_account_id, final_success=EXCLUDED.final_success,
+            attempts=EXCLUDED.attempts, group_switches=EXCLUDED.group_switches,
+            duration_ms=EXCLUDED.duration_ms, first_token_ms=EXCLUDED.first_token_ms,
+            error_status=EXCLUDED.error_status`, a.RequestID, a.APIKeyID, nullableID(a.FinalGroupID), nullableID(a.FinalAccountID), a.FinalSuccess, a.Attempts, a.GroupSwitches, a.DurationMs, a.FirstTokenMs, a.ErrorStatus)
+		if err != nil {
+			slog.Warn("smart_routing_outcome_write_failed", "request_id", a.RequestID, "error", err)
+		}
+	}()
+}
+
+func nullableID(id int64) any {
+	if id <= 0 {
+		return nil
+	}
+	return id
+}
+
 func (m *Module) flushFeedback(shard int) {
 	f := &m.feedback
 	for {

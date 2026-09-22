@@ -213,6 +213,14 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 	if state == nil || !state.SmartRoutingActive || state.Observer == nil || account == nil || account.ID <= 0 || ctx.Err() != nil {
 		return
 	}
+	// Keep the terminal outcome attributable even when the error is request
+	// scoped (for example the smart-routing attempt budget) and is therefore
+	// intentionally excluded from account-health telemetry.
+	state.FinalGroupID = state.CurrentGroupID
+	state.FinalAccountID = account.ID
+	if failureStatus := smartRoutingFailureStatus(err); failureStatus > 0 {
+		state.FinalErrorStatus = failureStatus
+	}
 	statusCode := 0
 	healthFinal := true
 	if err != nil {
@@ -255,12 +263,62 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 			speed = int64(*firstTokenMs)
 		}
 	}
+	if err == nil {
+		state.FinalSuccess = true
+		state.FinalGroupID = state.CurrentGroupID
+		state.FinalAccountID = account.ID
+		if firstTokenMs != nil {
+			state.FirstTokenMs = int64(*firstTokenMs)
+		}
+	}
 	state.Observer.ObserveRoutingAttempt(SmartRoutingAttempt{
 		RequestID: requestID, APIKeyID: key.ID, GroupID: state.CurrentGroupID,
 		AccountID: account.ID, Attempt: state.Attempt, Model: state.RequestedModel,
 		Endpoint: state.EndpointType, Stream: stream, Success: err == nil,
 		ProbeToken: state.ProbeToken, StatusCode: statusCode, HealthFinal: healthFinal,
 		SpeedMs: speed, CreatedAt: time.Now(),
+	})
+}
+
+func smartRoutingFailureStatus(err error) int {
+	var failure *UpstreamFailoverError
+	if errors.As(err, &failure) && failure != nil {
+		return failure.StatusCode
+	}
+	return 0
+}
+
+// RecordSmartRoutingOutcome writes one request-level result after the gateway
+// has reached a terminal success or failure. Implementations must be
+// asynchronous/best effort and must never delay the client response.
+func RecordSmartRoutingOutcome(ctx context.Context, success bool, groupID, accountID int64, duration time.Duration) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || state.OutcomeRecorded {
+		return
+	}
+	state.OutcomeRecorded = true
+	state.FinalSuccess = success
+	if groupID > 0 {
+		state.FinalGroupID = groupID
+	}
+	if accountID > 0 {
+		state.FinalAccountID = accountID
+	}
+	key, _ := APIKeyFromContext(ctx)
+	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	if requestID == "" || key == nil {
+		return
+	}
+	recorder, ok := state.Observer.(SmartRoutingOutcomeRecorder)
+	if !ok {
+		return
+	}
+	recorder.RecordRoutingOutcome(SmartRoutingOutcome{
+		RequestID: requestID, APIKeyID: key.ID, FinalGroupID: state.FinalGroupID,
+		FinalAccountID: state.FinalAccountID, FinalSuccess: success,
+		Attempts: state.TotalAttempts, GroupSwitches: state.GroupSwitches,
+		DurationMs: duration.Milliseconds(), FirstTokenMs: state.FirstTokenMs,
+		ErrorStatus: state.FinalErrorStatus,
 	})
 }
 

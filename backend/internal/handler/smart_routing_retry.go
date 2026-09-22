@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -70,9 +72,45 @@ func forwardWithSmartRouting[T any](c *gin.Context, account *service.Account, st
 	if err != nil {
 		return zero, err
 	}
+	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil && state.SmartRoutingActive {
+		// Reserve the request budget only after final account admission. A
+		// rejected health/probe lease never starts an upstream request and must
+		// not consume one of the hard attempt slots.
+		if !service.SmartRoutingAttemptBudgetAvailable(c.Request.Context()) {
+			release()
+			state.FinalErrorStatus = http.StatusServiceUnavailable
+			return zero, &service.UpstreamFailoverError{
+				StatusCode:        http.StatusServiceUnavailable,
+				Reason:            service.SmartRoutingAttemptBudgetExceededReason,
+				Scope:             service.GatewayFailureScopeRequest,
+				NextAccountAction: service.NextAccountStop,
+				ClientMessage:     "smart routing attempt budget exhausted",
+			}
+		}
+	}
 	defer release()
+	originalRequest := c.Request
+	attemptCtx, cancelAttempt := service.SmartRoutingAttemptContext(originalRequest.Context())
+	defer cancelAttempt()
+	defer func() { c.Request = originalRequest }()
+	c.Request = originalRequest.WithContext(attemptCtx)
 	started := time.Now()
 	result, err := forward()
+	// Observe against the uncancelled request context so a budget deadline is
+	// still attributable as the terminal attempt before the request returns.
+	c.Request = originalRequest
+	if errors.Is(err, context.DeadlineExceeded) && errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && originalRequest.Context().Err() == nil {
+		if state := service.SmartRoutingStateFromContext(originalRequest.Context()); state != nil {
+			state.FinalErrorStatus = http.StatusServiceUnavailable
+		}
+		err = &service.UpstreamFailoverError{
+			StatusCode:        http.StatusServiceUnavailable,
+			Reason:            service.SmartRoutingAttemptBudgetExceededReason,
+			Scope:             service.GatewayFailureScopeRequest,
+			NextAccountAction: service.NextAccountStop,
+			ClientMessage:     "smart routing time budget exhausted",
+		}
+	}
 	observeSmartRoutingForward(c, account, stream, started, result, err)
 	return result, err
 }

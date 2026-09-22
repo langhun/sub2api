@@ -135,7 +135,7 @@ func TestResolveFailureAfterAttemptCannotReplayPrimary(t *testing.T) {
 
 func TestExplorationUsesIndependentRequestBuckets(t *testing.T) {
 	m := &Module{}
-	p := &Profile{Version: 1, ExplorationRate: 0.05}
+	p := &Profile{Version: 1, Strategy: "auto", ExplorationRate: 0.01}
 	groups := []Group{{GroupID: 2, Eligible: true, Samples: 100}, {GroupID: 21, Eligible: true}}
 	key := &service.APIKey{ID: 9}
 	explored := 0
@@ -144,8 +144,8 @@ func TestExplorationUsesIndependentRequestBuckets(t *testing.T) {
 			explored++
 		}
 	}
-	require.Greater(t, explored, 400)
-	require.Less(t, explored, 600)
+	require.Greater(t, explored, 50)
+	require.Less(t, explored, 150)
 	groups[1].Eligible = false
 	for i := 0; i < 100; i++ {
 		require.Equal(t, -1, m.explorationIndex(key, p, groups, 2, fmt.Sprint(i), "gpt-5"))

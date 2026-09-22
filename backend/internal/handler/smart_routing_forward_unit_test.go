@@ -123,14 +123,14 @@ func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) 
 }
 
 func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
-	upstream := &routingForwardUpstream{failureStatus: 403, succeedAfter: 2}
+	upstream := &routingForwardUpstream{failureStatus: 503, succeedAfter: 2}
 	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	groups := routingForwardGroups{groups: map[int64]*service.Group{
 		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	}}
 	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
-		{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true}},
+		{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true, "pool_mode_retry_status_codes": []any{float64(503)}}},
 	}}}
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billing.Stop)
@@ -164,14 +164,14 @@ func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
 }
 
 func TestSmartRoutingSpeedPolicyCannotStealPoolRetry(t *testing.T) {
-	upstream := &routingForwardUpstream{failureStatus: 403, succeedAfter: 2}
+	upstream := &routingForwardUpstream{failureStatus: 503, succeedAfter: 2}
 	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	groups := routingForwardGroups{groups: map[int64]*service.Group{
 		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	}}
 	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
-		{ID: 1, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true}},
+		{ID: 1, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true, "pool_mode_retry_status_codes": []any{float64(503)}}},
 		{ID: 2, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-two", "pool_mode": true}},
 	}}}
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
@@ -211,7 +211,7 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 	}{
 		{name: "402 is website failure by default", status: 402, wantFailedSiteCalls: 1},
 		{name: "401 exhausts website pool", status: 401, wantFailedSiteCalls: 4},
-		{name: "403 exhausts website pool", status: 403, wantFailedSiteCalls: 4},
+		{name: "403 balance exhaustion switches website immediately", status: 403, wantFailedSiteCalls: 1},
 		{name: "429 exhausts website pool", status: 429, wantFailedSiteCalls: 4},
 		{name: "configured 503 exhausts website pool", status: 503, customRetryCodes: []any{float64(503)}, wantFailedSiteCalls: 4},
 	} {
@@ -260,6 +260,9 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 			if tc.wantFailedSiteCalls > 1 {
 				wantAttempts++ // terminal website-health notification; not SQL telemetry
 			}
+			if tc.status == 403 {
+				wantAttempts++ // deterministic balance failure still records a health-only terminal event
+			}
 			require.Len(t, resolver.attempts, wantAttempts, "local admission rejection is not an upstream failure")
 			require.Equal(t, tc.status, resolver.attempts[0].StatusCode)
 			if tc.wantFailedSiteCalls > 1 {
@@ -268,6 +271,10 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 				}
 				require.True(t, resolver.attempts[tc.wantFailedSiteCalls].HealthFinal)
 				require.True(t, resolver.attempts[tc.wantFailedSiteCalls].HealthOnly)
+			} else if tc.status == 403 {
+				require.False(t, resolver.attempts[0].HealthFinal, "the first 403 remains attempt telemetry")
+				require.True(t, resolver.attempts[1].HealthFinal)
+				require.True(t, resolver.attempts[1].HealthOnly)
 			} else {
 				require.True(t, resolver.attempts[0].HealthFinal, "non-retryable website failures quarantine immediately")
 			}

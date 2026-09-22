@@ -171,3 +171,90 @@ func TestSmartRoutingForwardAdmissionAndCleanup(t *testing.T) {
 		})
 	}
 }
+
+func TestSmartRoutingBudgetCountsOnlyAdmittedUpstreamForwards(t *testing.T) {
+	controller := &routingAdmissionFixture{allowed: false}
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		Observer:                controller,
+		RequestedModel:          "gpt-5",
+		EndpointType:            "responses",
+		CurrentGroupID:          2,
+		SmartRoutingMaxAttempts: 1,
+		SmartRoutingMaxDuration: time.Minute,
+	}
+	ctx := service.WithSmartRoutingState(service.WithAPIKeyContext(context.Background(), &service.APIKey{ID: 9}), state)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
+
+	_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
+		t.Fatal("health-denied account must not start an upstream forward")
+		return nil, nil
+	})
+	var failure *service.UpstreamFailoverError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, service.SmartRoutingAccountUnavailableReason, failure.Reason)
+	require.Zero(t, state.TotalAttempts, "a rejected admission is not an upstream attempt")
+	require.Equal(t, 1, controller.acquires)
+	require.Zero(t, controller.releases, "no lease was acquired")
+}
+
+func TestSmartRoutingBudgetFailureRecordsTerminalStatusWithoutForward(t *testing.T) {
+	controller := &routingAdmissionFixture{allowed: true}
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		Observer:                controller,
+		RequestedModel:          "gpt-5",
+		EndpointType:            "responses",
+		CurrentGroupID:          2,
+		SmartRoutingMaxAttempts: 1,
+		SmartRoutingMaxDuration: time.Minute,
+		TotalAttempts:           1,
+		SmartRoutingStartedAt:   time.Now(),
+	}
+	ctx := service.WithSmartRoutingState(service.WithAPIKeyContext(context.Background(), &service.APIKey{ID: 9}), state)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
+
+	_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
+		t.Fatal("budget-exhausted request must not start another upstream forward")
+		return nil, nil
+	})
+	var failure *service.UpstreamFailoverError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, service.SmartRoutingAttemptBudgetExceededReason, failure.Reason)
+	require.Equal(t, 503, state.FinalErrorStatus)
+	require.Equal(t, 1, state.TotalAttempts)
+	require.Equal(t, 1, controller.releases)
+}
+
+func TestSmartRoutingForwardEnforcesWallClockDeadline(t *testing.T) {
+	controller := &routingAdmissionFixture{allowed: true}
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		Observer:                controller,
+		RequestedModel:          "gpt-5",
+		EndpointType:            "responses",
+		CurrentGroupID:          2,
+		SmartRoutingMaxAttempts: 2,
+		SmartRoutingMaxDuration: 15 * time.Millisecond,
+	}
+	ctx := service.WithSmartRoutingState(service.WithAPIKeyContext(context.Background(), &service.APIKey{ID: 9}), state)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
+
+	started := time.Now()
+	_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
+		<-c.Request.Context().Done()
+		return nil, c.Request.Context().Err()
+	})
+
+	var failure *service.UpstreamFailoverError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, service.SmartRoutingAttemptBudgetExceededReason, failure.Reason)
+	require.Equal(t, 503, state.FinalErrorStatus)
+	require.Less(t, time.Since(started), 500*time.Millisecond)
+	require.Equal(t, 1, state.TotalAttempts)
+	require.Equal(t, 1, controller.acquires)
+	require.Equal(t, 1, controller.releases)
+}
