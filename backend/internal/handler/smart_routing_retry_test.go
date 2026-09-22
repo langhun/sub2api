@@ -301,7 +301,8 @@ func TestSmartRoutingForwardSuppressesOnlyUnsafePoolRetries(t *testing.T) {
 			})
 
 			require.ErrorIs(t, err, upstreamFailure)
-			require.Equal(t, tt.wantRetry, upstreamFailure.RetryableOnSameAccount)
+			require.Equal(t, tt.wantRetry, smartRoutingSameAccountRetryAllowed(c.Request.Context(), upstreamFailure, 0, 3))
+			require.True(t, upstreamFailure.RetryableOnSameAccount, "the original retry metadata is needed for website health attribution")
 		})
 	}
 }

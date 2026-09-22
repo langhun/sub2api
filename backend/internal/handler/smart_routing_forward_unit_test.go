@@ -92,6 +92,10 @@ func (r *routingForwardResolver) ReleaseRoutingAccount(id int64, model, endpoint
 	}
 }
 
+func (r *routingForwardResolver) SuppressSameAccountRetry(err *service.UpstreamFailoverError) bool {
+	return r.health != nil && r.health.SuppressSameAccountRetry(err)
+}
+
 type routingForwardUpstream struct {
 	service.HTTPUpstream
 	calls           []int64

@@ -111,12 +111,6 @@ func forwardWithSmartRouting[T any](c *gin.Context, account *service.Account, st
 			ClientMessage:     "smart routing time budget exhausted",
 		}
 	}
-	var failoverErr *service.UpstreamFailoverError
-	if errors.As(err, &failoverErr) && failoverErr != nil {
-		if service.SmartRoutingSuppressSameAccountRetry(originalRequest.Context(), failoverErr) || !service.SmartRoutingRetryBudgetAllows(originalRequest.Context()) {
-			failoverErr.RetryableOnSameAccount = false
-		}
-	}
 	observeSmartRoutingForward(c, account, stream, started, result, err)
 	return result, err
 }
