@@ -11,13 +11,16 @@ import (
 )
 
 type routeFeedback struct {
-	mu          sync.Mutex
-	accounts    map[string]accountCircuit
-	queues      [8][]service.SmartRoutingAttempt
-	workers     [8]bool
-	lastCleanup time.Time
-	auditOnce   sync.Once
-	auditSlots  chan struct{}
+	mu                 sync.Mutex
+	accounts           map[string]accountCircuit
+	queues             [8][]service.SmartRoutingAttempt
+	workers            [8]bool
+	lastCleanup        time.Time
+	outcomeQueues      [8][]service.SmartRoutingOutcome
+	outcomeWorkers     [8]bool
+	outcomeLastCleanup time.Time
+	auditOnce          sync.Once
+	auditSlots         chan struct{}
 }
 
 func (m *Module) RoutingAccountMetrics(ctx context.Context, groupID int64, model, endpoint string, stream bool) map[int64]service.SmartRoutingAccountMetric {
@@ -99,9 +102,43 @@ func (m *Module) RecordRoutingOutcome(a service.SmartRoutingOutcome) {
 	if m == nil || m.repo == nil || m.repo.db == nil || a.RequestID == "" || a.APIKeyID <= 0 {
 		return
 	}
-	go func() {
+	f := &m.feedback
+	f.mu.Lock()
+	digest := sha256.Sum256([]byte(a.RequestID))
+	shard := int(digest[0]) % len(f.outcomeQueues)
+	queued := len(f.outcomeQueues[shard]) < 512
+	if queued {
+		f.outcomeQueues[shard] = append(f.outcomeQueues[shard], a)
+		if !f.outcomeWorkers[shard] {
+			f.outcomeWorkers[shard] = true
+			go m.flushOutcomes(shard)
+		}
+	}
+	f.mu.Unlock()
+	if !queued {
+		slog.Warn("smart_routing_outcome_queue_full")
+	}
+}
+
+func (m *Module) flushOutcomes(shard int) {
+	f := &m.feedback
+	for {
+		f.mu.Lock()
+		if len(f.outcomeQueues[shard]) == 0 {
+			f.outcomeWorkers[shard] = false
+			f.mu.Unlock()
+			return
+		}
+		a := f.outcomeQueues[shard][0]
+		f.outcomeQueues[shard][0] = service.SmartRoutingOutcome{}
+		f.outcomeQueues[shard] = f.outcomeQueues[shard][1:]
+		cleanup := time.Since(f.outcomeLastCleanup) > time.Minute
+		if cleanup {
+			f.outcomeLastCleanup = time.Now()
+		}
+		f.mu.Unlock()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
 		_, err := m.repo.db.ExecContext(ctx, `INSERT INTO custom_route_outcomes
             (request_id,api_key_id,final_group_id,final_account_id,final_success,attempts,group_switches,duration_ms,first_token_ms,error_status)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
@@ -113,7 +150,14 @@ func (m *Module) RecordRoutingOutcome(a service.SmartRoutingOutcome) {
 		if err != nil {
 			slog.Warn("smart_routing_outcome_write_failed", "request_id", a.RequestID, "error", err)
 		}
-	}()
+		if cleanup {
+			_, err = m.repo.db.ExecContext(ctx, `DELETE FROM custom_route_outcomes WHERE ctid IN (SELECT ctid FROM custom_route_outcomes WHERE created_at < NOW()-INTERVAL '24 hours' LIMIT 10000)`)
+			if err != nil {
+				slog.Warn("smart_routing_outcome_cleanup_failed", "error", err)
+			}
+		}
+		cancel()
+	}
 }
 
 func nullableID(id int64) any {

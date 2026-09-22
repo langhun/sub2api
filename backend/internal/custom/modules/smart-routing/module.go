@@ -1265,6 +1265,28 @@ func finiteNonNegative(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0
 }
 
+// SuppressSameAccountRetry identifies errors where retrying hidden members of
+// the same provider pool cannot improve the result. Generic 429/503 responses
+// remain eligible for the pool's configured transient retry budget.
+func (m *Module) SuppressSameAccountRetry(err *service.UpstreamFailoverError) bool {
+	if m == nil || err == nil {
+		return false
+	}
+	text := strings.ToLower(string(err.Reason) + " " + string(err.ResponseBody) + " " + err.ClientMessage)
+	if err.StatusCode == http.StatusNotFound && (strings.Contains(text, "model") || strings.Contains(text, "support") || strings.Contains(text, "not found")) {
+		return true
+	}
+	if err.StatusCode == http.StatusForbidden {
+		for _, marker := range []string{"insufficient", "balance", "quota", "credit", "payment required", "额度不足", "余额不足", "配额不足"} {
+			if strings.Contains(text, marker) {
+				return true
+			}
+		}
+	}
+	return err.StatusCode == http.StatusTooManyRequests &&
+		(strings.Contains(text, "all available accounts") || strings.Contains(text, "all accounts") || strings.Contains(text, "no available accounts"))
+}
+
 func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Group, primaryGroupID int64, requestID, model string) int {
 	// Exploration is only a cold-start aid for the automatic strategy. A
 	// user-selected price/speed/success/custom strategy is an explicit policy,

@@ -53,7 +53,11 @@ export async function getSmartRouting(keyId: number): Promise<SmartRoutingProfil
 }
 
 export async function updateSmartRouting(keyId: number, payload: SmartRoutingUpdate): Promise<SmartRoutingProfile> {
-  const { data } = await apiClient.put<SmartRoutingProfile>(`/keys/${keyId}/routing`, payload)
+  const normalizedPayload = {
+    ...payload,
+    exploration_rate: Math.min(payload.exploration_rate, 0.01)
+  }
+  const { data } = await apiClient.put<SmartRoutingProfile>(`/keys/${keyId}/routing`, normalizedPayload)
   return data
 }
 

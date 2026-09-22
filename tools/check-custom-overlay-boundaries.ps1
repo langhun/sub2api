@@ -318,11 +318,14 @@ $script:ReviewedUpstreamHotfixBlobs = @{
 }
 $script:ReviewedIncrementalHotfixBase = '54dcc7eacebe5075077ce6ab5bfed18321e05c67'
 $script:ReviewedIncrementalHotfixBlobs = @{
-    # Smart-routing shared scheduler adapters. Strategy presets and persistence
-    # remain owned by backend/internal/custom/modules/smart-routing.
+    # Smart-routing shared request lifecycle adapters. Provider policy,
+    # persistence, retention, strategy presets, and UI normalization remain
+    # owned by the backend/frontend custom smart-routing modules.
+    'backend/internal/handler/smart_routing_retry.go' = '90d72711ef7efbe3bae6b9f2a1807a729dbcd039'
+    'backend/internal/server/middleware/api_key_auth.go' = '0c73c0f1cfaa0ebd84f9316630d792ed96060feb'
     'backend/internal/service/openai_account_scheduler.go' = '4bcc4ca5815fc76f83a00adef8dfb31db907b299'
-    'backend/internal/service/smart_routing_context.go' = '9e28f6f8f6480b88d693d82d2c297af755626a79'
-    'backend/internal/service/smart_routing_feedback.go' = 'd0a49957df1ebfbb2b49bb657c7a1996fec591c2'
+    'backend/internal/service/smart_routing_context.go' = '010f517a1cad31e6ece6d20b73bb04ab8ffc8292'
+    'backend/internal/service/smart_routing_feedback.go' = 'f7b969131a37851576b12027a78cf32fe158cdd2'
     # Reviewed generic UI fixes and existing presentation text. These hashes
     # prevent the exception from becoming a reusable shared-path allowlist.
     'frontend/src/components/common/DateRangePicker.vue' = '78c70c3e69f5af4c9defe1fcc25f3c0f7a06d401'

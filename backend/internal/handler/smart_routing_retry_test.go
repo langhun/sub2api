@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -93,6 +94,7 @@ func TestSmartRoutingCapacityRetriesAreBoundedAcrossReselection(t *testing.T) {
 
 type routingAdmissionFixture struct {
 	allowed            bool
+	suppressPoolRetry  bool
 	acquires, releases int
 	attempts           []service.SmartRoutingAttempt
 }
@@ -108,6 +110,10 @@ func (f *routingAdmissionFixture) ReleaseRoutingAccount(int64, string, string, b
 
 func (f *routingAdmissionFixture) ObserveRoutingAttempt(a service.SmartRoutingAttempt) {
 	f.attempts = append(f.attempts, a)
+}
+
+func (f *routingAdmissionFixture) SuppressSameAccountRetry(*service.UpstreamFailoverError) bool {
+	return f.suppressPoolRetry
 }
 
 func TestSmartRoutingForwardAdmissionAndCleanup(t *testing.T) {
@@ -257,4 +263,45 @@ func TestSmartRoutingForwardEnforcesWallClockDeadline(t *testing.T) {
 	require.Equal(t, 1, state.TotalAttempts)
 	require.Equal(t, 1, controller.acquires)
 	require.Equal(t, 1, controller.releases)
+}
+
+func TestSmartRoutingForwardSuppressesOnlyUnsafePoolRetries(t *testing.T) {
+	tests := []struct {
+		name        string
+		maxAttempts int
+		response    string
+		suppress    bool
+		wantRetry   bool
+	}{
+		{name: "deterministic balance failure", maxAttempts: 12, response: "Insufficient account balance", suppress: true, wantRetry: false},
+		{name: "request budget exhausted", maxAttempts: 1, response: "service busy", wantRetry: false},
+		{name: "transient failure with budget", maxAttempts: 12, response: "service busy", wantRetry: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			controller := &routingAdmissionFixture{allowed: true, suppressPoolRetry: tt.suppress}
+			state := &service.SmartRoutingRequestState{
+				SmartRoutingActive: true, Observer: controller, RequestedModel: "gpt-5",
+				EndpointType: "responses", CurrentGroupID: 2,
+				SmartRoutingMaxAttempts: tt.maxAttempts, SmartRoutingMaxDuration: time.Minute,
+			}
+			ctx := service.WithSmartRoutingState(service.WithAPIKeyContext(context.Background(), &service.APIKey{ID: 9}), state)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
+			upstreamFailure := &service.UpstreamFailoverError{
+				StatusCode: http.StatusServiceUnavailable, RetryableOnSameAccount: true,
+				ResponseBody: []byte(tt.response),
+			}
+			if tt.response == "Insufficient account balance" {
+				upstreamFailure.StatusCode = http.StatusForbidden
+			}
+
+			_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
+				return nil, upstreamFailure
+			})
+
+			require.ErrorIs(t, err, upstreamFailure)
+			require.Equal(t, tt.wantRetry, upstreamFailure.RetryableOnSameAccount)
+		})
+	}
 }

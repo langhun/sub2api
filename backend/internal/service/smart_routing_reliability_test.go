@@ -74,7 +74,7 @@ func TestSmartRoutingOutcomeUsesFinalRequestResult(t *testing.T) {
 	require.Equal(t, int64(11), collector.outcomes[0].FinalAccountID)
 	require.Equal(t, 2, collector.outcomes[0].Attempts)
 	require.Equal(t, int64(120), collector.outcomes[0].FirstTokenMs)
-	require.Equal(t, 503, collector.outcomes[0].ErrorStatus)
+	require.Zero(t, collector.outcomes[0].ErrorStatus)
 }
 
 func TestSmartRoutingOutcomeCapturesRequestScopedFailureAttribution(t *testing.T) {
@@ -225,14 +225,6 @@ func TestSmartRoutingAttemptBudgetIsRequestLocal(t *testing.T) {
 	require.True(t, SmartRoutingAttemptBudgetAvailable(ctx))
 	require.False(t, SmartRoutingAttemptBudgetAvailable(ctx))
 	require.Equal(t, 2, state.TotalAttempts)
-}
-
-func TestSmartRoutingDeterministicFailureSkipsPoolRetryOnlyForKnownMessages(t *testing.T) {
-	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 403, ResponseBody: []byte("Insufficient account balance")}))
-	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte("model is not supported")}))
-	require.True(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("All available accounts are currently rate-limited")}))
-	require.False(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("temporary rate limit")}))
-	require.False(t, SmartRoutingDeterministicFailure(&UpstreamFailoverError{StatusCode: 503, ResponseBody: []byte("service busy")}))
 }
 
 func TestSmartRoutingSpeedRequiresReliableSamples(t *testing.T) {

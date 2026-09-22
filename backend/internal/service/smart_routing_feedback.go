@@ -265,6 +265,7 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 	}
 	if err == nil {
 		state.FinalSuccess = true
+		state.FinalErrorStatus = 0
 		state.FinalGroupID = state.CurrentGroupID
 		state.FinalAccountID = account.ID
 		if firstTokenMs != nil {

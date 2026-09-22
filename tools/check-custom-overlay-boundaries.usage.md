@@ -68,6 +68,14 @@ Provider-specific switches, persistence, source labels, and merge rules must
 remain under `backend/internal/custom/modules/channel-monitor-v2-active-probes/`
 and `frontend/src/custom/modules/channel-monitor-v2-active-probes/`.
 
+The smart-routing Overlay has four exact-hash request lifecycle adapters: the
+forward wrapper enforces a mounted request budget, API-key middleware emits one
+terminal callback, and the two service files carry generic request state and
+observer contracts. Provider error interpretation, retry policy, telemetry
+queues/SQL/retention, strategy presets, and UI normalization remain under the
+custom smart-routing modules. These are reviewed blobs, not reusable path
+allowlists; any later edit is reported as `shared` again.
+
 Known migrations `173` through `181`, `185`, and `187` are immutable. Adding
 them from an older baseline is reported as historical data; modifying, deleting,
 or renaming one is an `immutable-migration-change` violation. A shared path is

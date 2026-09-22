@@ -110,6 +110,7 @@ func TestSmartRoutingOutcomeMigrationStoresFinalRequestResult(t *testing.T) {
 		"final_success BOOLEAN NOT NULL",
 		"group_switches INTEGER NOT NULL",
 		"custom_route_outcomes_key_created_idx",
+		"custom_route_outcomes_created_idx",
 	} {
 		if !strings.Contains(sql, expected) {
 			t.Fatalf("migration missing %q", expected)
@@ -124,8 +125,8 @@ func TestSmartRoutingExplorationMigrationCapsHistoricalProfiles(t *testing.T) {
 	}
 	sql := string(content)
 	for _, expected := range []string{
-		"SET exploration_rate = 0.01",
-		"WHERE exploration_rate > 0.01",
+		"WHEN exploration_rate < 0 THEN 0",
+		"WHERE exploration_rate < 0 OR exploration_rate > 0.01",
 		"CHECK (exploration_rate >= 0 AND exploration_rate <= 0.01)",
 	} {
 		if !strings.Contains(sql, expected) {

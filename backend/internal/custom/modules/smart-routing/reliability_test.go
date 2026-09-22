@@ -28,6 +28,50 @@ func expectRoutingStats(mock sqlmock.Sqlmock, groupID int64, samples, success, s
 	}).AddRow(samples, success, speed, samples, success, speed))
 }
 
+func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+	m := &Module{repo: NewRepository(db)}
+	outcome := service.SmartRoutingOutcome{
+		RequestID: "request-outcome", APIKeyID: 9, FinalGroupID: 21,
+		FinalAccountID: 12, FinalSuccess: true, Attempts: 2,
+		GroupSwitches: 1, DurationMs: 2500, FirstTokenMs: 120,
+	}
+	mock.ExpectExec("INSERT INTO custom_route_outcomes").
+		WithArgs("request-outcome", int64(9), int64(21), int64(12), true, 2, 1, int64(2500), int64(120), 0).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM custom_route_outcomes").WillReturnResult(sqlmock.NewResult(0, 3))
+	m.RecordRoutingOutcome(outcome)
+	require.Eventually(t, func() bool {
+		m.feedback.mu.Lock()
+		defer m.feedback.mu.Unlock()
+		workersStopped := true
+		for i := range m.feedback.outcomeWorkers {
+			workersStopped = workersStopped && !m.feedback.outcomeWorkers[i]
+		}
+		return workersStopped && mock.ExpectationsWereMet() == nil
+	}, time.Second, 10*time.Millisecond)
+
+	for i := range m.feedback.outcomeQueues {
+		m.feedback.outcomeQueues[i] = make([]service.SmartRoutingOutcome, 512)
+		m.feedback.outcomeWorkers[i] = true
+	}
+	m.RecordRoutingOutcome(service.SmartRoutingOutcome{RequestID: "queue-full", APIKeyID: 9})
+	for i := range m.feedback.outcomeQueues {
+		require.Len(t, m.feedback.outcomeQueues[i], 512)
+	}
+}
+
+func TestSameAccountRetryPolicyOnlySuppressesDeterministicFailures(t *testing.T) {
+	m := &Module{}
+	require.True(t, m.SuppressSameAccountRetry(&service.UpstreamFailoverError{StatusCode: 403, ResponseBody: []byte("Insufficient account balance")}))
+	require.True(t, m.SuppressSameAccountRetry(&service.UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte("model is not supported")}))
+	require.True(t, m.SuppressSameAccountRetry(&service.UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("All available accounts are currently rate-limited")}))
+	require.False(t, m.SuppressSameAccountRetry(&service.UpstreamFailoverError{StatusCode: 429, ResponseBody: []byte("temporary rate limit")}))
+	require.False(t, m.SuppressSameAccountRetry(&service.UpstreamFailoverError{StatusCode: 503, ResponseBody: []byte("service busy")}))
+}
+
 func TestResolveNeverReadmitsExhaustedGroup(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

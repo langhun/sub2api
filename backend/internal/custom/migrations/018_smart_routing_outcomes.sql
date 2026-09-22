@@ -13,3 +13,5 @@ CREATE TABLE IF NOT EXISTS custom_route_outcomes (
 );
 CREATE INDEX IF NOT EXISTS custom_route_outcomes_key_created_idx
     ON custom_route_outcomes (api_key_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS custom_route_outcomes_created_idx
+    ON custom_route_outcomes (created_at);

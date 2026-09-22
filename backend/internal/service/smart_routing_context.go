@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -49,6 +48,12 @@ type SmartRoutingOutcome struct {
 
 type SmartRoutingOutcomeRecorder interface {
 	RecordRoutingOutcome(SmartRoutingOutcome)
+}
+
+// SmartRoutingSameAccountRetryPolicy lets the mounted Overlay veto a pool
+// retry without placing provider-specific error interpretation in core.
+type SmartRoutingSameAccountRetryPolicy interface {
+	SuppressSameAccountRetry(*UpstreamFailoverError) bool
 }
 
 // CommitSmartRoutingAdmission publishes the two side effects that are safe
@@ -268,29 +273,13 @@ func SmartRoutingAttemptContext(ctx context.Context) (context.Context, context.C
 	return context.WithDeadline(ctx, deadline)
 }
 
-// SmartRoutingDeterministicFailure identifies errors where retrying hidden
-// members of the same upstream website cannot improve the result. The match
-// is deliberately narrow: generic 429/503 responses remain eligible for a
-// configured pool retry because they may be transient at the provider.
-func SmartRoutingDeterministicFailure(err *UpstreamFailoverError) bool {
-	if err == nil {
+func SmartRoutingSuppressSameAccountRetry(ctx context.Context, err *UpstreamFailoverError) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || state.Observer == nil || err == nil {
 		return false
 	}
-	text := strings.ToLower(string(err.Reason) + " " + string(err.ResponseBody) + " " + err.ClientMessage)
-	if err.StatusCode == 404 && (strings.Contains(text, "model") || strings.Contains(text, "support") || strings.Contains(text, "not found")) {
-		return true
-	}
-	if err.StatusCode == 403 {
-		for _, marker := range []string{"insufficient", "balance", "quota", "credit", "payment required", "额度不足", "余额不足", "配额不足"} {
-			if strings.Contains(text, marker) {
-				return true
-			}
-		}
-	}
-	if err.StatusCode == 429 && (strings.Contains(text, "all available accounts") || strings.Contains(text, "all accounts") || strings.Contains(text, "no available accounts")) {
-		return true
-	}
-	return false
+	policy, ok := state.Observer.(SmartRoutingSameAccountRetryPolicy)
+	return ok && policy.SuppressSameAccountRetry(err)
 }
 
 // SmartRoutingContractValid is the request-level fail-closed gate. Ordinary

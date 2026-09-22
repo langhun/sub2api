@@ -97,22 +97,6 @@ func TestSameAccountRetryAllowedHonorsErrorMaxBeforeDeadline(t *testing.T) {
 	require.False(t, sameAccountRetryAllowed(err, 0, 0), "an explicit zero retry budget remains disabled")
 }
 
-func TestSmartRoutingSameAccountRetryVetoesDeterministicFailure(t *testing.T) {
-	state := &service.SmartRoutingRequestState{SmartRoutingActive: true, SmartRoutingMaxAttempts: 12, SmartRoutingMaxDuration: time.Minute}
-	ctx := service.WithSmartRoutingState(context.Background(), state)
-	err := &service.UpstreamFailoverError{StatusCode: http.StatusForbidden, RetryableOnSameAccount: true, ResponseBody: []byte("Insufficient account balance")}
-	require.False(t, smartRoutingSameAccountRetryAllowed(ctx, err, 0, 3))
-	transient := &service.UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, RetryableOnSameAccount: true, ResponseBody: []byte("service busy")}
-	require.True(t, smartRoutingSameAccountRetryAllowed(ctx, transient, 0, 3))
-}
-
-func TestSmartRoutingSameAccountRetryStopsAtRequestBudget(t *testing.T) {
-	state := &service.SmartRoutingRequestState{SmartRoutingActive: true, SmartRoutingMaxAttempts: 2, SmartRoutingMaxDuration: time.Minute, TotalAttempts: 2, SmartRoutingStartedAt: time.Now()}
-	ctx := service.WithSmartRoutingState(context.Background(), state)
-	err := &service.UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, RetryableOnSameAccount: true}
-	require.False(t, smartRoutingSameAccountRetryAllowed(ctx, err, 0, 3))
-}
-
 func TestSameAccountRetryDeadlineAllows(t *testing.T) {
 	require.True(t, sameAccountRetryDeadlineAllows(&service.UpstreamFailoverError{}))
 	require.True(t, sameAccountRetryDeadlineAllows(&service.UpstreamFailoverError{
