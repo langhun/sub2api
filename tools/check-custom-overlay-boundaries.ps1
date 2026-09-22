@@ -321,7 +321,10 @@ $script:ReviewedIncrementalHotfixBlobs = @{
     # Smart-routing shared request lifecycle adapters. Provider policy,
     # persistence, retention, strategy presets, and UI normalization remain
     # owned by the backend/frontend custom smart-routing modules.
-    'backend/internal/handler/smart_routing_retry.go' = '90d72711ef7efbe3bae6b9f2a1807a729dbcd039'
+    'backend/internal/handler/failover_loop.go' = '42471ec7cda1386e08af7f79a27121bbede17098'
+    'backend/internal/handler/openai_chat_completions.go' = 'b1437942c9357e79c09f2adec51b18b3dc57b14e'
+    'backend/internal/handler/openai_gateway_handler.go' = '6e1f23ef421a332ae0d959957b177ae72c9218ea'
+    'backend/internal/handler/smart_routing_retry.go' = '3dd4df3442ba2078301f378cc136ff0627b0d5eb'
     'backend/internal/server/middleware/api_key_auth.go' = '0c73c0f1cfaa0ebd84f9316630d792ed96060feb'
     'backend/internal/service/openai_account_scheduler.go' = '4bcc4ca5815fc76f83a00adef8dfb31db907b299'
     'backend/internal/service/smart_routing_context.go' = '010f517a1cad31e6ece6d20b73bb04ab8ffc8292'
