@@ -320,7 +320,7 @@ describe('admin UsersView', () => {
 
     expect(listUsers).toHaveBeenCalledTimes(1)
     expect(wrapper.get('[data-test="row-state"]').text()).toBe('42:active:0')
-    expect(showError).toHaveBeenCalledWith('admin.users.failedToToggle')
+    expect(showError).toHaveBeenCalledWith('boom')
     expect(showSuccess).not.toHaveBeenCalled()
     errorSpy.mockRestore()
     wrapper.unmount()

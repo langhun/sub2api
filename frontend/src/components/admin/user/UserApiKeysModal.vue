@@ -179,6 +179,11 @@ const loadGroups = async () => {
   }
 }
 
+const closeGroupSelector = () => {
+  groupSelectorKeyId.value = null
+  dropdownPosition.value = null
+}
+
 watch(() => [props.show, props.user?.id] as const, ([show], _, onCleanup) => {
   onCleanup(() => { requestVersion++ })
   closeGroupSelector()
@@ -209,11 +214,6 @@ const openGroupSelector = (key: ApiKey) => {
     }
     groupSelectorKeyId.value = key.id
   }
-}
-
-const closeGroupSelector = () => {
-  groupSelectorKeyId.value = null
-  dropdownPosition.value = null
 }
 
 const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
