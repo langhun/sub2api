@@ -68,10 +68,7 @@ func BeginSmartRoutingAttempt(ctx context.Context, accountID int64) (func(), err
 	}
 	token, admitted := controller.AcquireRoutingAccount(ctx, accountID, s.RequestedModel, s.EndpointType, s.Stream)
 	if !admitted {
-		if s.FailedAccountIDs == nil {
-			s.FailedAccountIDs = map[int64]struct{}{}
-		}
-		s.FailedAccountIDs[accountID] = struct{}{}
+		MarkSmartRoutingAccountFailed(ctx, accountID, s.CurrentGroupID)
 		if s.AccountExclusions == nil {
 			s.AccountExclusions = map[int64]string{}
 		}
@@ -243,11 +240,8 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 				return
 			}
 		}
-		if state.FailedAccountIDs == nil {
-			state.FailedAccountIDs = map[int64]struct{}{}
-		}
 		if healthFinal {
-			state.FailedAccountIDs[account.ID] = struct{}{}
+			MarkSmartRoutingAccountFailed(ctx, account.ID, state.CurrentGroupID)
 		}
 	}
 	key, ok := APIKeyFromContext(ctx)
@@ -336,10 +330,7 @@ func FinalizeSmartRoutingPoolFailure(ctx context.Context, account *Account, err 
 	if !errors.As(err, &failure) || !failure.RetryableOnSameAccount || failure.RequestScopedTransient || failure.Scope == GatewayFailureScopeRequest || !failure.ShouldReportAccountScheduleFailure() {
 		return
 	}
-	if state.FailedAccountIDs == nil {
-		state.FailedAccountIDs = map[int64]struct{}{}
-	}
-	state.FailedAccountIDs[account.ID] = struct{}{}
+	MarkSmartRoutingAccountFailed(ctx, account.ID, state.CurrentGroupID)
 	state.Observer.ObserveRoutingAttempt(SmartRoutingAttempt{
 		AccountID:   account.ID,
 		GroupID:     state.CurrentGroupID,
@@ -359,15 +350,36 @@ func SmartRoutingSpeedPreferred(ctx context.Context) bool {
 }
 
 func SmartRoutingExcludedAccounts(ctx context.Context, excluded map[int64]struct{}) map[int64]struct{} {
-	s := SmartRoutingStateFromContext(ctx)
-	if s == nil || !s.SmartRoutingActive || len(s.FailedAccountIDs) == 0 {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil {
 		return excluded
 	}
-	merged := make(map[int64]struct{}, len(excluded)+len(s.FailedAccountIDs))
+	return SmartRoutingExcludedAccountsForGroup(ctx, state.CurrentGroupID, excluded)
+}
+
+// SmartRoutingExcludedAccountsForGroup merges only failures recorded for the
+// requested group. Account IDs can be shared by multiple candidate groups;
+// keeping the filter group-local prevents a failure in one upstream website
+// from suppressing a healthy instance of the same ID in another group.
+func SmartRoutingExcludedAccountsForGroup(ctx context.Context, groupID int64, excluded map[int64]struct{}) map[int64]struct{} {
+	s := SmartRoutingStateFromContext(ctx)
+	if s == nil || !s.SmartRoutingActive || groupID <= 0 || len(s.FailedAccountGroups) == 0 {
+		return excluded
+	}
+	failed := make(map[int64]struct{})
+	for accountID, groups := range s.FailedAccountGroups {
+		if _, ok := groups[groupID]; ok {
+			failed[accountID] = struct{}{}
+		}
+	}
+	if len(failed) == 0 {
+		return excluded
+	}
+	merged := make(map[int64]struct{}, len(excluded)+len(failed))
 	for id := range excluded {
 		merged[id] = struct{}{}
 	}
-	for id := range s.FailedAccountIDs {
+	for id := range failed {
 		merged[id] = struct{}{}
 	}
 	return merged

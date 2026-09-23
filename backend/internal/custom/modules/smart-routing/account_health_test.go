@@ -67,6 +67,27 @@ func TestAccountHealthDoesNotEjectHealthyPeers(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestInspectModelAccountsScopesRequestFailuresByGroup(t *testing.T) {
+	m, _, a := accountHealthFixture(t)
+	group2 := &service.Group{ID: 2, Platform: service.PlatformOpenAI, Status: service.StatusActive}
+	group21 := &service.Group{ID: 21, Platform: service.PlatformOpenAI, Status: service.StatusActive}
+	m.groups = &routingGroupRepoStub{groups: map[int64]*service.Group{2: group2, 21: group21}}
+	m.accounts = &routingAccountRepoStub{groups: map[int64][]service.Account{
+		2:  {{ID: 11, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}},
+		21: {{ID: 11, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}},
+	}}
+	state := &service.SmartRoutingRequestState{SmartRoutingActive: true, CurrentGroupID: 2, EndpointType: a.Endpoint, Stream: true, RequestedModel: a.Model}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	service.MarkSmartRoutingAccountFailed(ctx, 11, 2)
+
+	remaining, known, _ := m.inspectModelAccounts(ctx, 2, service.PlatformOpenAI, a.Model, nil)
+	require.True(t, known)
+	require.Zero(t, remaining, "the failed account must be excluded from its failing group")
+	remaining, known, _ = m.inspectModelAccounts(ctx, 21, service.PlatformOpenAI, a.Model, nil)
+	require.True(t, known)
+	require.Equal(t, 1, remaining, "the same account ID remains eligible in another group")
+}
+
 func TestAccountRecoverySharedLeaseKeepsHealthyTrafficFlowing(t *testing.T) {
 	m, r, a := accountHealthFixture(t)
 	m.ObserveRoutingAttempt(a)

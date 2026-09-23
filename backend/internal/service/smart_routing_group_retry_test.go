@@ -76,9 +76,9 @@ func (r smartRoutingRestoreGroupRepo) GetByIDLite(_ context.Context, id int64) (
 			return nil, r.primaryErr
 		}
 		if r.primaryErr != nil {
-			return &Group{ID: id, Platform: PlatformOpenAI, Status: StatusActive}, nil
+			return &Group{ID: id, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}, nil
 		}
-		return &Group{ID: id, Platform: PlatformOpenAI, Status: StatusActive}, nil
+		return &Group{ID: id, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}, nil
 	}
 	return r.candidate, nil
 }
@@ -95,8 +95,8 @@ func smartRoutingRestoreContext(key *APIKey, primaryID int64, state *SmartRoutin
 
 func TestGatewaySmartRoutingRestoreUsesPrimarySnapshotWhenReloadFails(t *testing.T) {
 	primaryID, candidateID := int64(901), int64(902)
-	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, Status: StatusActive}
-	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, Status: StatusActive}
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
 	primaryCalls := 0
 	key := &APIKey{ID: 903, GroupID: &primaryID, Group: primary}
 	state := &SmartRoutingRequestState{CurrentGroupID: primaryID, EndpointType: "chat_completions", TriedGroups: map[int64]struct{}{}}
@@ -125,8 +125,8 @@ func TestGatewaySmartRoutingRestoreUsesPrimarySnapshotWhenReloadFails(t *testing
 
 func TestOpenAISmartRoutingRestoreUsesPrimarySnapshotWhenReloadFails(t *testing.T) {
 	primaryID, candidateID := int64(911), int64(912)
-	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, Status: StatusActive}
-	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, Status: StatusActive}
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
 	primaryCalls := 0
 	key := &APIKey{ID: 913, GroupID: &primaryID, Group: primary}
 	state := &SmartRoutingRequestState{CurrentGroupID: primaryID, EndpointType: "chat_completions", TriedGroups: map[int64]struct{}{}}
@@ -230,6 +230,7 @@ func TestSmartRoutingGroupsCompatibleRequiresConcreteSamePlatformAndSubscription
 		{name: "anthropic candidate", candidate: &Group{ID: 4, Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}},
 		{name: "composite candidate", candidate: &Group{ID: 5, Platform: PlatformComposite, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}},
 		{name: "subscription mismatch", candidate: &Group{ID: 6, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeSubscription, Status: StatusActive}},
+		{name: "unknown subscription type", candidate: &Group{ID: 9, Platform: PlatformOpenAI, SubscriptionType: "future", Status: StatusActive}},
 		{name: "missing platform", candidate: &Group{ID: 7, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}},
 	}
 	for _, tt := range tests {
@@ -238,6 +239,14 @@ func TestSmartRoutingGroupsCompatibleRequiresConcreteSamePlatformAndSubscription
 				t.Fatalf("SmartRoutingGroupsCompatible() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSmartRoutingGroupsCompatibleRejectsUnknownPrimarySubscriptionType(t *testing.T) {
+	primary := &Group{ID: 1, Platform: PlatformOpenAI, SubscriptionType: "", Status: StatusActive}
+	candidate := &Group{ID: 2, Platform: PlatformOpenAI, SubscriptionType: "", Status: StatusActive}
+	if SmartRoutingGroupsCompatible(primary, candidate) {
+		t.Fatal("unknown primary and candidate subscription types must fail closed")
 	}
 }
 
@@ -464,6 +473,32 @@ func TestGatewaySmartRoutingPrimaryPlatformChangeRestoresFrozenSnapshot(t *testi
 	}
 }
 
+func TestGatewaySmartRoutingPrimaryContractReadFailureFailsClosedAfterActivation(t *testing.T) {
+	primaryID := int64(1481)
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	key := &APIKey{ID: 1482, GroupID: &primaryID, Group: primary}
+	state := &SmartRoutingRequestState{
+		MainGroupID:          primaryID,
+		CurrentGroupID:       primaryID,
+		PrimaryGroupSnapshot: primary,
+		SmartRoutingActive:   true,
+		TriedGroups:          map[int64]struct{}{},
+	}
+	resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{{GroupID: primaryID}}}
+	svc := &GatewayService{groupRepo: smartRoutingSnapshotRepo{err: errors.New("primary lookup unavailable")}, smartRoutingResolver: resolver}
+
+	got := svc.resolveSmartRoutingGroup(smartRoutingRestoreContext(key, primaryID, state), key.GroupID, "session", "gpt-5", nil)
+	if got == nil || *got != primaryID {
+		t.Fatalf("resolved group = %v, want primary %d", got, primaryID)
+	}
+	if resolver.index != 0 {
+		t.Fatalf("resolver ran despite unavailable primary contract: calls=%d", resolver.index)
+	}
+	if !state.ContractInvalid {
+		t.Fatal("primary contract lookup failure did not fail closed")
+	}
+}
+
 func TestGatewaySmartRoutingRejectsChangedPrimaryAfterLegacyRehydration(t *testing.T) {
 	primaryID, candidateID := int64(1471), int64(1472)
 	snapshot := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
@@ -515,6 +550,35 @@ func TestOpenAISmartRoutingPrimaryPlatformChangeRestoresFrozenSnapshot(t *testin
 	}
 	if !state.ContractInvalid {
 		t.Fatal("OpenAI resolver did not invalidate changed primary contract")
+	}
+}
+
+func TestOpenAISmartRoutingPrimaryContractReadFailureFailsClosedAfterActivation(t *testing.T) {
+	primaryID := int64(1491)
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	key := &APIKey{ID: 1492, GroupID: &primaryID, Group: primary}
+	state := &SmartRoutingRequestState{
+		MainGroupID:          primaryID,
+		CurrentGroupID:       primaryID,
+		PrimaryGroupSnapshot: primary,
+		SmartRoutingActive:   true,
+		TriedGroups:          map[int64]struct{}{},
+	}
+	resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{{GroupID: primaryID}}}
+	svc := &OpenAIGatewayService{
+		channelService:       &ChannelService{groupRepo: smartRoutingSnapshotRepo{err: errors.New("primary lookup unavailable")}},
+		smartRoutingResolver: resolver,
+	}
+
+	got := svc.resolveSmartRoutingGroup(smartRoutingRestoreContext(key, primaryID, state), key.GroupID, "session", "gpt-5", nil)
+	if got == nil || *got != primaryID {
+		t.Fatalf("resolved group = %v, want primary %d", got, primaryID)
+	}
+	if resolver.index != 0 {
+		t.Fatalf("resolver ran despite unavailable primary contract: calls=%d", resolver.index)
+	}
+	if !state.ContractInvalid {
+		t.Fatal("primary contract lookup failure did not fail closed")
 	}
 }
 
@@ -593,6 +657,74 @@ func TestOpenAISmartRoutingKeepsCurrentGroupOnIntraGroupRetry(t *testing.T) {
 	}
 	if key.GroupID == nil || *key.GroupID != currentID || key.Group == nil || key.Group.ID != currentID {
 		t.Fatalf("request key moved away from current group: group_id=%v group=%+v", key.GroupID, key.Group)
+	}
+}
+
+func TestGatewaySmartRoutingRechecksPermissionOnSameGroupRetry(t *testing.T) {
+	primaryID, candidateID := int64(1511), int64(1512)
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive, IsExclusive: true}
+	user := &User{ID: 1513, Status: StatusActive, AllowedGroups: []int64{candidateID}}
+	key := &APIKey{ID: 1514, UserID: user.ID, User: user, GroupID: &primaryID, Group: primary}
+	state := &SmartRoutingRequestState{
+		MainGroupID: primaryID, CurrentGroupID: primaryID, PrimaryGroupSnapshot: primary,
+		EndpointType: "chat_completions", TriedGroups: map[int64]struct{}{}, SmartRoutingActive: true,
+	}
+	resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{{GroupID: candidateID}, {GroupID: candidateID}, nil}}
+	service := &GatewayService{
+		groupRepo:            smartRoutingRetryGroupRepo{groups: map[int64]*Group{primaryID: primary, candidateID: candidate}},
+		smartRoutingResolver: resolver,
+		userRepo:             &smartRoutingPermissionUserRepoStub{user: user},
+		billingCacheService:  &BillingCacheService{cfg: &config.Config{RunMode: config.RunModeSimple}},
+	}
+	ctx := smartRoutingRestoreContext(key, primaryID, state)
+	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != candidateID {
+		t.Fatalf("initial route = %v, want candidate %d", got, candidateID)
+	}
+	// Revoke access after the candidate has been selected. The next resolver
+	// pass must not use the same-group fast path to bypass authorization.
+	user.AllowedGroups = nil
+	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != primaryID {
+		t.Fatalf("revoked candidate route = %v, want primary %d", got, primaryID)
+	}
+	if _, ok := state.TriedGroups[candidateID]; !ok {
+		t.Fatal("revoked candidate was not marked tried")
+	}
+	if key.Group == nil || key.Group.ID != primaryID {
+		t.Fatalf("revoked candidate remained on request key: %+v", key.Group)
+	}
+}
+
+func TestOpenAISmartRoutingRechecksPermissionOnSameGroupRetry(t *testing.T) {
+	primaryID, candidateID := int64(1521), int64(1522)
+	primary := &Group{ID: primaryID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive}
+	candidate := &Group{ID: candidateID, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, Status: StatusActive, IsExclusive: true}
+	user := &User{ID: 1523, Status: StatusActive, AllowedGroups: []int64{candidateID}}
+	key := &APIKey{ID: 1524, UserID: user.ID, User: user, GroupID: &primaryID, Group: primary}
+	state := &SmartRoutingRequestState{
+		MainGroupID: primaryID, CurrentGroupID: primaryID, PrimaryGroupSnapshot: primary,
+		EndpointType: "chat_completions", TriedGroups: map[int64]struct{}{}, SmartRoutingActive: true,
+	}
+	resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{{GroupID: candidateID}, {GroupID: candidateID}, nil}}
+	service := &OpenAIGatewayService{
+		channelService:       &ChannelService{groupRepo: smartRoutingRetryGroupRepo{groups: map[int64]*Group{primaryID: primary, candidateID: candidate}}},
+		smartRoutingResolver: resolver,
+		userRepo:             &smartRoutingPermissionUserRepoStub{user: user},
+		billingCacheService:  &BillingCacheService{cfg: &config.Config{RunMode: config.RunModeSimple}},
+	}
+	ctx := smartRoutingRestoreContext(key, primaryID, state)
+	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != candidateID {
+		t.Fatalf("initial route = %v, want candidate %d", got, candidateID)
+	}
+	user.AllowedGroups = nil
+	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != primaryID {
+		t.Fatalf("revoked candidate route = %v, want primary %d", got, primaryID)
+	}
+	if _, ok := state.TriedGroups[candidateID]; !ok {
+		t.Fatal("revoked candidate was not marked tried")
+	}
+	if key.Group == nil || key.Group.ID != primaryID {
+		t.Fatalf("revoked candidate remained on request key: %+v", key.Group)
 	}
 }
 

@@ -43,7 +43,8 @@ func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T
 	require.Equal(t, int64(21), collector.attempts[1].GroupID)
 	require.False(t, collector.attempts[0].Success)
 	require.Equal(t, int64(100), collector.attempts[1].SpeedMs)
-	require.Contains(t, SmartRoutingExcludedAccounts(ctx, nil), int64(11))
+	require.Contains(t, SmartRoutingExcludedAccountsForGroup(ctx, 2, nil), int64(11))
+	require.NotContains(t, SmartRoutingExcludedAccountsForGroup(ctx, 21, nil), int64(11), "an account failure in group 2 must not suppress the same account ID in group 21")
 	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, errors.New("invalid user parameter"))
 	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, &UpstreamFailoverError{StatusCode: 503, RequestScopedTransient: true})
 	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, &UpstreamFailoverError{Stage: GatewayFailureStageAccountAuth, Scope: GatewayFailureScopeProvider})
@@ -55,6 +56,35 @@ func TestSmartRoutingFeedbackUsesAttemptIDsWithoutBillingDependency(t *testing.T
 	s.SmartRoutingActive = false
 	ObserveSmartRoutingAttempt(ctx, account12, false, time.Second, nil, nil)
 	require.Len(t, collector.attempts, 2, "single-group requests have no new feedback behavior")
+}
+
+func TestSmartRoutingFailureScopeAllowsSharedAccountAcrossGroups(t *testing.T) {
+	collector := &routeAttemptCollector{}
+	state := &SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		CurrentGroupID:     2,
+		RequestedModel:     "gpt-5",
+		EndpointType:       "responses",
+		Observer:           collector,
+	}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	sharedAccount := &Account{ID: 11}
+	failure := &UpstreamFailoverError{StatusCode: 503}
+
+	ObserveSmartRoutingAttempt(ctx, sharedAccount, true, time.Second, nil, failure)
+	require.True(t, SmartRoutingAccountFailed(ctx, sharedAccount.ID, 2))
+	require.False(t, SmartRoutingAccountFailed(ctx, sharedAccount.ID, 21))
+	require.Contains(t, SmartRoutingExcludedAccountsForGroup(ctx, 2, nil), sharedAccount.ID)
+	require.NotContains(t, SmartRoutingExcludedAccountsForGroup(ctx, 21, nil), sharedAccount.ID)
+
+	// The same website/account ID can be mounted in both candidate groups. A
+	// later failure in group 21 must add that scope without erasing group 2.
+	state.CurrentGroupID = 21
+	ObserveSmartRoutingAttempt(ctx, sharedAccount, true, time.Second, nil, failure)
+	require.True(t, SmartRoutingAccountFailed(ctx, sharedAccount.ID, 2))
+	require.True(t, SmartRoutingAccountFailed(ctx, sharedAccount.ID, 21))
+	require.Contains(t, SmartRoutingExcludedAccountsForGroup(ctx, 2, nil), sharedAccount.ID)
+	require.Contains(t, SmartRoutingExcludedAccountsForGroup(ctx, 21, nil), sharedAccount.ID)
 }
 
 func TestSmartRoutingOutcomeUsesFinalRequestResult(t *testing.T) {

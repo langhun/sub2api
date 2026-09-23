@@ -75,21 +75,52 @@ func TestSmartRoutingCapacityRetryRespectsRequestBoundary(t *testing.T) {
 			if tc.output {
 				_, _ = c.Writer.Write([]byte("visible"))
 			}
-			require.Equal(t, tc.want, retrySmartRoutingCapacity(c, tc.err, 11, 2))
+			require.Equal(t, tc.want, retrySmartRoutingCapacity(c, tc.err, 11))
 		})
 	}
 }
 
 func TestSmartRoutingCapacityRetriesAreBoundedAcrossReselection(t *testing.T) {
-	s := &service.SmartRoutingRequestState{SmartRoutingActive: true, MainGroupID: 2, CurrentGroupID: 2}
+	s := &service.SmartRoutingRequestState{SmartRoutingActive: true, MainGroupID: 2, CurrentGroupID: 2, MaxGroupSwitches: 1}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(service.WithSmartRoutingState(context.Background(), s))
-	require.True(t, retrySmartRoutingCapacity(c, nil, 11, 1))
-	require.False(t, retrySmartRoutingCapacity(c, nil, 11, 1), "same account cannot spin")
-	require.True(t, retrySmartRoutingCapacity(c, nil, 12, 1))
-	require.False(t, retrySmartRoutingCapacity(c, nil, 13, 1), "group changes must not reset the request budget")
+	require.True(t, retrySmartRoutingCapacity(c, nil, 11))
+	require.False(t, retrySmartRoutingCapacity(c, nil, 11), "same account cannot spin")
+	require.True(t, retrySmartRoutingCapacity(c, nil, 12))
+	require.False(t, retrySmartRoutingCapacity(c, nil, 13), "group changes must not reset the request budget")
 	require.Empty(t, s.ExhaustedGroups)
+}
+
+func TestSmartRoutingCapacityRetriesUseGroupBudgetNotAttemptTelemetry(t *testing.T) {
+	s := &service.SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		MainGroupID:        2,
+		CurrentGroupID:     2,
+		MaxGroupSwitches:   2,
+		Attempt:            99,
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(service.WithSmartRoutingState(context.Background(), s))
+
+	// Capacity retries are bounded by the routing/group contract (2 + 1),
+	// regardless of how many provider attempts telemetry has recorded.
+	require.True(t, retrySmartRoutingCapacity(c, nil, 11))
+	require.True(t, retrySmartRoutingCapacity(c, nil, 12))
+	require.True(t, retrySmartRoutingCapacity(c, nil, 13))
+	require.False(t, retrySmartRoutingCapacity(c, nil, 14))
+	require.Equal(t, 3, s.CapacityRetries)
+}
+
+func TestSmartRoutingCapacityRetriesRejectInvalidGroupBudget(t *testing.T) {
+	s := &service.SmartRoutingRequestState{SmartRoutingActive: true, MaxGroupSwitches: -1}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(service.WithSmartRoutingState(context.Background(), s))
+
+	require.False(t, retrySmartRoutingCapacity(c, nil, 11))
+	require.Zero(t, s.CapacityRetries)
 }
 
 type routingAdmissionFixture struct {

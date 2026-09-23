@@ -348,3 +348,17 @@ golangci-lint run --new-from-rev=HEAD
 - SR-3 改变请求内排除语义：上线后观察切组请求的成功率（`custom_route_outcomes.final_success` 按切组数分组）。
 - 020 迁移只加索引，幂等可回滚（DROP INDEX）。
 - 全部改动不触碰账号管理状态与生产 Redis 既有命名空间，无需数据迁移或缓存清理。
+
+## 8. 2026-09-23 实施复核状态
+
+本轮代码已按上述审查结论完成收口，当前状态如下：
+
+- SR-1：新增 `020_smart_routing_decisions_retention.sql`，决策表增加 `created_at` 索引；Overlay 独立 ticker 每分钟分批清理 24 小时前数据。
+- SR-2/SR-6：决策、无路由和选中网站归因统一进入按 `request_id` 分片的有界 FIFO 队列；满载只丢遥测，不阻断请求；选中网站归因保留有限重试。
+- SR-3：失败网站记录改为账号 ID + 分组集合，调度器按当前分组合并排除集，主组重入时仍保留主组失败记录。
+- SR-4：Key 路由 GET/PUT/preview 接入面板限流与审计，GET 加入敏感读取审计白名单。
+- SR-5：容量重试改用 `MaxGroupSwitches + 1` 的请求级预算，不再混用账号切换上限和遥测 `Attempt`。
+- 契约安全：Gateway/OpenAI 主分组契约查询任意错误均 fail-closed；候选最终准入再次检查 active、平台、订阅类型、用户权限/订阅和 Composite；未知订阅类型拒绝；账号模型映射拒绝 Gemini/Claude/Bedrock Anthropic 外部族进入 GPT/OpenAI 路径。
+- SR-7/SR-8：README 已明确 30 秒仅覆盖上游尝试阶段；Gemini 保留防御性调用并标注当前不会激活智能路由。
+
+仍需在发布前独立完成：生产制品哈希核对、独立端口桌面/移动端验收、真实配置下 OpenAI/Anthropic 请求与账单抽样、Redis/数据库故障演练，以及完整 `go test ./...`、前端 lint/typecheck/Vitest。此次代码验证不等同于已发布或生产已验收。

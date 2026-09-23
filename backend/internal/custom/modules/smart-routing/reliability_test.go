@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -61,6 +62,41 @@ func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
 	for i := range m.feedback.outcomeQueues {
 		require.Len(t, m.feedback.outcomeQueues[i], 512)
 	}
+}
+
+func TestRoutingAuditSerializesDecisionBeforeSelectedAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+	m := &Module{repo: NewRepository(db)}
+	ctx := context.WithValue(context.Background(), ctxkey.RequestID, "audit-order")
+	ctx = service.WithSmartRoutingState(ctx, &service.SmartRoutingRequestState{EndpointType: "responses"})
+	key := &service.APIKey{ID: 9}
+	profile := &Profile{APIKeyID: 9, Strategy: "speed"}
+	decision := &service.SmartRouteDecision{GroupID: 21, FallbackDepth: 1, Reason: "speed score"}
+	mock.ExpectExec("INSERT INTO custom_route_decisions").
+		WithArgs("audit-order", int64(9), int64(9), "gpt-5", "responses", int64(21), "speed", sqlmock.AnyArg(), 1, "speed score").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE custom_route_decisions SET selected_account_id").
+		WithArgs(int64(77), "audit-order", int64(9), int64(21)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	m.recordDecision(ctx, key, profile, "gpt-5", Group{GroupID: 21, Score: 90}, decision)
+	m.RecordSelectedAccount(ctx, 9, 21, 77)
+	require.Eventually(t, func() bool { return mock.ExpectationsWereMet() == nil }, time.Second, 5*time.Millisecond)
+}
+
+func TestRoutingAuditQueueDropsWhenFull(t *testing.T) {
+	db, _, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+	m := &Module{repo: NewRepository(db)}
+	requestID := "audit-queue-full"
+	shard := auditShard(requestID)
+	m.feedback.auditQueues[shard] = make([]routeAuditEvent, routeAuditQueueCapacity)
+	m.feedback.auditWorkers[shard] = true
+	m.enqueueAudit(routeAuditEvent{kind: routeAuditDecision, requestID: requestID})
+	require.Len(t, m.feedback.auditQueues[shard], routeAuditQueueCapacity)
 }
 
 func TestSameAccountRetryPolicyOnlySuppressesDeterministicFailures(t *testing.T) {

@@ -104,20 +104,25 @@ type SmartRoutingRequestState struct {
 	// selectedMu protects SmartRoutingSelectedGroups because usage recording is
 	// intentionally asynchronous and may inspect the marker while a streaming
 	// request is still advancing through another account/group attempt.
-	selectedMu        sync.RWMutex
-	MainGroupID       int64
-	CurrentGroupID    int64
-	ExhaustedGroups   map[int64]struct{}
-	FailedAccountIDs  map[int64]struct{}
-	AccountExclusions map[int64]string
-	NoRoute           bool
-	Strategy          string
-	PriceWeight       float64
-	SpeedWeight       float64
-	SuccessWeight     float64
-	RequestedModel    string
-	Stream            bool
-	Attempt           int
+	selectedMu       sync.RWMutex
+	MainGroupID      int64
+	CurrentGroupID   int64
+	ExhaustedGroups  map[int64]struct{}
+	FailedAccountIDs map[int64]struct{}
+	// FailedAccountGroups scopes request-local account failures to the group
+	// where they occurred. The same upstream website/account ID may legally
+	// be mounted in multiple candidate groups, so a flat failed-account set
+	// would incorrectly quarantine it after a cross-group switch.
+	FailedAccountGroups map[int64]map[int64]struct{}
+	AccountExclusions   map[int64]string
+	NoRoute             bool
+	Strategy            string
+	PriceWeight         float64
+	SpeedWeight         float64
+	SuccessWeight       float64
+	RequestedModel      string
+	Stream              bool
+	Attempt             int
 	// TotalAttempts counts every upstream forward started by this request,
 	// including attempts whose error is not eligible for telemetry. It is the
 	// hard request-level safety budget; Attempt remains the historical
@@ -154,7 +159,11 @@ type SmartRoutingRequestState struct {
 	// balance and group-RPM check without repeating key/user-wide counters.
 	BillingCheckedGroups  map[int64]struct{}
 	BillingRejectedGroups map[int64]struct{}
-	EndpointType          string
+	// PermissionRejectedGroups records candidates that failed the final
+	// request-time authorization check. It is separate from TriedGroups because
+	// the current-group retry path intentionally runs before that generic check.
+	PermissionRejectedGroups map[int64]struct{}
+	EndpointType             string
 	// ImageGenerationIntent marks a Responses request that explicitly asks for
 	// image generation. Candidate group permission must be checked before a
 	// group is selected, not only after forwarding starts.
@@ -374,7 +383,17 @@ func SmartRoutingGroupsCompatible(primary, candidate *Group) bool {
 	if primary.Platform != candidate.Platform {
 		return false
 	}
+	// Empty or future subscription types must not compare equal by accident.
+	// The routing contract is deliberately closed over the two billing modes
+	// understood by the billing and subscription services.
+	if !smartRoutingKnownSubscriptionType(primary.SubscriptionType) || !smartRoutingKnownSubscriptionType(candidate.SubscriptionType) {
+		return false
+	}
 	return primary.SubscriptionType == candidate.SubscriptionType
+}
+
+func smartRoutingKnownSubscriptionType(subscriptionType string) bool {
+	return subscriptionType == SubscriptionTypeStandard || subscriptionType == SubscriptionTypeSubscription
 }
 
 // SmartRoutingPrimaryContractMatches verifies the primary group immediately
@@ -391,10 +410,16 @@ func SmartRoutingPrimaryContractMatches(snapshot, current *Group, primaryID int6
 	if current.Platform == "" || current.Platform == PlatformComposite {
 		return false
 	}
+	if !smartRoutingKnownSubscriptionType(current.SubscriptionType) {
+		return false
+	}
 	if snapshot == nil {
 		return true
 	}
 	if snapshot.ID != primaryID || snapshot.Platform == "" || snapshot.Platform == PlatformComposite {
+		return false
+	}
+	if !smartRoutingKnownSubscriptionType(snapshot.SubscriptionType) || !smartRoutingKnownSubscriptionType(current.SubscriptionType) {
 		return false
 	}
 	return snapshot.Platform == current.Platform && snapshot.SubscriptionType == current.SubscriptionType
@@ -456,6 +481,50 @@ func SmartRoutingStateFromContext(ctx context.Context) *SmartRoutingRequestState
 	}
 	state, _ := ctx.Value(smartRoutingStateContextKey{}).(*SmartRoutingRequestState)
 	return state
+}
+
+// MarkSmartRoutingAccountFailed records an account failure without allowing
+// the exclusion to leak into another routed group. FailedAccountIDs remains a
+// compatibility/audit aggregate; schedulers must use the group-scoped helper
+// below when deciding whether an account is unavailable for this request.
+func MarkSmartRoutingAccountFailed(ctx context.Context, accountID, groupID int64) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || accountID <= 0 {
+		return
+	}
+	if groupID <= 0 {
+		groupID = state.CurrentGroupID
+	}
+	if state.FailedAccountIDs == nil {
+		state.FailedAccountIDs = make(map[int64]struct{})
+	}
+	state.FailedAccountIDs[accountID] = struct{}{}
+	if groupID <= 0 {
+		return
+	}
+	if state.FailedAccountGroups == nil {
+		state.FailedAccountGroups = make(map[int64]map[int64]struct{})
+	}
+	groups := state.FailedAccountGroups[accountID]
+	if groups == nil {
+		groups = make(map[int64]struct{})
+		state.FailedAccountGroups[accountID] = groups
+	}
+	groups[groupID] = struct{}{}
+}
+
+// SmartRoutingAccountFailed reports whether this account failed in the
+// specified group during the current request. Legacy states created by tests
+// or older callers without the scoped map intentionally do not fall back to
+// the flat set: treating that set as global would recreate the cross-group
+// quarantine bug.
+func SmartRoutingAccountFailed(ctx context.Context, accountID, groupID int64) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || accountID <= 0 || groupID <= 0 || state.FailedAccountGroups == nil {
+		return false
+	}
+	_, failed := state.FailedAccountGroups[accountID][groupID]
+	return failed
 }
 
 // SmartRoutingGroupResolutionChanged reports whether a downstream legacy

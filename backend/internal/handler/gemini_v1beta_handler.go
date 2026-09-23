@@ -507,6 +507,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "", int64(0)) // Gemini 不使用会话限制
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
+				// Defensive shared-handler hook only. Gemini endpoints are not
+				// recognized by smartRoutingEndpoint, so smart routing is inactive.
 				if service.ShouldRetrySmartRoutingGroup(c.Request.Context()) {
 					continue
 				}

@@ -19,8 +19,36 @@ type routeFeedback struct {
 	outcomeQueues      [8][]service.SmartRoutingOutcome
 	outcomeWorkers     [8]bool
 	outcomeLastCleanup time.Time
-	auditOnce          sync.Once
-	auditSlots         chan struct{}
+	auditQueues        [8][]routeAuditEvent
+	auditWorkers       [8]bool
+}
+
+const routeAuditQueueCapacity = 1024
+
+type routeAuditEventKind uint8
+
+const (
+	routeAuditDecision routeAuditEventKind = iota + 1
+	routeAuditSelectedAccount
+	routeAuditNoRoute
+)
+
+// routeAuditEvent is intentionally self-contained. Events are copied out of
+// request state before enqueueing so the bounded writer never retains mutable
+// request objects or a cancelled request context.
+type routeAuditEvent struct {
+	kind            routeAuditEventKind
+	requestID       string
+	apiKeyID        int64
+	profileID       int64
+	requestedModel  string
+	endpointType    string
+	selectedGroupID int64
+	selectedAccount int64
+	strategy        string
+	scoreSnapshot   []byte
+	fallbackDepth   int
+	decisionReason  string
 }
 
 func (m *Module) RoutingAccountMetrics(ctx context.Context, groupID int64, model, endpoint string, stream bool) map[int64]service.SmartRoutingAccountMetric {

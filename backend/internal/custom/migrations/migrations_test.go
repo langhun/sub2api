@@ -136,3 +136,19 @@ func TestSmartRoutingExplorationMigrationCapsHistoricalProfiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSmartRoutingDecisionRetentionMigrationAddsCreatedIndex(t *testing.T) {
+	content, err := files.ReadFile("020_smart_routing_decisions_retention.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"custom_route_decisions_created_idx",
+		"ON custom_route_decisions (created_at)",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+}

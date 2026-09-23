@@ -103,6 +103,15 @@ func RegisterRoutes(
 		authenticated := v1.Group("")
 		authenticated.Use(gin.HandlerFunc(jwtAuth))
 		authenticated.Use(middleware.BackendModeUserGuard(settingService))
+		// Routing preview performs percentile/statistics and account-pool queries
+		// per candidate group. Keep the whole key-routing surface behind the
+		// authenticated panel limiter so GET/PUT/preview share one user budget.
+		if panelRateLimiter != nil {
+			authenticated.Use(panelRateLimiter.Global())
+		}
+		// PUT and POST are audited by default; the GET profile read is added to
+		// the sensitive-read allowlist in server/middleware/audit_log.go.
+		authenticated.Use(gin.HandlerFunc(auditLog))
 		runtime.SmartRouting.RegisterRoutes(authenticated)
 	}
 	if runtime.ActivityCheckin != nil {

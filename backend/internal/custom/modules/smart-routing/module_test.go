@@ -528,6 +528,128 @@ func TestRankAllowsHigherPricedCompatibleFallback(t *testing.T) {
 	t.Fatal("higher-priced compatible fallback must remain eligible")
 }
 
+func TestRankScopesLegacyExclusionsToCurrentGroup(t *testing.T) {
+	primaryID, candidateID := int64(2101), int64(2102)
+	primary := &service.Group{ID: primaryID, Name: "特惠", Platform: service.PlatformOpenAI, RateMultiplier: 0.25, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: candidateID, Name: "Plus", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	sharedAccountID := int64(77)
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(primaryID, candidateID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidateID: {{ID: sharedAccountID, Status: service.StatusActive, Schedulable: true}}}},
+	}
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:  true,
+		MainGroupID:         primaryID,
+		CurrentGroupID:      primaryID,
+		FailedAccountGroups: map[int64]map[int64]struct{}{sharedAccountID: {primaryID: {}}},
+		RequestedModel:      "gpt-5",
+		EndpointType:        "responses",
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}
+	ranked, err := m.rank(ctx, &service.APIKey{ID: 21, UserID: 7, GroupID: &primaryID, Group: primary}, profile, "gpt-5", map[int64]struct{}{sharedAccountID: {}})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		if group.GroupID == candidateID {
+			if !group.Eligible {
+				t.Fatalf("candidate with same account ID must remain eligible after primary failure: %#v", group)
+			}
+			return
+		}
+	}
+	t.Fatalf("rank did not return candidate group: %#v", ranked)
+}
+
+func TestRankSkipsPermissionRejectedCandidate(t *testing.T) {
+	primaryID, candidateID := int64(2111), int64(2112)
+	primary := &service.Group{ID: primaryID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: candidateID, Name: "candidate", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(primaryID, candidateID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidateID: {{ID: 78, Status: service.StatusActive, Schedulable: true}}}},
+	}
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:       true,
+		MainGroupID:              primaryID,
+		CurrentGroupID:           primaryID,
+		PermissionRejectedGroups: map[int64]struct{}{candidateID: {}},
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	ranked, err := m.rank(ctx, &service.APIKey{ID: 22, UserID: 7, GroupID: &primaryID, Group: primary}, &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}, "gpt-5", nil)
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		if group.GroupID == candidateID && group.Eligible {
+			// Rank may retain the row for diagnostics; Resolve must filter it
+			// before returning a decision. Verify the request-local rejection is
+			// visible to that gate as well.
+			if _, rejected := state.PermissionRejectedGroups[group.GroupID]; !rejected {
+				t.Fatal("permission-rejected candidate lost its request-local rejection")
+			}
+			return
+		}
+	}
+	t.Fatal("permission-rejected candidate was unexpectedly removed from diagnostics")
+}
+
+func TestRankExcludedAccountsPreservesGroupScope(t *testing.T) {
+	const (
+		primaryID     int64 = 101
+		candidateID   int64 = 202
+		flatID        int64 = 303
+		primaryOnly   int64 = 404
+		candidateOnly int64 = 505
+	)
+	flat := map[int64]struct{}{flatID: {}}
+
+	// Legacy callers and ordinary single-group requests must retain the flat
+	// exclusion set unchanged.
+	ordinaryCtx := context.Background()
+	if got := rankExcludedAccounts(ordinaryCtx, primaryID, flat); !reflect.DeepEqual(got, flat) {
+		t.Fatalf("ordinary exclusions = %#v, want %#v", got, flat)
+	}
+
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive: true,
+		MainGroupID:        primaryID,
+		CurrentGroupID:     primaryID,
+		FailedAccountGroups: map[int64]map[int64]struct{}{
+			primaryOnly:   {primaryID: {}},
+			candidateOnly: {candidateID: {}},
+		},
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+
+	// A primary-group failure supplied by the legacy scheduler merges with the
+	// primary-scoped request failures.
+	got := rankExcludedAccounts(ctx, primaryID, flat)
+	for _, id := range []int64{flatID, primaryOnly} {
+		if _, ok := got[id]; !ok {
+			t.Fatalf("primary exclusions missing account %d: %#v", id, got)
+		}
+	}
+	if _, ok := got[candidateOnly]; ok {
+		t.Fatalf("candidate-scoped account leaked into primary exclusions: %#v", got)
+	}
+
+	// A candidate rank pass must discard the flat primary exclusion while still
+	// applying failures recorded specifically in that candidate group.
+	got = rankExcludedAccounts(ctx, candidateID, flat)
+	if _, ok := got[flatID]; ok {
+		t.Fatalf("legacy primary exclusion leaked into candidate exclusions: %#v", got)
+	}
+	if _, ok := got[candidateOnly]; !ok {
+		t.Fatalf("candidate-scoped account missing from candidate exclusions: %#v", got)
+	}
+}
+
 func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
 	mainID := int64(101)
 	main := &service.Group{
@@ -538,7 +660,7 @@ func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
 		Status:           service.StatusActive,
 		SubscriptionType: "standard",
 	}
-	ids := []int64{102, 103, 104}
+	ids := []int64{102, 103, 104, 105}
 	groups := map[int64]*service.Group{mainID: main}
 	accounts := map[int64][]service.Account{}
 	profileGroups := make([]Group, 0, len(ids))
@@ -550,13 +672,17 @@ func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
 		case 2:
 			platform = service.PlatformComposite
 		}
+		subscriptionType := "standard"
+		if i == 3 {
+			subscriptionType = "future"
+		}
 		groups[id] = &service.Group{
 			ID:               id,
 			Name:             "incompatible",
 			Platform:         platform,
 			RateMultiplier:   0.5,
 			Status:           service.StatusActive,
-			SubscriptionType: "standard",
+			SubscriptionType: subscriptionType,
 		}
 		accounts[id] = []service.Account{{ID: id, Status: service.StatusActive, Schedulable: true}}
 		profileGroups = append(profileGroups, Group{GroupID: id, Enabled: true})

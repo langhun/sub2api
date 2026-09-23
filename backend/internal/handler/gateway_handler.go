@@ -781,7 +781,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			accountReleaseFunc := selection.ReleaseFunc
 			if !selection.Acquired {
 				if selection.WaitPlan == nil {
-					if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+					if retrySmartRoutingCapacity(c, nil, account.ID) {
 						retryWithFallback = true
 						break smartRoutingAttempt
 					}
@@ -799,7 +799,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 				} else if !canWait {
-					if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+					if retrySmartRoutingCapacity(c, nil, account.ID) {
 						retryWithFallback = true
 						break smartRoutingAttempt
 					}
@@ -831,7 +831,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if err != nil {
 					reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 					releaseWait()
-					if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+					if retrySmartRoutingCapacity(c, err, account.ID) {
 						retryWithFallback = true
 						break smartRoutingAttempt
 					}

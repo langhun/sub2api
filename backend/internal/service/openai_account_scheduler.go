@@ -2186,7 +2186,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	}
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
 	LoadSmartRoutingAccountMetrics(ctx, s.smartRoutingResolver, groupID)
-	excludedIDs = SmartRoutingExcludedAccounts(ctx, excludedIDs)
+	excludedIDs = SmartRoutingExcludedAccountsForGroup(ctx, derefGroupID(groupID), excludedIDs)
 	// Messages dispatch aliases belong to the selected group. Resolve this only
 	// after smart routing has mutated the request-local API key; otherwise a
 	// candidate group is filtered using the primary group's mapped model.
@@ -2199,7 +2199,11 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 }
 
 func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
-	if s == nil || s.smartRoutingResolver == nil || s.channelService == nil || s.channelService.groupRepo == nil || groupID == nil {
+	if s == nil || groupID == nil || s.smartRoutingResolver == nil {
+		return groupID
+	}
+	if s.channelService == nil || s.channelService.groupRepo == nil {
+		MarkSmartRoutingContractInvalid(ctx)
 		return groupID
 	}
 	apiKey, ok := APIKeyFromContext(ctx)
@@ -2234,14 +2238,14 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 			primaryRoutingGroup = primary
 		}
 	}
-	currentCandidateCompatible := func(candidateID int64) bool {
+	loadCurrentCandidate := func(candidateID int64) (*Group, bool) {
 		if candidateID == primaryGroupID {
-			return true
+			return primaryRoutingGroup, primaryRoutingGroup != nil
 		}
 		candidate, err := s.channelService.groupRepo.GetByIDLite(ctx, candidateID)
 		// A group may be disabled between ranking and admission. It must fail
 		// closed at this second read instead of entering the account scheduler.
-		return err == nil && candidate != nil && candidate.Status == StatusActive && SmartRoutingGroupsCompatible(primaryRoutingGroup, candidate)
+		return candidate, err == nil && candidate != nil && candidate.Status == StatusActive && SmartRoutingGroupsCompatible(primaryRoutingGroup, candidate)
 	}
 	restorePrimary := func() *int64 {
 		if state := SmartRoutingStateFromContext(ctx); state != nil {
@@ -2307,15 +2311,23 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		}
 		return true
 	}
-	if !refreshPrimaryContract() {
+	// Preserve the early TOCTOU check for callers that already activated smart
+	// routing; ordinary keys remain inactive until Resolve confirms a profile.
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && !refreshPrimaryContract() {
 		return restorePrimary()
 	}
 	for attempts := 0; attempts < 10; attempts++ {
-		if !refreshPrimaryContract() {
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && !refreshPrimaryContract() {
 			return restorePrimary()
 		}
 		decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
 		if err != nil || decision == nil || decision.GroupID <= 0 {
+			return restorePrimary()
+		}
+		// Resolve activates the Overlay only after it has confirmed an enabled
+		// smart profile. Gate the fresh primary-contract read behind that marker
+		// so ordinary single-group requests keep their legacy behavior.
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && !refreshPrimaryContract() {
 			return restorePrimary()
 		}
 		// A current-group decision is a valid account-level retry signal. Do not
@@ -2323,7 +2335,8 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		// the same; doing so would bypass the existing group's remaining accounts
 		// and can change the request's billing group.
 		if decision.GroupID == *groupID {
-			if !currentCandidateCompatible(decision.GroupID) {
+			currentCandidate, compatible := loadCurrentCandidate(decision.GroupID)
+			if !compatible {
 				if state := SmartRoutingStateFromContext(ctx); state != nil {
 					if state.TriedGroups == nil {
 						state.TriedGroups = make(map[int64]struct{})
@@ -2331,6 +2344,22 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 					state.TriedGroups[decision.GroupID] = struct{}{}
 				}
 				return restorePrimary()
+			}
+			// Re-check authorization on every same-group admission. Group
+			// permission may be revoked after the initial selection; this fast path
+			// must not bypass the final candidate permission gate.
+			if decision.GroupID != primaryGroupID && !s.checkSmartRoutingCandidatePermission(ctx, apiKey, currentCandidate) {
+				if state := SmartRoutingStateFromContext(ctx); state != nil {
+					if state.TriedGroups == nil {
+						state.TriedGroups = make(map[int64]struct{})
+					}
+					state.TriedGroups[decision.GroupID] = struct{}{}
+					if state.ExhaustedGroups == nil {
+						state.ExhaustedGroups = make(map[int64]struct{})
+					}
+					state.ExhaustedGroups[decision.GroupID] = struct{}{}
+				}
+				continue
 			}
 			return groupID
 		}
@@ -2377,6 +2406,19 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 			// boundary. Restore the frozen primary immediately.
 			return restorePrimary()
 		}
+		if !s.checkSmartRoutingCandidatePermission(ctx, apiKey, group) {
+			if state := SmartRoutingStateFromContext(ctx); state != nil {
+				if state.TriedGroups == nil {
+					state.TriedGroups = make(map[int64]struct{})
+				}
+				state.TriedGroups[group.ID] = struct{}{}
+				if state.PermissionRejectedGroups == nil {
+					state.PermissionRejectedGroups = make(map[int64]struct{})
+				}
+				state.PermissionRejectedGroups[group.ID] = struct{}{}
+			}
+			continue
+		}
 		if !s.checkSmartRoutingCandidateBilling(ctx, apiKey, group) {
 			continue
 		}
@@ -2397,6 +2439,31 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		return &resolved
 	}
 	return restorePrimary()
+}
+
+func (s *OpenAIGatewayService) checkSmartRoutingCandidatePermission(ctx context.Context, apiKey *APIKey, group *Group) bool {
+	if s == nil || apiKey == nil || group == nil {
+		return false
+	}
+	userID := apiKey.UserID
+	if userID <= 0 && apiKey.User != nil {
+		userID = apiKey.User.ID
+	}
+	// Internal scheduler callers without an authenticated API-key subject predate
+	// the final permission recheck. The HTTP path always supplies UserID, so keep
+	// this compatibility branch limited to those non-user-bound callers.
+	if userID <= 0 {
+		return true
+	}
+	ok, err := CheckSmartRoutingGroupPermission(ctx, s.userRepo, s.userSubRepo, userID, group)
+	if err != nil {
+		slog.Warn("smart_routing.candidate_permission_unavailable", "api_key_id", apiKey.ID, "group_id", group.ID, "error", err)
+		return false
+	}
+	if !ok {
+		slog.Warn("smart_routing.candidate_permission_rejected", "api_key_id", apiKey.ID, "group_id", group.ID)
+	}
+	return ok
 }
 
 func (s *OpenAIGatewayService) checkSmartRoutingCandidateBilling(ctx context.Context, apiKey *APIKey, group *Group) bool {

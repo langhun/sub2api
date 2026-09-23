@@ -188,9 +188,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
 			state := newSmartRoutingRequestState(apiKey, smartRoutingEndpoint(c.Request.URL.Path))
 			c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
+			requestCtx := c.Request.Context()
 			requestStarted := time.Now()
 			defer func() {
-				service.RecordSmartRoutingOutcome(c.Request.Context(), state.FinalSuccess, state.FinalGroupID, state.FinalAccountID, time.Since(requestStarted))
+				service.RecordSmartRoutingOutcome(requestCtx, state.FinalSuccess, state.FinalGroupID, state.FinalAccountID, time.Since(requestStarted))
 			}()
 			c.Set(string(ContextKeyAPIKey), apiKey)
 			c.Set(string(ContextKeyUser), AuthSubject{
@@ -293,9 +294,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
 		state := newSmartRoutingRequestState(apiKey, smartRoutingEndpoint(c.Request.URL.Path))
 		c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
+		requestCtx := c.Request.Context()
 		requestStarted := time.Now()
 		defer func() {
-			service.RecordSmartRoutingOutcome(c.Request.Context(), state.FinalSuccess, state.FinalGroupID, state.FinalAccountID, time.Since(requestStarted))
+			service.RecordSmartRoutingOutcome(requestCtx, state.FinalSuccess, state.FinalGroupID, state.FinalAccountID, time.Since(requestStarted))
 		}()
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{

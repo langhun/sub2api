@@ -10,7 +10,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func retrySmartRoutingCapacity(c *gin.Context, err error, accountID int64, maxSwitches int) bool {
+// retrySmartRoutingCapacity permits a bounded re-selection after an account
+// capacity admission failure. Capacity re-selection is request/group-level
+// orchestration: it must not use the gateway's account-switch budget or the
+// Attempt telemetry counter as a shared budget. The latter counts completed
+// upstream attempts and can otherwise make a request's capacity budget depend
+// on unrelated provider failures.
+//
+// MaxGroupSwitches is the routing contract's single source of truth. The
+// extra +1 is the documented final capacity re-entry after the configured
+// number of candidate-group transitions (for the default of two switches,
+// three capacity retries are allowed). A zero value is tolerated for legacy
+// internal callers and uses the same default as the group failover guard.
+func retrySmartRoutingCapacity(c *gin.Context, err error, accountID int64) bool {
 	if c == nil || c.Request == nil {
 		return false
 	}
@@ -28,16 +40,20 @@ func retrySmartRoutingCapacity(c *gin.Context, err error, accountID int64, maxSw
 	if state == nil || !state.SmartRoutingActive || !service.SmartRoutingContractValid(ctx) || state.ContinuityLocked || ctx.Err() != nil || gatewayStreamSemanticOutputStarted(c) || accountID <= 0 {
 		return false
 	}
-	if maxSwitches < 0 || state.Attempt+state.CapacityRetries >= maxSwitches+1 {
+	maxGroupSwitches := state.MaxGroupSwitches
+	if maxGroupSwitches < 0 {
 		return false
 	}
-	if state.FailedAccountIDs == nil {
-		state.FailedAccountIDs = map[int64]struct{}{}
+	if maxGroupSwitches == 0 {
+		maxGroupSwitches = 2
 	}
-	if _, failed := state.FailedAccountIDs[accountID]; failed {
+	if state.CapacityRetries >= maxGroupSwitches+1 {
 		return false
 	}
-	state.FailedAccountIDs[accountID] = struct{}{}
+	if service.SmartRoutingAccountFailed(ctx, accountID, state.CurrentGroupID) {
+		return false
+	}
+	service.MarkSmartRoutingAccountFailed(ctx, accountID, state.CurrentGroupID)
 	state.CapacityRetries++
 	return true
 }

@@ -33,6 +33,11 @@ func TestDeriveAuditAction(t *testing.T) {
 	}
 }
 
+func TestSmartRoutingProfileReadIsAuditedAsSensitiveRead(t *testing.T) {
+	route := "GET /api/v1/keys/:id/routing"
+	require.Equal(t, "keys.routing.read", auditSensitiveReads[route])
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog

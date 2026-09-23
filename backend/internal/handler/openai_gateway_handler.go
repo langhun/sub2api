@@ -2349,7 +2349,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		return wrapReleaseOnDone(ctx, selection.ReleaseFunc), openAISlotAcquireOK
 	}
 	if selection.WaitPlan == nil {
-		if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+		if retrySmartRoutingCapacity(c, nil, account.ID) {
 			return nil, openAISlotAcquireRouteRetry
 		}
 		markOpsRoutingCapacityLimited(c)
@@ -2391,7 +2391,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	if waitErr != nil {
 		reqLog.Warn("openai.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(waitErr))
 	} else if !canWait {
-		if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+		if retrySmartRoutingCapacity(c, nil, account.ID) {
 			return nil, openAISlotAcquireRouteRetry
 		}
 		reqLog.Info("openai.account_wait_queue_full",
@@ -2421,7 +2421,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	)
 	if err != nil {
 		reqLog.Warn("openai.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-		if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+		if retrySmartRoutingCapacity(c, err, account.ID) {
 			return nil, openAISlotAcquireRouteRetry
 		}
 		status, errType, code, message := concurrencyErrorResponse(err, "account")

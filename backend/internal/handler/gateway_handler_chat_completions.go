@@ -229,7 +229,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		accountReleaseFunc := selection.ReleaseFunc
 		if !selection.Acquired {
 			if selection.WaitPlan == nil {
-				if retrySmartRoutingCapacity(c, nil, account.ID, h.maxAccountSwitches) {
+				if retrySmartRoutingCapacity(c, nil, account.ID) {
 					fs = NewFailoverState(h.maxAccountSwitches, false)
 					continue
 				}
@@ -247,7 +247,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 			)
 			if err != nil {
 				reqLog.Warn("gateway.cc.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-				if retrySmartRoutingCapacity(c, err, account.ID, h.maxAccountSwitches) {
+				if retrySmartRoutingCapacity(c, err, account.ID) {
 					fs = NewFailoverState(h.maxAccountSwitches, false)
 					continue
 				}

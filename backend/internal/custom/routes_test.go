@@ -17,6 +17,7 @@ import (
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
+	smartrouting "github.com/Wei-Shaw/sub2api/internal/custom/modules/smart-routing"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -138,6 +139,37 @@ func TestRechargePromotionPreviewDoesNotEnterAuditMiddleware(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Zero(t, auditCalls)
+}
+
+func TestSmartRoutingRoutesEnterAuditMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	auditCalls := 0
+	passthrough := func(c *gin.Context) { c.Next() }
+	audit := func(c *gin.Context) {
+		auditCalls++
+		c.Next()
+	}
+
+	custom.RegisterRoutes(
+		router,
+		&custom.Runtime{SmartRouting: smartrouting.NewModule(nil, nil, nil, nil, nil, nil, nil)},
+		middleware.JWTAuthMiddleware(passthrough),
+		middleware.AdminAuthMiddleware(passthrough),
+		middleware.AuditLogMiddleware(audit),
+		nil,
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/keys/1/routing", nil)
+	router.ServeHTTP(recorder, request)
+
+	// The nil API-key service makes the handler return 503, but the request
+	// still traverses the route middleware. This guards against accidentally
+	// registering smart-routing outside the audit chain.
+	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	require.Equal(t, 1, auditCalls)
 }
 
 func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {

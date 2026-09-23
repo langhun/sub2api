@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -81,6 +82,7 @@ type UpdateRequest struct {
 type PreviewRequest struct {
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint"`
+	Stream   bool   `json:"stream"`
 }
 
 type stats struct {
@@ -328,10 +330,12 @@ type Module struct {
 	gateway         *service.GatewayService
 	openAI          *service.OpenAIGatewayService
 	redis           *redis.Client
+	decisionCleanup sync.Once
 }
 
 func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, openAI *service.OpenAIGatewayService, redisClient *redis.Client) *Module {
 	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, openAI: openAI, redis: redisClient}
+	m.startDecisionRetention()
 	if apiKeys != nil {
 		m.availableGroups = apiKeys.GetAvailableGroups
 	}
@@ -499,7 +503,11 @@ func (m *Module) preview(c *gin.Context) {
 	}
 	previewCtx := c.Request.Context()
 	if endpoint != "" {
-		state := &service.SmartRoutingRequestState{EndpointType: endpoint}
+		// Preview must use the same health/model compatibility gates as a real
+		// request. It is still an estimate and never reserves capacity, but a
+		// cold or incompatible account must not be presented as routable merely
+		// because the preview state was missing SmartRoutingActive.
+		state := &service.SmartRoutingRequestState{EndpointType: endpoint, RequestedModel: req.Model, Stream: req.Stream, SmartRoutingActive: true}
 		if key.GroupID != nil {
 			state.MainGroupID, state.CurrentGroupID = *key.GroupID, *key.GroupID
 		}
@@ -676,6 +684,10 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 			g.Reason = "billing admission rejected"
 			continue
 		}
+		if _, rejected := state.PermissionRejectedGroups[g.GroupID]; rejected {
+			g.Reason = "permission admission rejected"
+			continue
+		}
 		if !routeStateAllowsGroup(state, g.GroupID, maxSwitches) {
 			g.Reason = "continuity or switch budget restriction"
 			// previous_response_id chains cannot be replayed against another
@@ -687,14 +699,15 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		// before moving to another group. The resolver marks a group as tried
 		// when it is admitted, so this check must run before the TriedGroups
 		// filter on subsequent scheduler calls.
-		if g.GroupID == state.CurrentGroupID && (len(excluded) > 0 || state.Attempt > 0 || state.CapacityRetries > 0) {
+		currentExcluded := rankExcludedAccounts(ctx, state.CurrentGroupID, excluded)
+		if g.GroupID == state.CurrentGroupID && (len(currentExcluded) > 0 || state.Attempt > 0 || state.CapacityRetries > 0) {
 			if m.accounts == nil {
 				return nil, nil
 			}
 			// g.Platform is hydrated in rank(); key.Group is a mutable gateway
 			// pointer that may be nil mid-failover, and an empty platform would
 			// make the account lookup report zero remaining accounts.
-			remaining, known := m.remainingModelAccountsKnown(ctx, state.CurrentGroupID, g.Platform, m.dispatchModelForGroup(ctx, key.Group, model), excluded)
+			remaining, known := m.remainingModelAccountsKnown(ctx, state.CurrentGroupID, g.Platform, m.dispatchModelForGroup(ctx, key.Group, model), currentExcluded)
 			if !known {
 				// Preserve the primary route when account discovery is unavailable;
 				// an infrastructure error is not evidence that the group is empty.
@@ -773,14 +786,14 @@ func smartRoutingTransportAllowed(transport service.OpenAIUpstreamTransport) boo
 		transport == service.OpenAIUpstreamTransportHTTPSSE
 }
 
-// recordDecision is deliberately asynchronous and best-effort. Routing
-// telemetry must never add latency or turn a healthy request into a 5xx when
-// the audit table is unavailable.
+// recordDecision enqueues a best-effort telemetry event. The bounded writer in
+// audit.go serializes events per request so selected-account attribution cannot
+// race the decision INSERT or update the wrong decision row.
 func (m *Module) recordDecision(ctx context.Context, key *service.APIKey, p *Profile, model string, group Group, decision *service.SmartRouteDecision) {
 	if m == nil || m.repo == nil || m.repo.db == nil || key == nil || p == nil || decision == nil {
 		return
 	}
-	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	requestID, _ := requestIDFromContext(ctx)
 	if requestID == "" {
 		return
 	}
@@ -789,40 +802,22 @@ func (m *Module) recordDecision(ctx context.Context, key *service.APIKey, p *Pro
 	if state := service.SmartRoutingStateFromContext(ctx); state != nil {
 		endpoint = state.EndpointType
 	}
-	go func() {
-		writeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_, _ = m.repo.db.ExecContext(writeCtx, `INSERT INTO custom_route_decisions (request_id,api_key_id,profile_id,requested_model,endpoint_type,selected_group_id,strategy,score_snapshot,fallback_depth,decision_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, requestID, key.ID, p.APIKeyID, model, endpoint, group.GroupID, p.Strategy, snapshot, decision.FallbackDepth, decision.Reason)
-	}()
+	m.enqueueAudit(routeAuditEvent{kind: routeAuditDecision, requestID: requestID, apiKeyID: key.ID, profileID: p.APIKeyID, requestedModel: model, endpointType: endpoint, selectedGroupID: group.GroupID, strategy: p.Strategy, scoreSnapshot: snapshot, fallbackDepth: decision.FallbackDepth, decisionReason: decision.Reason})
 }
 
 // RecordSelectedAccount fills the account that actually passed scheduler
-// admission. Group scoring happens before account selection, so the insert
-// and this update are intentionally decoupled. A short retry window covers
-// the normal race where the asynchronous insert has not committed yet.
+// admission. It is queued on the same request shard as the decision INSERT;
+// this gives the update a deterministic happens-before relationship without
+// blocking the request or creating an unbounded goroutine per call.
 func (m *Module) RecordSelectedAccount(ctx context.Context, apiKeyID, groupID, accountID int64) {
 	if m == nil || m.repo == nil || m.repo.db == nil || apiKeyID <= 0 || groupID <= 0 || accountID <= 0 {
 		return
 	}
-	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	requestID, _ := requestIDFromContext(ctx)
 	if requestID == "" {
 		return
 	}
-	go func() {
-		writeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		for attempt := 0; attempt < 5; attempt++ {
-			result, err := m.repo.db.ExecContext(writeCtx, `UPDATE custom_route_decisions SET selected_account_id=$1 WHERE id=(SELECT id FROM custom_route_decisions WHERE request_id=$2 AND api_key_id=$3 AND selected_group_id=$4 AND selected_account_id IS NULL ORDER BY created_at DESC, id DESC LIMIT 1)`, accountID, requestID, apiKeyID, groupID)
-			if err == nil {
-				if rows, rowsErr := result.RowsAffected(); rowsErr == nil && rows > 0 {
-					return
-				}
-			}
-			if attempt < 4 {
-				time.Sleep(20 * time.Millisecond)
-			}
-		}
-	}()
+	m.enqueueAudit(routeAuditEvent{kind: routeAuditSelectedAccount, requestID: requestID, apiKeyID: apiKeyID, selectedGroupID: groupID, selectedAccount: accountID})
 }
 
 // remainingModelAccountsKnown returns whether the repository response was
@@ -884,15 +879,12 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		account := &accounts[i]
 		if unavailable[account.ID] {
 			if state := service.SmartRoutingStateFromContext(ctx); state != nil {
-				if state.FailedAccountIDs == nil {
-					state.FailedAccountIDs = map[int64]struct{}{}
-				}
-				state.FailedAccountIDs[account.ID] = struct{}{}
+				service.MarkSmartRoutingAccountFailed(ctx, account.ID, groupID)
 			}
 			continue
 		}
 		if state := service.SmartRoutingStateFromContext(ctx); state != nil {
-			if _, failed := state.FailedAccountIDs[account.ID]; failed {
+			if service.SmartRoutingAccountFailed(ctx, account.ID, groupID) {
 				continue
 			}
 		}
@@ -905,8 +897,7 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		if model != "" && (!account.IsModelSupported(model) || !account.IsSchedulableForModelWithContext(ctx, model)) {
 			continue
 		}
-		if state := service.SmartRoutingStateFromContext(ctx); state != nil &&
-			(state.SmartRoutingActive || state.EndpointType != "") &&
+		if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
 			(account.Platform == service.PlatformOpenAI || account.Platform == service.PlatformGrok) &&
 			!service.SmartRoutingAccountModelCompatible(account, model) {
 			continue
@@ -945,6 +936,38 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		return 0, true, 0
 	}
 	return remaining, true, capacity
+}
+
+// rankExcludedAccounts scopes the legacy scheduler exclusion map to the group
+// that produced it. Handlers still pass a flat account-ID set for upstream
+// compatibility, but the same account ID may be mounted in multiple website
+// pools. Applying that set to every candidate would make a primary-group
+// failure suppress a healthy account in the fallback group before admission.
+// Group-scoped failures are merged for every group by the service helper.
+func rankExcludedAccounts(ctx context.Context, groupID int64, excluded map[int64]struct{}) map[int64]struct{} {
+	state := service.SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return excluded
+	}
+	scoped := service.SmartRoutingExcludedAccountsForGroup(ctx, groupID, nil)
+	currentGroupID := state.CurrentGroupID
+	if currentGroupID <= 0 {
+		currentGroupID = state.MainGroupID
+	}
+	if currentGroupID > 0 && currentGroupID != groupID {
+		return scoped
+	}
+	if len(excluded) == 0 {
+		return scoped
+	}
+	merged := make(map[int64]struct{}, len(scoped)+len(excluded))
+	for id := range scoped {
+		merged[id] = struct{}{}
+	}
+	for id := range excluded {
+		merged[id] = struct{}{}
+	}
+	return merged
 }
 
 // resolveCandidateModel keeps account eligibility checks aligned with the
@@ -1058,14 +1081,14 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	if !mainPriceValid {
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "primary group price unavailable"
-	} else if main.Status != service.StatusActive || main.Platform == service.PlatformComposite {
+	} else if main.Status != service.StatusActive || main.Platform == service.PlatformComposite || !service.SmartRoutingGroupsCompatible(main, main) {
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "primary group unavailable"
 	} else if !candidateEndpointAllowed(ctx, main) {
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "endpoint not supported by group"
 	} else if m.accounts != nil {
-		remaining, known, capacity := m.inspectModelAccounts(ctx, main.ID, main.Platform, mainModel, excluded)
+		remaining, known, capacity := m.inspectModelAccounts(ctx, main.ID, main.Platform, mainModel, rankExcludedAccounts(ctx, main.ID, excluded))
 		mainCandidate.CapacityRatio = capacity
 		if known && remaining == 0 {
 			mainCandidate.Eligible = false
@@ -1100,7 +1123,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			if full.Status != service.StatusActive || full.Platform != main.Platform || full.SubscriptionType != main.SubscriptionType || full.Platform == service.PlatformComposite {
+			if main.Status != service.StatusActive || !service.SmartRoutingGroupsCompatible(main, full) {
 				g.Reason = "incompatible group"
 				out = append(out, g)
 				continue
@@ -1135,7 +1158,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			remaining, known, capacity := m.inspectModelAccounts(ctx, g.GroupID, main.Platform, candidateModel, excluded)
+			remaining, known, capacity := m.inspectModelAccounts(ctx, g.GroupID, main.Platform, candidateModel, rankExcludedAccounts(ctx, g.GroupID, excluded))
 			g.CapacityRatio = capacity
 			if !known {
 				g.Reason = "account availability unavailable"
