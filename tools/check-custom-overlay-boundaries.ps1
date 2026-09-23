@@ -323,12 +323,21 @@ $script:ReviewedIncrementalHotfixBlobs = @{
     # owned by the backend/frontend custom smart-routing modules.
     'backend/internal/handler/failover_loop.go' = '42471ec7cda1386e08af7f79a27121bbede17098'
     'backend/internal/handler/openai_chat_completions.go' = 'b1437942c9357e79c09f2adec51b18b3dc57b14e'
-    'backend/internal/handler/openai_gateway_handler.go' = '6e1f23ef421a332ae0d959957b177ae72c9218ea'
-    'backend/internal/handler/smart_routing_retry.go' = '3dd4df3442ba2078301f378cc136ff0627b0d5eb'
-    'backend/internal/server/middleware/api_key_auth.go' = '0c73c0f1cfaa0ebd84f9316630d792ed96060feb'
-    'backend/internal/service/openai_account_scheduler.go' = '4bcc4ca5815fc76f83a00adef8dfb31db907b299'
-    'backend/internal/service/smart_routing_context.go' = '010f517a1cad31e6ece6d20b73bb04ab8ffc8292'
-    'backend/internal/service/smart_routing_feedback.go' = 'f7b969131a37851576b12027a78cf32fe158cdd2'
+    # Reviewed 6db9b39d: group-scoped exclusions, bounded capacity retries,
+    # final permission checks, and stable outcome/audit context adapters.
+    'backend/internal/handler/gateway_handler.go' = 'b5ad13d349712d91d3afa42a483e7846a03e3a50'
+    'backend/internal/handler/gateway_handler_chat_completions.go' = '0ae7780c4b6d114d9b72eeba9e54dd6e45261f5f'
+    'backend/internal/handler/gateway_handler_responses.go' = '3f6ce431d04565321723a3d579e3d003fb1029d8'
+    'backend/internal/handler/gemini_v1beta_handler.go' = '55f720f405dbdf2c87d97e6b9879e8fda9ad7043'
+    'backend/internal/handler/openai_gateway_handler.go' = '92ccd3738aa0e6ca586f95548944040992ab3d4b'
+    'backend/internal/handler/smart_routing_retry.go' = '34638ab5588615ea6ff2a78e2dcc3b84eddac489'
+    'backend/internal/server/middleware/api_key_auth.go' = '1d25137b90b70eb05513b8a3cc394aeb5af06e4f'
+    'backend/internal/server/middleware/audit_log.go' = 'f85db4d5747e80c8033fffa88d548e61214c03d0'
+    'backend/internal/service/gateway_scheduling.go' = 'b0184ef2588c79e0e1639c39959096a1a316cc60'
+    'backend/internal/service/openai_account_scheduler.go' = '7e01be914e7de40bba276aa02be7d969ead6febf'
+    'backend/internal/service/smart_routing_context.go' = 'f0132179637b00db6c924bd85fa8f12d3603957b'
+    'backend/internal/service/smart_routing_feedback.go' = '099028e38f633c5957b206a14737143f65e19376'
+    'backend/internal/service/smart_routing_permission.go' = '0a10846036f5d711a81cad8e1b076f75efa94bac'
     # Reviewed generic UI fixes and existing presentation text. These hashes
     # prevent the exception from becoming a reusable shared-path allowlist.
     'frontend/src/components/common/DateRangePicker.vue' = '78c70c3e69f5af4c9defe1fcc25f3c0f7a06d401'
