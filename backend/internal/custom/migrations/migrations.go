@@ -31,6 +31,14 @@ var historicalMigrationChecksums = map[string][]string{
 	"005_recharge_promotions_tiered_percentage.sql": {
 		"7ecb972b0cef7ba126c2b933385ef8b80ce5820121bacd61d899ee96656224ff",
 	},
+	// 019 was successfully applied by an owner-capable release before the
+	// owner-safe hardening fallback was added. Accept that immutable checksum
+	// so managed database restores do not fail startup on an already-applied
+	// migration.
+	"019_smart_routing_exploration_cap.sql": {
+		"fb959aebe2311861ca2e45793d0c611d0da8e831513fb5866d898e53f016e43c",
+		"c3a8c698bff8d9e57d846ae15b0c96aaebedd5475ff180b73d839f020132c418",
+	},
 }
 
 const customMigrationsAdvisoryLockID int64 = 694208311321144028

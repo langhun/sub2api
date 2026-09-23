@@ -128,6 +128,8 @@ func TestSmartRoutingExplorationMigrationCapsHistoricalProfiles(t *testing.T) {
 		"WHEN exploration_rate < 0 THEN 0",
 		"WHERE exploration_rate < 0 OR exploration_rate > 0.01",
 		"CHECK (exploration_rate >= 0 AND exploration_rate <= 0.01)",
+		"WHEN insufficient_privilege THEN",
+		"skipping owner-only smart routing constraint hardening",
 	} {
 		if !strings.Contains(sql, expected) {
 			t.Fatalf("migration missing %q", expected)
