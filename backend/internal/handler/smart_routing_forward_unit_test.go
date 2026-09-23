@@ -32,6 +32,14 @@ type routingForwardAccounts struct {
 	openAIImagesFailoverAccountRepo
 }
 
+type routingForwardUsers struct {
+	service.UserRepository
+}
+
+func (routingForwardUsers) GetByID(_ context.Context, id int64) (*service.User, error) {
+	return &service.User{ID: id, Status: service.StatusActive}, nil
+}
+
 func (r routingForwardAccounts) ListSchedulableByGroupIDAndPlatform(_ context.Context, id int64, platform string) ([]service.Account, error) {
 	var accounts []service.Account
 	for _, a := range r.accounts {
@@ -131,7 +139,7 @@ func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
 	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	groups := routingForwardGroups{groups: map[int64]*service.Group{
-		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
 	}}
 	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
 		{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true, "pool_mode_retry_status_codes": []any{float64(503)}}},
@@ -139,7 +147,7 @@ func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billing.Stop)
 	channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
-	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
 	resolver := &routingForwardResolver{health: &smartrouting.Module{}}
 	h.gatewayService.SetSmartRoutingResolver(resolver)
 
@@ -172,7 +180,7 @@ func TestSmartRoutingSpeedPolicyCannotStealPoolRetry(t *testing.T) {
 	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	groups := routingForwardGroups{groups: map[int64]*service.Group{
-		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
 	}}
 	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
 		{ID: 1, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true, "pool_mode_retry_status_codes": []any{float64(503)}}},
@@ -181,7 +189,7 @@ func TestSmartRoutingSpeedPolicyCannotStealPoolRetry(t *testing.T) {
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billing.Stop)
 	channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
-	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
 	resolver := &routingForwardResolver{
 		health:               &smartrouting.Module{},
 		flipMetricsOnFailure: true,
@@ -224,8 +232,8 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 			h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 			cfg := &config.Config{RunMode: config.RunModeSimple}
 			groups := routingForwardGroups{groups: map[int64]*service.Group{
-				3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
-				3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+				3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+				3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
 			}}
 			failedSiteCredentials := map[string]any{"api_key": "test-one", "pool_mode": true}
 			if tc.customRetryCodes != nil {
@@ -238,7 +246,7 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 			billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 			t.Cleanup(billing.Stop)
 			channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
-			h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+			h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
 			resolver := &routingForwardResolver{health: &smartrouting.Module{}}
 			h.gatewayService.SetSmartRoutingResolver(resolver)
 			for range 2 {
@@ -293,8 +301,8 @@ func TestSmartRoutingResponsesRealForwardFailover(t *testing.T) {
 			h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 			cfg := &config.Config{RunMode: config.RunModeSimple}
 			groups := routingForwardGroups{groups: map[int64]*service.Group{
-				3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive},
-				3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+				3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+				3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
 			}}
 			accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
 				{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"access_token": "test-one"}},
@@ -303,7 +311,7 @@ func TestSmartRoutingResponsesRealForwardFailover(t *testing.T) {
 			billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 			t.Cleanup(billing.Stop)
 			channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
-			h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+			h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
 			resolver := &routingForwardResolver{}
 			h.gatewayService.SetSmartRoutingResolver(resolver)
 			c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())

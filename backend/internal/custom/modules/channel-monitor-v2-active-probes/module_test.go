@@ -136,7 +136,10 @@ func TestUpdateConfigTriggersExistingTargetsOnlyWhenSwitchTurnsOn(t *testing.T) 
 func TestObserveChannelMonitorCheckPersistsOnlySanitizedProbeFacts(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 
 	checkedAt := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	latency := 321
@@ -159,7 +162,10 @@ func TestObserveChannelMonitorCheckPersistsOnlySanitizedProbeFacts(t *testing.T)
 func TestObserveChannelMonitorCheckSkipsV1AndPureQuota(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	module := NewModule(db, enabledSettings(), nil, nil)
 	result := []*service.CheckResult{{Model: "quota", Status: service.MonitorStatusOperational, CheckedAt: time.Now()}}
 
@@ -172,7 +178,10 @@ func TestObserveChannelMonitorCheckSkipsV1AndPureQuota(t *testing.T) {
 func TestCleanupExpiredFactsIsRateLimited(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	mock.ExpectExec("DELETE FROM custom_channel_monitor_v2_active_probe_results").
 		WillReturnResult(sqlmock.NewResult(0, 4))
@@ -188,7 +197,10 @@ func TestCleanupExpiredFactsIsRateLimited(t *testing.T) {
 func TestExtendModelsUsesAnyHealthyLatestTargetWithoutTokenUsage(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	filter := activeProbeFilter(now)
 	rows := sqlmock.NewRows([]string{"monitor_id", "platform", "model", "status", "latency_ms", "interval_seconds", "checked_at"}).
@@ -237,7 +249,10 @@ func TestSourceForFactsPreservesDegradedWhenNoTargetIsOperational(t *testing.T) 
 func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	filter := activeProbeFilter(now)
 	rows := sqlmock.NewRows([]string{"monitor_id", "platform", "model", "status", "latency_ms", "interval_seconds", "checked_at"}).
@@ -258,7 +273,10 @@ func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 func TestExtendModelsExpiresStatusAfterThreeProbeIntervals(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	filter := activeProbeFilter(now)
 	rows := sqlmock.NewRows([]string{"monitor_id", "platform", "model", "status", "latency_ms", "interval_seconds", "checked_at"}).
@@ -273,7 +291,8 @@ func TestExtendModelsExpiresStatusAfterThreeProbeIntervals(t *testing.T) {
 	require.Len(t, list.Items, 1)
 	require.Equal(t, int64(1), list.Items[0].Metrics.RequestCount, "historical probe volume remains in the selected window")
 	require.Equal(t, "unknown", list.Items[0].Health.Overall)
-	source := list.Items[0].Extensions[extensionKey].(probeSource)
+	source, ok := list.Items[0].Extensions[extensionKey].(probeSource)
+	require.True(t, ok)
 	require.False(t, source.ActiveProbe)
 	require.Nil(t, source.LastActiveProbeAt)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -282,7 +301,10 @@ func TestExtendModelsExpiresStatusAfterThreeProbeIntervals(t *testing.T) {
 func TestExtendModelsMergesRequestsButPreservesPassiveTokenAndCacheData(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
 	filter := activeProbeFilter(now)
 	rows := sqlmock.NewRows([]string{"monitor_id", "platform", "model", "status", "latency_ms", "interval_seconds", "checked_at"}).
@@ -303,7 +325,8 @@ func TestExtendModelsMergesRequestsButPreservesPassiveTokenAndCacheData(t *testi
 	require.Equal(t, int64(50), row.Metrics.CacheRateNumerator)
 	require.Equal(t, int64(200), row.Metrics.CacheRateDenominator)
 	require.Equal(t, .25, row.Metrics.CacheRate)
-	source := row.Extensions[extensionKey].(probeSource)
+	source, ok := row.Extensions[extensionKey].(probeSource)
+	require.True(t, ok)
 	require.True(t, source.PassiveTraffic)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -311,7 +334,10 @@ func TestExtendModelsMergesRequestsButPreservesPassiveTokenAndCacheData(t *testi
 func TestExtensionsDoNotInventGroupAttribution(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
 	module := NewModule(db, enabledSettings(), nil, nil)
 	filter := activeProbeFilter(time.Now().UTC())
 	filter.GroupIDs = []int64{9}

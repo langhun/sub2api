@@ -29,7 +29,7 @@ func TestChannelMonitorV2CNPlatformsMigrationAppendsWithoutReplacingConfig(t *te
 	kimi := strings.Index(sql, "('kimi', 1)")
 	zhipu := strings.Index(sql, "('zhipu', 2)")
 	deepseek := strings.Index(sql, "('deepseek', 3)")
-	if kimi < 0 || zhipu < 0 || deepseek < 0 || !(kimi < zhipu && zhipu < deepseek) {
+	if kimi < 0 || zhipu < 0 || deepseek < 0 || kimi >= zhipu || zhipu >= deepseek {
 		t.Fatal("migration must append kimi, zhipu, and deepseek in the approved order")
 	}
 
