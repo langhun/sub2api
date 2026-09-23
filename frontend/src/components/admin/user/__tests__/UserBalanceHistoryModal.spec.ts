@@ -6,7 +6,10 @@ import UserBalanceHistoryModal from '../UserBalanceHistoryModal.vue'
 const mocks = vi.hoisted(() => ({ getUserBalanceHistory: vi.fn() }))
 vi.mock('@/api/admin', () => ({ adminAPI: { users: mocks } }))
 vi.mock('@/utils/format', () => ({ formatDateTime: () => 'date' }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
+  useI18n: () => ({ t: (key: string) => key })
+}))
 enableAutoUnmount(afterEach)
 beforeEach(() => { vi.clearAllMocks(); vi.spyOn(console, 'error').mockImplementation(() => {}) })
 afterEach(() => vi.restoreAllMocks())
