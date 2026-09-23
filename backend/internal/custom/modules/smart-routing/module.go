@@ -417,6 +417,10 @@ func (m *Module) update(c *gin.Context) {
 		c.JSON(400, gin.H{"detail": err.Error()})
 		return
 	}
+	if err := validateUpdate(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
 	p, err := m.repo.Save(c.Request.Context(), key.ID, req)
 	if err != nil {
 		// Only caller-fixable conflicts are client errors; DB failures and
