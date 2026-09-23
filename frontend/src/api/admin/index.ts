@@ -35,7 +35,6 @@ import affiliatesAPI from './affiliates'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
-import registrationRiskAPI from './registrationRisk'
 import pluginsAPI from './plugins'
 
 /**
@@ -74,7 +73,6 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  registrationRisk: registrationRiskAPI,
   plugins: pluginsAPI
 }
 
@@ -111,7 +109,6 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  registrationRiskAPI,
   pluginsAPI
 }
 
@@ -124,5 +121,4 @@ export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from 
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
-export type { RegistrationRiskEvidence, RegistrationRiskItem, RegistrationRiskListResponse, RegistrationRiskOverrideResponse } from './registrationRisk'
 export type { PluginInstallation, PluginCompatibility, PluginUISession, PluginTestResult } from './plugins'

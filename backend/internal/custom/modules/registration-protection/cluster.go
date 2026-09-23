@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	RiskActionNone   = "none"
-	RiskActionMedium = "medium"
-	RiskActionHigh   = "high"
+	RiskActionNone         = "none"
+	RiskActionMedium       = "medium"
+	RiskActionHigh         = "high"
+	RiskActionManualLock   = "manual_lock"
+	RiskActionManualUnlock = "manual_unlock"
 )
 
 var ErrTrialRPMLimit = fmt.Errorf("registration trial rpm limit exceeded")
@@ -189,6 +191,11 @@ func (s *RiskStore) Decision(ctx context.Context, userID int64) (RiskDecision, e
 	}
 	if err != nil {
 		return RiskDecision{}, err
+	}
+	// A review decision takes precedence over payment-based and timed unlocks.
+	if d.Action == RiskActionManualLock || d.Action == RiskActionManualUnlock {
+		_ = json.Unmarshal(signals, &d.Signals)
+		return d, nil
 	}
 	if d.Action == RiskActionNone && !paymentUnlocked {
 		_ = json.Unmarshal(signals, &d.Signals)

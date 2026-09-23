@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 )
@@ -80,13 +81,23 @@ func (m *Module) list(c *gin.Context) {
 			limit = parsed
 		}
 	}
+	offset := 0
+	if raw := strings.TrimSpace(c.Query("offset")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+			return
+		}
+		offset = parsed
+	}
 	rows, err := m.db.QueryContext(c.Request.Context(), `
 		SELECT p.user_id, COALESCE(u.email, ''), p.risk_score, p.risk_action,
 		       p.risk_signals, p.risk_expires_at, p.payment_unlocked
 		FROM custom_registration_risk_profiles p
 		LEFT JOIN users u ON u.id = p.user_id
 		WHERE p.risk_action <> 'none'
-		ORDER BY p.updated_at DESC LIMIT $1`, limit)
+		   OR p.risk_score > 0 OR p.risk_signals <> '[]'::jsonb
+		ORDER BY p.updated_at DESC, p.user_id DESC LIMIT $1 OFFSET $2`, limit+1, offset)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to load registration risk profiles"})
 		return
@@ -100,8 +111,23 @@ func (m *Module) list(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode registration risk profile"})
 			return
 		}
-		_ = json.Unmarshal(raw, &item.Signals)
+		var signals []string
+		if err := json.Unmarshal(raw, &signals); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode registration risk signals"})
+			return
+		}
+		item.Signals = make([]string, 0, len(signals))
+		seen := make(map[string]bool, len(signals))
+		for _, signal := range signals {
+			if !seen[signal] {
+				item.Signals = append(item.Signals, signal)
+				seen[signal] = true
+			}
+		}
 		item.Evidence = evidenceForSignals(item.Signals)
+		if item.Action == RiskActionNone {
+			item.Action = "observe"
+		}
 		item.Email = maskRiskEmail(item.Email)
 		items = append(items, item)
 	}
@@ -109,7 +135,11 @@ func (m *Module) list(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to read registration risk profiles"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "has_more": hasMore})
 }
 
 func maskRiskEmail(email string) string {
@@ -138,22 +168,48 @@ func (m *Module) updateOverride(c *gin.Context, action string) {
 	var body struct {
 		Reason string `json:"reason"`
 	}
-	_ = c.ShouldBindJSON(&body)
-	body.Reason = strings.TrimSpace(body.Reason)
-	if body.Reason == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	if _, err := m.db.ExecContext(c.Request.Context(), `
-		UPDATE custom_registration_risk_profiles
-		SET risk_action = $2, admin_override = $2, override_reason = $3, risk_expires_at = NULL, updated_at = NOW()
-		WHERE user_id = $1`, userID, action, body.Reason); err != nil {
+	body.Reason = strings.TrimSpace(body.Reason)
+	if body.Reason == "" || utf8.RuneCountInString(body.Reason) > 500 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason must contain 1 to 500 characters"})
+		return
+	}
+	tx, err := m.db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to update registration risk profile"})
 		return
 	}
-	_, _ = m.db.ExecContext(c.Request.Context(), `INSERT INTO custom_registration_risk_audit (user_id, action, reason) VALUES ($1, $2, $3)`, userID, action, body.Reason)
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(c.Request.Context(), `
+		UPDATE custom_registration_risk_profiles
+		SET risk_action = $2, admin_override = $2, override_reason = $3, risk_expires_at = NULL, updated_at = NOW()
+		WHERE user_id = $1`, userID, action, body.Reason)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to update registration risk profile"})
+		return
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to update registration risk profile"})
+		return
+	}
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "registration risk profile not found"})
+		return
+	}
+	if _, err := tx.ExecContext(c.Request.Context(), `INSERT INTO custom_registration_risk_audit (user_id, action, reason) VALUES ($1, $2, $3)`, userID, action, body.Reason); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to audit registration risk override"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "failed to commit registration risk override"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"user_id": userID, "action": action})
 }
 
-func (m *Module) unlock(c *gin.Context) { m.updateOverride(c, "manual_unlock") }
-func (m *Module) lock(c *gin.Context)   { m.updateOverride(c, "manual_lock") }
+func (m *Module) unlock(c *gin.Context) { m.updateOverride(c, RiskActionManualUnlock) }
+func (m *Module) lock(c *gin.Context)   { m.updateOverride(c, RiskActionManualLock) }

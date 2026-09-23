@@ -1,6 +1,6 @@
-import { apiClient } from '../client'
+import { apiClient } from '@/api/client'
 
-export type RegistrationRiskAction = 'none' | 'medium' | 'high' | 'manual_lock' | 'manual_unlock'
+export type RegistrationRiskAction = 'none' | 'observe' | 'medium' | 'high' | 'manual_lock' | 'manual_unlock'
 
 export interface RegistrationRiskEvidence {
   signal: string
@@ -21,6 +21,7 @@ export interface RegistrationRiskItem {
 
 export interface RegistrationRiskListResponse {
   items: RegistrationRiskItem[]
+  has_more?: boolean
 }
 
 export interface RegistrationRiskOverrideResponse {
@@ -28,9 +29,9 @@ export interface RegistrationRiskOverrideResponse {
   action: RegistrationRiskAction | string
 }
 
-export async function listRegistrationRisk(limit = 100): Promise<RegistrationRiskListResponse> {
+export async function listRegistrationRisk(limit = 100, offset = 0): Promise<RegistrationRiskListResponse> {
   const { data } = await apiClient.get<RegistrationRiskListResponse>('/custom/admin/registration-risk', {
-    params: { limit },
+    params: { limit, ...(offset > 0 ? { offset } : {}) },
   })
   return data
 }

@@ -9,7 +9,7 @@ vi.mock('@/api/client', () => ({
   apiClient: { get, post },
 }))
 
-import { listRegistrationRisk, lockRegistrationRisk, unlockRegistrationRisk } from '@/api/admin/registrationRisk'
+import { listRegistrationRisk, lockRegistrationRisk, unlockRegistrationRisk } from '../admin-api'
 
 describe('registration risk admin API', () => {
   beforeEach(() => {
@@ -22,6 +22,13 @@ describe('registration risk admin API', () => {
 
     await expect(listRegistrationRisk(250)).resolves.toEqual({ items: [] })
     expect(get).toHaveBeenCalledWith('/custom/admin/registration-risk', { params: { limit: 250 } })
+  })
+
+  it('requests subsequent observation pages by offset', async () => {
+    get.mockResolvedValue({ data: { items: [], has_more: false } })
+
+    await expect(listRegistrationRisk(100, 100)).resolves.toEqual({ items: [], has_more: false })
+    expect(get).toHaveBeenCalledWith('/custom/admin/registration-risk', { params: { limit: 100, offset: 100 } })
   })
 
   it('submits a required review reason for both override actions', async () => {

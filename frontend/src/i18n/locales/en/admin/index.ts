@@ -6,7 +6,6 @@ import ops from './ops'
 import settings from './settings'
 import audit from './audit'
 import promptAudit from './promptAudit'
-import registrationRisk from './registrationRisk'
 import { mergeCustomAdminLocale } from '@/custom/locales'
 import plugins from './plugins'
 
@@ -19,7 +18,6 @@ const base = {
   ...settings,
   ...audit,
   ...promptAudit,
-  ...registrationRisk,
   ...plugins,
 }
 
