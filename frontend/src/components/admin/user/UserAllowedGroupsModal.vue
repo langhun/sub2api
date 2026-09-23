@@ -233,12 +233,13 @@ const groups = ref<Group[]>([])
 const groupConfigs = ref<GroupRateConfig[]>([])
 const originalGroupRates = ref<Record<number, number>>({}) // 记录原始专属倍率，用于检测删除
 const loading = ref(false)
+const loaded = ref(false)
 const submitting = ref(false)
 const restrictPublicGroups = ref(false)
 const loadError = ref('')
 const loadedUserId = ref<number | null>(null)
 let loadSequence = 0
-const canSave = computed(() => props.show && !!props.user && loadedUserId.value === props.user.id && !loading.value && !loadError.value && !submitting.value)
+const canSave = computed(() => props.show && !!props.user && loaded.value && loadedUserId.value === props.user.id && !loading.value && !loadError.value && !submitting.value)
 
 // 分离专属分组和公开分组
 const exclusiveGroups = computed(() => groups.value.filter((g) => g.is_exclusive))
@@ -251,6 +252,7 @@ const load = async () => {
   const user = props.user
   if (!props.show || !user) return
   const sequence = ++loadSequence
+  loaded.value = false
   loadedUserId.value = null
   loadError.value = ''
   groups.value = []
@@ -283,6 +285,7 @@ const load = async () => {
         g.is_exclusive || restrictPublicGroups.value ? userAllowedGroups.includes(g.id) : true,
     }))
     loadedUserId.value = user.id
+    loaded.value = true
   } catch (error) {
     if (sequence !== loadSequence) return
     loadError.value = t('common.error')
@@ -294,7 +297,9 @@ const load = async () => {
 
 watch([() => props.show, () => props.user?.id], ([show]) => {
   ++loadSequence
+  loaded.value = false
   loadedUserId.value = null
+  loadError.value = ''
   if (show && props.user) void load()
 }, { immediate: true })
 

@@ -129,7 +129,7 @@ const apiKeys = ref<ApiKey[]>([])
 const allGroups = ref<AdminGroup[]>([])
 const loading = ref(false)
 const loadError = ref('')
-let loadSequence = 0
+let requestVersion = 0
 const updatingKeyIds = ref(new Set<number>())
 const groupSelectorKeyId = ref<number | null>(null)
 const dropdownPosition = ref<{ top: number; left: number } | null>(null)
@@ -152,20 +152,21 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 
 const load = async () => {
   if (!props.show || !props.user) return
-  const sequence = ++loadSequence
+  const version = ++requestVersion
+  apiKeys.value = []
   loading.value = true
   loadError.value = ''
   groupButtonRefs.value.clear()
   try {
     const res = await adminAPI.users.getUserApiKeys(props.user.id)
-    if (sequence !== loadSequence) return
+    if (version !== requestVersion) return
     apiKeys.value = res.items || []
   } catch (error) {
-    if (sequence !== loadSequence) return
+    if (version !== requestVersion) return
     loadError.value = t('common.error')
     console.error('Failed to load API keys:', error)
   } finally {
-    if (sequence === loadSequence) loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
@@ -177,6 +178,17 @@ const loadGroups = async () => {
     console.error('Failed to load groups:', error)
   }
 }
+
+watch(() => [props.show, props.user?.id] as const, ([show], _, onCleanup) => {
+  onCleanup(() => { requestVersion++ })
+  closeGroupSelector()
+  loadError.value = ''
+  apiKeys.value = []
+  if (show && props.user) {
+    void load()
+    void loadGroups()
+  }
+}, { immediate: true })
 
 const DROPDOWN_HEIGHT = 272 // max-h-64 = 16rem = 256px + padding
 const DROPDOWN_GAP = 4
@@ -251,23 +263,13 @@ const handleClose = () => {
   emit('close')
 }
 
-watch([() => props.show, () => props.user?.id], ([show]) => {
-  ++loadSequence
-  closeGroupSelector()
-  apiKeys.value = []
-  if (show && props.user) {
-    void load()
-    void loadGroups()
-  }
-}, { immediate: true })
-
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeyDown, true)
 })
 
 onUnmounted(() => {
-  ++loadSequence
+  requestVersion++
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeyDown, true)
 })

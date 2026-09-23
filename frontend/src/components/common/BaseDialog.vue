@@ -189,6 +189,10 @@ const releaseDialog = () => {
   }
 }
 
+const updateScrollLock = () => {
+  document.body.classList.toggle('modal-open', openDialogs.size > 0)
+}
+
 // Prevent body scroll when modal is open and manage focus
 watch(
   () => props.show,
@@ -202,7 +206,7 @@ watch(
         opener: document.activeElement as HTMLElement,
       })
       // 使用CSS类而不是直接操作style,更易于管理多个对话框
-      document.body.classList.add('modal-open')
+      updateScrollLock()
 
       // 等待DOM更新后设置焦点到对话框
       await nextTick()

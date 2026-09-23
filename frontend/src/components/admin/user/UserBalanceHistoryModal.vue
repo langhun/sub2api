@@ -198,7 +198,9 @@ const totalRecharged = ref(0)
 const pageSize = 15
 const typeFilter = ref('')
 const loadError = ref('')
-let loadSequence = 0
+let requestVersion = 0
+
+onUnmounted(() => { requestVersion++ })
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 
@@ -216,7 +218,7 @@ const typeOptions = computed(() => [
 
 const loadHistory = async (page: number) => {
   if (!props.show || !props.user) return
-  const sequence = ++loadSequence
+  const version = ++requestVersion
   loading.value = true
   loadError.value = ''
   currentPage.value = page
@@ -227,29 +229,30 @@ const loadHistory = async (page: number) => {
       pageSize,
       typeFilter.value || undefined
     )
-    if (sequence !== loadSequence) return
+    if (version !== requestVersion) return
     history.value = res.items || []
     total.value = res.total || 0
     totalRecharged.value = res.total_recharged || 0
   } catch (error) {
-    if (sequence !== loadSequence) return
+    if (version !== requestVersion) return
     loadError.value = t('common.error')
     console.error('Failed to load balance history:', error)
   } finally {
-    if (sequence === loadSequence) loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
 watch([() => props.show, () => props.user?.id], ([show]) => {
-  ++loadSequence
+  requestVersion++
   history.value = []
   total.value = 0
   totalRecharged.value = 0
-  typeFilter.value = ''
-  if (show && props.user) void loadHistory(1)
+  loadError.value = ''
+  if (show && props.user) {
+    typeFilter.value = ''
+    loadHistory(1)
+  }
 }, { immediate: true })
-
-onUnmounted(() => { ++loadSequence })
 
 // Helper: check if admin type
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
