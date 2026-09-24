@@ -35,7 +35,7 @@ func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	m := &Module{repo: NewRepository(db)}
 	outcome := service.SmartRoutingOutcome{
-		RequestID: "request-outcome", APIKeyID: 9, FinalGroupID: 21,
+		RequestID: "request-outcome", UsageRequestID: "local:request-outcome", APIKeyID: 9, FinalGroupID: 21,
 		FinalAccountID: 12, FinalSuccess: true, Attempts: 2,
 		GroupSwitches: 1, DurationMs: 2500, FirstTokenMs: 120,
 	}
@@ -43,7 +43,7 @@ func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
 		WithArgs("request-outcome", int64(9), int64(21), int64(12), true, 2, 1, int64(2500), int64(120), 0).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("INSERT INTO custom_usage_log_routing_marks").
-		WithArgs("request-outcome", int64(9)).
+		WithArgs("local:request-outcome", int64(9)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("DELETE FROM custom_route_outcomes").WillReturnResult(sqlmock.NewResult(0, 3))
 	m.RecordRoutingOutcome(outcome)

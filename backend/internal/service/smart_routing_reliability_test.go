@@ -90,7 +90,9 @@ func TestSmartRoutingFailureScopeAllowsSharedAccountAcrossGroups(t *testing.T) {
 func TestSmartRoutingOutcomeUsesFinalRequestResult(t *testing.T) {
 	collector := &routeOutcomeCollector{}
 	state := &SmartRoutingRequestState{SmartRoutingActive: true, CurrentGroupID: 2, RequestedModel: "gpt-5", EndpointType: "responses", Observer: collector, SmartRoutingStartedAt: time.Now(), TotalAttempts: 2}
-	ctx := WithSmartRoutingState(WithAPIKeyContext(context.WithValue(context.Background(), ctxkey.RequestID, "request-outcome"), &APIKey{ID: 9}), state)
+	ctx := context.WithValue(context.Background(), ctxkey.ClientRequestID, "client-outcome")
+	ctx = context.WithValue(ctx, ctxkey.RequestID, "request-outcome")
+	ctx = WithSmartRoutingState(WithAPIKeyContext(ctx, &APIKey{ID: 9}), state)
 	account := &Account{ID: 11}
 	ObserveSmartRoutingAttempt(ctx, account, true, 2*time.Second, nil, &UpstreamFailoverError{StatusCode: 503})
 	state.CurrentGroupID = 21
@@ -99,12 +101,26 @@ func TestSmartRoutingOutcomeUsesFinalRequestResult(t *testing.T) {
 	RecordSmartRoutingOutcome(ctx, true, state.CurrentGroupID, account.ID, 2500*time.Millisecond)
 	RecordSmartRoutingOutcome(ctx, false, 2, account.ID, 3*time.Second)
 	require.Len(t, collector.outcomes, 1)
+	require.Equal(t, "request-outcome", collector.outcomes[0].RequestID)
+	require.Equal(t, "client:client-outcome", collector.outcomes[0].UsageRequestID)
 	require.True(t, collector.outcomes[0].FinalSuccess)
 	require.Equal(t, int64(21), collector.outcomes[0].FinalGroupID)
 	require.Equal(t, int64(11), collector.outcomes[0].FinalAccountID)
 	require.Equal(t, 2, collector.outcomes[0].Attempts)
 	require.Equal(t, int64(120), collector.outcomes[0].FirstTokenMs)
 	require.Zero(t, collector.outcomes[0].ErrorStatus)
+}
+
+func TestSmartRoutingOutcomeUsesLocalBillingRequestIDWithoutClientID(t *testing.T) {
+	collector := &routeOutcomeCollector{}
+	state := &SmartRoutingRequestState{SmartRoutingActive: true, Observer: collector}
+	ctx := WithSmartRoutingState(WithAPIKeyContext(context.WithValue(context.Background(), ctxkey.RequestID, "request-local"), &APIKey{ID: 9}), state)
+
+	RecordSmartRoutingOutcome(ctx, true, 21, 11, time.Second)
+
+	require.Len(t, collector.outcomes, 1)
+	require.Equal(t, "request-local", collector.outcomes[0].RequestID)
+	require.Equal(t, "local:request-local", collector.outcomes[0].UsageRequestID)
 }
 
 func TestSmartRoutingOutcomeCapturesRequestScopedFailureAttribution(t *testing.T) {

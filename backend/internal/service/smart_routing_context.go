@@ -35,6 +35,7 @@ type SmartRoutingAuditRecorder interface {
 
 type SmartRoutingOutcome struct {
 	RequestID      string
+	UsageRequestID string
 	APIKeyID       int64
 	FinalGroupID   int64
 	FinalAccountID int64

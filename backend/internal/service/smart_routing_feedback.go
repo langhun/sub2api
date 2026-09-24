@@ -304,12 +304,13 @@ func RecordSmartRoutingOutcome(ctx context.Context, success bool, groupID, accou
 	if requestID == "" || key == nil {
 		return
 	}
+	usageRequestID := resolveUsageBillingRequestID(ctx, "")
 	recorder, ok := state.Observer.(SmartRoutingOutcomeRecorder)
 	if !ok {
 		return
 	}
 	recorder.RecordRoutingOutcome(SmartRoutingOutcome{
-		RequestID: requestID, APIKeyID: key.ID, FinalGroupID: state.FinalGroupID,
+		RequestID: requestID, UsageRequestID: usageRequestID, APIKeyID: key.ID, FinalGroupID: state.FinalGroupID,
 		FinalAccountID: state.FinalAccountID, FinalSuccess: success,
 		Attempts: state.TotalAttempts, GroupSwitches: state.GroupSwitches,
 		DurationMs: duration.Milliseconds(), FirstTokenMs: state.FirstTokenMs,
