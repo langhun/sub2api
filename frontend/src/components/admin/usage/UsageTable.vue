@@ -118,9 +118,19 @@
         </template>
 
         <template #cell-group="{ row }">
-          <span v-if="row.group" class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-            {{ row.group.name }}
-          </span>
+          <div v-if="row.smart_routing || row.group" class="flex flex-wrap items-center gap-1">
+            <span
+              v-if="row.smart_routing"
+              data-testid="smart-routing-badge"
+              class="inline-flex items-center rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium leading-tight text-sky-800 ring-1 ring-inset ring-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:ring-sky-700"
+            >
+              {{ t('usage.smartRouting') }}
+            </span>
+            <span v-if="row.group" class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+              {{ row.group.name }}
+            </span>
+            <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          </div>
           <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
         </template>
 

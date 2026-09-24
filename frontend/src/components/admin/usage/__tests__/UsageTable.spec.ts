@@ -69,8 +69,9 @@ const messages: Record<string, string> = {
 	'usage.requestedModel': 'Requested',
 	'usage.sentUpstreamModel': 'Sent upstream',
 	'usage.upstreamResponseModel': 'Upstream response',
-	'usage.modelVariant': 'Possible version variant',
-	'usage.modelMismatch': 'Different model',
+  'usage.modelVariant': 'Possible version variant',
+  'usage.modelMismatch': 'Different model',
+  'usage.smartRouting': 'Smart routing',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -95,6 +96,7 @@ const DataTableStub = {
         <slot name="cell-cost" :row="row" />
         <slot name="cell-request_id" :row="row" />
         <slot name="cell-upstream_request_id" :row="row" />
+        <slot name="cell-group" :row="row" />
       </div>
     </div>
   `,
@@ -607,6 +609,45 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('Per-image price')
     expect(text).toContain('not recorded')
     expect(text).not.toContain('(2K)')
+  })
+})
+
+describe('admin UsageTable smart-routing marker', () => {
+  it('places the smart-routing badge before the selected group only for marked rows', () => {
+    const DataTableGroupStub = {
+      props: ['data'],
+      template: `
+        <div>
+          <div v-for="row in data" :key="row.request_id">
+            <slot name="cell-group" :row="row" />
+          </div>
+        </div>
+      `,
+    }
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [
+          { request_id: 'smart', smart_routing: true, group: { name: 'GPT-Plus' } },
+          { request_id: 'ordinary', smart_routing: false, group: { name: 'GPT-Plus' } },
+        ],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableGroupStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const cells = wrapper.findAll('[data-testid="smart-routing-badge"]')
+    expect(cells).toHaveLength(1)
+    expect(cells[0].text()).toBe('Smart routing')
+    expect(cells[0].element.parentElement?.textContent).toContain('GPT-Plus')
+    expect(wrapper.findAll('[data-testid="smart-routing-badge"] + span').length).toBe(1)
   })
 })
 

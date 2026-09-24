@@ -48,6 +48,15 @@ func (r *usageLogRepository) GetByID(ctx context.Context, id int64) (log *servic
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
+	// Release the usage-log query connection before the best-effort Overlay
+	// lookup. This keeps GetByID safe when the database pool has only one
+	// connection available.
+	if err = rows.Close(); err != nil {
+		return nil, err
+	}
+	logs := []service.UsageLog{*log}
+	r.hydrateSmartRoutingFlags(ctx, logs)
+	*log = logs[0]
 	return log, nil
 }
 
@@ -321,7 +330,74 @@ func (r *usageLogRepository) hydrateUsageLogAssociations(ctx context.Context, lo
 			}
 		}
 	}
+	r.hydrateSmartRoutingFlags(ctx, logs)
 	return nil
+}
+
+// hydrateSmartRoutingFlags enriches already-loaded usage rows from the
+// Overlay-owned durable marker table. The lookup is deliberately best effort:
+// a missing/temporarily unavailable Overlay table must never make ordinary
+// usage history unavailable, and an unknown marker is represented as false.
+func (r *usageLogRepository) hydrateSmartRoutingFlags(ctx context.Context, logs []service.UsageLog) {
+	if r == nil || r.sql == nil || len(logs) == 0 {
+		return
+	}
+
+	type markerKey struct {
+		requestID string
+		apiKeyID  int64
+	}
+	keys := make([]markerKey, 0, len(logs))
+	seen := make(map[markerKey]struct{}, len(logs))
+	for _, log := range logs {
+		requestID := strings.TrimSpace(log.RequestID)
+		if requestID == "" || log.APIKeyID <= 0 {
+			continue
+		}
+		key := markerKey{requestID: requestID, apiKeyID: log.APIKeyID}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		return
+	}
+
+	placeholders := make([]string, 0, len(keys))
+	args := make([]any, 0, len(keys)*2)
+	for i, key := range keys {
+		requestPos := i*2 + 1
+		apiKeyPos := requestPos + 1
+		placeholders = append(placeholders, fmt.Sprintf("($%d,$%d)", requestPos, apiKeyPos))
+		args = append(args, key.requestID, key.apiKeyID)
+	}
+	query := "SELECT request_id, api_key_id FROM custom_usage_log_routing_marks WHERE (request_id, api_key_id) IN (" + strings.Join(placeholders, ",") + ")"
+	rows, err := r.sql.QueryContext(ctx, query, args...)
+	if err != nil {
+		return
+	}
+	defer func() { _ = rows.Close() }()
+
+	marked := make(map[markerKey]struct{}, len(keys))
+	for rows.Next() {
+		var requestID string
+		var apiKeyID int64
+		if err := rows.Scan(&requestID, &apiKeyID); err != nil {
+			return
+		}
+		marked[markerKey{requestID: requestID, apiKeyID: apiKeyID}] = struct{}{}
+	}
+	if rows.Err() != nil {
+		return
+	}
+	for i := range logs {
+		_, logs[i].SmartRouting = marked[markerKey{
+			requestID: strings.TrimSpace(logs[i].RequestID),
+			apiKeyID:  logs[i].APIKeyID,
+		}]
+	}
 }
 
 type usageLogIDs struct {

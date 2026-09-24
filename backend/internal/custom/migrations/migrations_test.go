@@ -152,3 +152,25 @@ func TestSmartRoutingDecisionRetentionMigrationAddsCreatedIndex(t *testing.T) {
 		}
 	}
 }
+
+func TestSmartRoutingUsageMarksMigrationIsDurable(t *testing.T) {
+	content, err := files.ReadFile("021_smart_routing_usage_marks.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"CREATE TABLE IF NOT EXISTS custom_usage_log_routing_marks",
+		"request_id TEXT NOT NULL",
+		"api_key_id BIGINT NOT NULL",
+		"PRIMARY KEY (request_id, api_key_id)",
+		"custom_usage_log_routing_marks_key_idx",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+	if strings.Contains(sql, "DELETE FROM custom_usage_log_routing_marks") {
+		t.Fatal("usage routing markers must remain available for historical usage records")
+	}
+}

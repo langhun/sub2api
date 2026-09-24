@@ -178,6 +178,13 @@ func (m *Module) flushOutcomes(shard int) {
 		if err != nil {
 			slog.Warn("smart_routing_outcome_write_failed", "request_id", a.RequestID, "error", err)
 		}
+		// Outcome telemetry is retained for a short window, but the usage history
+		// needs a durable request-level marker so old records can still explain
+		// that smart routing was used after telemetry cleanup.
+		if _, markerErr := m.repo.db.ExecContext(ctx, `INSERT INTO custom_usage_log_routing_marks (request_id, api_key_id)
+            VALUES ($1,$2) ON CONFLICT (request_id, api_key_id) DO NOTHING`, a.RequestID, a.APIKeyID); markerErr != nil {
+			slog.Warn("smart_routing_usage_marker_write_failed", "request_id", a.RequestID, "error", markerErr)
+		}
 		if cleanup {
 			_, err = m.repo.db.ExecContext(ctx, `DELETE FROM custom_route_outcomes WHERE ctid IN (SELECT ctid FROM custom_route_outcomes WHERE created_at < NOW()-INTERVAL '24 hours' LIMIT 10000)`)
 			if err != nil {

@@ -42,6 +42,9 @@ func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
 	mock.ExpectExec("INSERT INTO custom_route_outcomes").
 		WithArgs("request-outcome", int64(9), int64(21), int64(12), true, 2, 1, int64(2500), int64(120), 0).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO custom_usage_log_routing_marks").
+		WithArgs("request-outcome", int64(9)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("DELETE FROM custom_route_outcomes").WillReturnResult(sqlmock.NewResult(0, 3))
 	m.RecordRoutingOutcome(outcome)
 	require.Eventually(t, func() bool {

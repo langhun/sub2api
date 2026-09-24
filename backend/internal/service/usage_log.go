@@ -107,7 +107,11 @@ type UsageLog struct {
 	APIKeyID  int64
 	AccountID int64
 	RequestID string
-	Model     string
+	// SmartRouting is true only when this request entered the smart-routing
+	// resolver. It is hydrated from the Overlay's request marker table when
+	// usage records are read; ordinary and historical rows remain false.
+	SmartRouting bool
+	Model        string
 	// RequestedModel is the client-requested model name recorded for stable user/admin display.
 	// Empty should be treated as Model for backward compatibility with historical rows.
 	RequestedModel string
