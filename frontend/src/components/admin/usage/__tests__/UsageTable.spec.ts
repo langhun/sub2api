@@ -72,6 +72,7 @@ const messages: Record<string, string> = {
   'usage.modelVariant': 'Possible version variant',
   'usage.modelMismatch': 'Different model',
   'usage.smartRouting': 'Smart routing',
+  'usage.smartRoutingShort': 'Smart',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -645,7 +646,8 @@ describe('admin UsageTable smart-routing marker', () => {
 
     const cells = wrapper.findAll('[data-testid="smart-routing-badge"]')
     expect(cells).toHaveLength(1)
-    expect(cells[0].text()).toBe('Smart routing')
+    expect(cells[0].text()).toContain('Smart')
+    expect(cells[0].text()).toContain('Smart routing')
     expect(cells[0].attributes('title')).toBe('Smart routing')
     expect(cells[0].attributes('aria-label')).toBe('Smart routing')
     expect(cells[0].element.parentElement?.className).toContain('relative')

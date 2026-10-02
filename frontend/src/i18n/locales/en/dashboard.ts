@@ -422,6 +422,7 @@ export default {
     title: 'Usage Records',
     description: 'View and analyze your API usage history',
     smartRouting: 'Smart routing',
+    smartRoutingShort: 'Smart',
     costDetails: 'Cost Breakdown',
     tokenDetails: 'Token Breakdown',
     cacheTtlOverriddenHint: 'Cache TTL Override enabled',

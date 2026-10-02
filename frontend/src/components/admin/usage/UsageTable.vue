@@ -126,9 +126,10 @@
                 role="img"
                 :title="t('usage.smartRouting')"
                 :aria-label="t('usage.smartRouting')"
-                class="absolute -top-1.5 left-1 z-10 inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-100 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200 dark:bg-sky-900/80 dark:text-sky-200 dark:ring-sky-700"
+                class="absolute -right-1 -top-2 z-10 inline-flex items-center gap-0.5 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:bg-indigo-500 dark:ring-dark-800"
               >
-                <Icon name="swap" size="xs" class="h-3 w-3" :stroke-width="2" aria-hidden="true" />
+                <Icon name="sparkles" size="xs" class="h-2.5 w-2.5" :stroke-width="2" aria-hidden="true" />
+                <span>{{ t('usage.smartRoutingShort') }}</span>
                 <span class="sr-only">{{ t('usage.smartRouting') }}</span>
               </span>
               <span class="inline-flex max-w-full items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
@@ -141,9 +142,10 @@
               role="img"
               :title="t('usage.smartRouting')"
               :aria-label="t('usage.smartRouting')"
-              class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200 dark:bg-sky-900/80 dark:text-sky-200 dark:ring-sky-700"
+              class="inline-flex items-center gap-0.5 rounded-full bg-indigo-600 px-1.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm ring-1 ring-inset ring-indigo-400 dark:bg-indigo-500 dark:ring-indigo-300"
             >
-              <Icon name="swap" size="xs" class="h-3 w-3" :stroke-width="2" aria-hidden="true" />
+              <Icon name="sparkles" size="xs" class="h-2.5 w-2.5" :stroke-width="2" aria-hidden="true" />
+              <span>{{ t('usage.smartRoutingShort') }}</span>
               <span class="sr-only">{{ t('usage.smartRouting') }}</span>
             </span>
             <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
