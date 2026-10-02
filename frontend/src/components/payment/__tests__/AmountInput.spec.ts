@@ -4,12 +4,6 @@ import AmountInput from '@/components/payment/AmountInput.vue'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params && 'amount' in params ? `${key} ${String(params.amount)}` : key,
   }),
