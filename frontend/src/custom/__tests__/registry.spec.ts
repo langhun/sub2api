@@ -105,7 +105,6 @@ describe('custom overlay registry', () => {
       'activity-entry-switches',
       'apple-theme',
       'activity',
-      'recharge-promotions',
       'registration-protection',
       'support-contacts',
     ])
@@ -145,12 +144,12 @@ describe('custom overlay registry', () => {
     expect(usersViewSource).not.toContain('@/custom/modules/checkin-user-access')
   })
 
-  it('mounts recharge overlays through generic checkout and order detail adapters', () => {
-    expect(customRechargeSummaryExtensions.map((extension) => extension.id)).toContain('recharge-promotions')
-    expect(customPaymentOrderDetailExtensions.map((extension) => extension.id)).toContain('recharge-promotions')
-    expect(paymentViewSource).toContain("import { customRechargeSummaryExtensions } from '@/custom/registry'")
-    expect(paymentViewSource).toContain('v-for="extension in customRechargeSummaryExtensions"')
-    expect(paymentViewSource).not.toContain('@/custom/modules/recharge-promotions/RechargePromotionSummary.vue')
+  it('leaves recharge bonus rendering and order data to the upstream implementation', () => {
+    expect(customRechargeSummaryExtensions).toHaveLength(0)
+    expect(customPaymentOrderDetailExtensions).toHaveLength(0)
+    expect(paymentViewSource).not.toContain("import { customRechargeSummaryExtensions } from '@/custom/registry'")
+    expect(paymentViewSource).not.toContain('v-for="extension in customRechargeSummaryExtensions"')
+    expect(paymentViewSource).toContain('rechargeBonusTiers')
     expect(userOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
     expect(adminOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
   })

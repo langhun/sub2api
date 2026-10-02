@@ -83,6 +83,7 @@ func NewRuntime(
 	settingService *service.SettingService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
+	_ = paymentService // retained in the composition contract for Overlay compatibility
 	bepusdt.Register()
 	gmpayedge.Register()
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
@@ -182,9 +183,9 @@ func NewRuntime(
 		return nil, err
 	}
 	rechargePromotions := rechargepromotions.NewModule(customSettingsRegistry, db)
-	if paymentService != nil {
-		paymentService.SetBalanceOrderExtension(rechargePromotions)
-	}
+	// Recharge bonuses are calculated by the upstream payment service. Keep the
+	// legacy module available for historical data inspection/migration, but do
+	// not install it as an order extension or bonuses would be applied twice.
 	channelMonitorV2ActiveProbes := channelmonitorv2activeprobes.NewModule(db, customSettingsRegistry, channelMonitorRunner, settingService)
 	if channelMonitorService != nil {
 		channelMonitorService.SetCheckExtension(channelMonitorV2ActiveProbes)

@@ -25,9 +25,6 @@ import {
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
 import { openAIAccountActions, type CustomAccountAction } from './modules/openai-rt/accountActions'
-import RechargePromotionOrderBreakdown from './modules/recharge-promotions/RechargePromotionOrderBreakdown.vue'
-import RechargePromotionSummary from './modules/recharge-promotions/RechargePromotionSummary.vue'
-import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
 import SupportContactEntry from './modules/support-contacts/SupportContactEntry.vue'
 import { supportContactsSettingsPanels } from './modules/support-contacts/settings'
 import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
@@ -130,11 +127,9 @@ export const customAdminUserActionModals: readonly CustomAdminUserActionModal[] 
 // Core checkout and order pages render these components through the fixed
 // generic mount points. They do not import feature implementations directly.
 export const customRechargeSummaryExtensions: readonly CustomRechargeSummaryExtension[] = [
-  { id: 'recharge-promotions', component: RechargePromotionSummary },
 ]
 
 export const customPaymentOrderDetailExtensions: readonly CustomPaymentOrderDetailExtension[] = [
-  { id: 'recharge-promotions', component: RechargePromotionOrderBreakdown },
 ]
 
 export const customLedgerDisplay = {
@@ -199,7 +194,6 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...appleThemeSettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
-  ...rechargePromotionSettingsPanels,
   ...supportContactsSettingsPanels,
   ...registrationProtectionSettingsPanels,
 ].sort((left, right) => left.order - right.order)

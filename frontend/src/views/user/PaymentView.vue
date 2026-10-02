@@ -52,94 +52,76 @@
             <div v-if="enabledMethods.length === 0" class="rounded-lg border border-gray-200 bg-white py-16 text-center shadow-card dark:border-dark-700 dark:bg-dark-800">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
-            <section v-else class="recharge-panel overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card dark:border-dark-700 dark:bg-dark-800/80">
-              <header class="px-5 pb-7 pt-8 sm:px-10 lg:px-11">
-                <h2 class="text-2xl font-bold text-gray-950 dark:text-white">{{ t('payment.rechargeTitle') }}</h2>
-                <p class="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('payment.rechargeSubtitle') }}</p>
-              </header>
-              <div class="recharge-divider mx-5 border-t border-gray-200 dark:border-dark-700 sm:mx-10 lg:mx-11"></div>
-
-              <div class="px-5 py-8 sm:px-10 lg:px-11">
-                <div class="recharge-workspace">
-                  <div class="recharge-fields space-y-6">
-                  <AmountInput
-                    v-model="amount"
-                    :amounts="[10, 20, 50, 100, 200, 500]"
-                    :min="globalMinAmount"
-                    :max="globalMaxAmount"
-                    :currency="selectedCurrency"
-                    :error="amountError"
-                  />
-                  <PaymentMethodSelector
-                    :methods="methodOptions"
-                    :selected="selectedMethod"
-                    @select="selectedMethod = $event"
-                  />
-                  </div>
-
-                  <aside data-testid="recharge-summary" class="recharge-summary rounded-lg border border-gray-200 bg-gray-50/80 px-5 py-6 dark:border-dark-700 dark:bg-dark-900/35 sm:px-7 sm:py-7">
-                  <div class="flex items-center gap-2">
-                    <Icon name="creditCard" size="sm" class="text-primary-600 dark:text-primary-400" />
-                    <h3 class="text-base font-semibold text-gray-950 dark:text-white">{{ t('payment.orderSummary') }}</h3>
-                  </div>
-                  <p class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">{{ t('payment.summaryAccount', { username: user?.username || '' }) }}</p>
-
-                  <div class="mt-7 space-y-4 text-sm">
-                    <div class="flex items-center justify-between gap-4">
-                      <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
-                      <span data-testid="summary-payment-amount" class="font-medium tabular-nums text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(validAmount) }}</span>
-                    </div>
-                    <div v-if="feeRate > 0" class="flex items-center justify-between gap-4">
-                      <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                      <span data-testid="summary-fee-amount" class="font-medium tabular-nums text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between gap-4">
-                      <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
-                      <span data-testid="summary-credited-amount" class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">${{ creditedAmount.toFixed(2) }}</span>
-                    </div>
-                    <component
-                      v-for="extension in customRechargeSummaryExtensions"
-                      :is="extension.component"
-                      :key="extension.id"
-                      :amount="validAmount"
-                      :base-credit="creditedAmount"
-                    />
-                    <div class="recharge-total border-t border-gray-200 pt-4 dark:border-dark-700">
-                      <div class="flex items-end justify-between gap-4">
-                        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                        <span data-testid="summary-total-amount" class="text-2xl font-bold tabular-nums text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p v-if="balanceRechargeMultiplier !== 1" class="mt-4 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
-                  </p>
-
-                  </aside>
-
-                  <div class="recharge-action">
-                  <button
-                    data-testid="recharge-submit"
-                    :class="['btn w-full rounded-md py-3.5 text-base font-semibold', paymentButtonClass]"
-                    :disabled="!canSubmit || submitting"
-                    @click="handleSubmitRecharge"
-                  >
-                    <span v-if="submitting" class="flex items-center justify-center gap-2">
-                      <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                      {{ t('common.processing') }}
-                    </span>
-                    <span v-else class="flex items-center justify-center gap-2">
-                      {{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}
-                      <Icon name="arrowRight" size="sm" />
-                    </span>
-                  </button>
-                  </div>
+            <template v-else>
+            <div class="card p-6">
+              <!-- 充值赠送活动文案（后台 Markdown 配置，空则不渲染） -->
+              <div
+                v-if="renderedBonusNotice"
+                class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100 [&_a]:font-medium [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_ol]:my-1 [&_ol]:ml-5 [&_ol]:list-decimal [&_p]:my-1 [&_strong]:font-semibold [&_ul]:my-1 [&_ul]:ml-5 [&_ul]:list-disc"
+                data-testid="recharge-bonus-notice"
+                v-html="renderedBonusNotice"
+              ></div>
+              <AmountInput
+                v-model="amount"
+                :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
+                :min="globalMinAmount"
+                :max="globalMaxAmount"
+                :bonus-tiers="rechargeBonusTiers"
+                :bonus-mode="rechargeBonusMode"
+                :multiplier="balanceRechargeMultiplier"
+                :currency="selectedCurrency"
+              />
+              <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
+            </div>
+            <div v-if="enabledMethods.length >= 1" class="card p-6">
+              <PaymentMethodSelector
+                :methods="methodOptions"
+                :selected="selectedMethod"
+                @select="selectedMethod = $event"
+              />
+            </div>
+            <div v-if="validAmount > 0" class="card p-6">
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
+                  <span :class="discountAmount > 0 ? 'text-gray-400 line-through dark:text-gray-500' : 'text-gray-900 dark:text-white'">{{ formatSelectedPaymentAmount(validAmount) }}</span>
                 </div>
+                <div v-if="discountAmount > 0" class="flex justify-between" data-testid="recharge-discount-row">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonus.discountLabelWithPercent', { percent: formatRechargeBonusNumber(bonusQuote.percent) }) }}</span>
+                  <span class="font-medium text-red-600 dark:text-red-400">-{{ formatSelectedPaymentAmount(discountAmount) }}</span>
+                </div>
+                <div v-if="feeRate > 0" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
+                  <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
+                </div>
+                <div v-if="showActualPay" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
+                  <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
+                </div>
+                <div v-if="showBonusRow" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': !showActualPay }" data-testid="recharge-bonus-row">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonus.amountLabelWithPercent', { percent: formatRechargeBonusNumber(bonusQuote.percent) }) }}</span>
+                  <span class="font-medium text-red-600 dark:text-red-400">+${{ bonusQuote.bonus.toFixed(2) }}</span>
+                </div>
+                <div v-if="showCreditedBalance" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': !showActualPay && !showBonusRow }" data-testid="recharge-credited-row">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
+                  <span :class="bonusQuote.percent > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'">${{ creditedAmount.toFixed(2) }}</span>
+                </div>
+                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                  {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                </p>
               </div>
-            </section>
+            <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmit || submitting" @click="handleSubmitRecharge">
+              <span v-if="submitting" class="flex items-center justify-center gap-2">
+                <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                {{ t('common.processing') }}
+              </span>
+              <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
+            </button>
+            </div>
+            </template>
           </template>
           <!-- Subscribe Tab -->
-          <template v-else-if="activeTab === 'subscription'">
+          <template v-if="isSubscriptionActive()">
             <!-- Subscription confirm (inline, replaces plan list) -->
             <template v-if="selectedPlan">
               <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card dark:border-dark-700 dark:bg-dark-800/80">
@@ -326,6 +308,7 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiErro
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import { formatRechargeBonusNumber, normalizeRechargeBonusMode, normalizeRechargeBonusTiers, quoteRechargeBonus } from '@/utils/rechargeBonus'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -350,7 +333,6 @@ import { planValiditySuffix as validitySuffixOf } from '@/components/payment/val
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
-import { customRechargeSummaryExtensions } from '@/custom/registry'
 import { customPaymentTypeDefinition } from '@/custom/payments'
 
 const i18n = useI18n()
@@ -563,11 +545,19 @@ function onPaymentSettled() {
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  recharge_bonus_tiers: [], recharge_bonus_mode: 'bonus', recharge_bonus_notice: '',
 })
 
 const renderedHelpText = computed(() => DOMPurify.sanitize(
   marked.parse(checkout.value.help_text || '', { async: false, gfm: true, breaks: false }),
 ))
+
+// 充值赠送活动文案：后台 Markdown 配置，空字符串时金额卡顶部不渲染
+const renderedBonusNotice = computed(() => {
+  const raw = (checkout.value.recharge_bonus_notice || '').trim()
+  if (!raw) return ''
+  return DOMPurify.sanitize(marked.parse(raw, { async: false, gfm: true, breaks: true }))
+})
 
 // 订阅功能开关（public settings 的 subscription_enabled，opt-out）。关闭后购买页只保留充值：
 // 不再渲染「订阅」tab，只剩单个 tab 时顶部切换器也随之隐藏。
@@ -579,6 +569,10 @@ const tabs = computed(() => {
   if (subscriptionEnabled.value) result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
   return result
 })
+
+function isSubscriptionActive(): boolean {
+  return activeTab.value === 'subscription'
+}
 
 // tab 列表随 checkout（balance_disabled）与订阅开关变化。当前 tab 不在列表里时收敛到第一个可用 tab，
 // 两个方向都覆盖：关闭订阅 → 回到充值；仅订阅站点重新打开订阅 → 进入订阅。列表为空时模板展示不可用提示。
@@ -601,7 +595,8 @@ const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const rechargeBonusTiers = computed(() => normalizeRechargeBonusTiers(checkout.value.recharge_bonus_tiers))
+const rechargeBonusMode = computed(() => normalizeRechargeBonusMode(checkout.value.recharge_bonus_mode))
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
@@ -691,16 +686,18 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
-const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
-function rechargeAmountsForCurrency(value: number, currency: string): { fee: number; total: number } {
-  if (feeRate.value <= 0 || value <= 0) return { fee: 0, total: roundPaymentAmount(value, currency) }
-  const fee = ceilPaymentAmount((value * feeRate.value) / 100, currency)
-  return { fee, total: roundPaymentAmount(value + fee, currency) }
-}
-
-const selectedRechargeAmounts = computed(() => rechargeAmountsForCurrency(validAmount.value, selectedCurrency.value))
-const feeAmount = computed(() => selectedRechargeAmounts.value.fee)
-const totalAmount = computed(() => selectedRechargeAmounts.value.total)
+// 充值优惠：阈值按输入金额命中；赠金模式按到账基数（输入 × 倍率）加赠送，折扣模式按百分比减实付。
+// 与后端 quoteRechargeBonus 一致；渠道限额、手续费、实付都按折后基数（payBaseAmount）计算，提交仍发送输入金额。
+const bonusQuote = computed(() => quoteRechargeBonus(rechargeBonusTiers.value, validAmount.value, {
+  multiplier: balanceRechargeMultiplier.value,
+  mode: rechargeBonusMode.value,
+  currencyDigits: currencyFractionDigits(selectedCurrency.value),
+}))
+const payBaseAmount = computed(() => bonusQuote.value.payBase)
+const discountAmount = computed(() => roundPaymentAmount(validAmount.value - payBaseAmount.value, selectedCurrency.value))
+const creditedAmount = computed(() => bonusQuote.value.credited)
+const showBonusRow = computed(() => bonusQuote.value.mode !== 'discount' && bonusQuote.value.bonus > 0)
+const showCreditedBalance = computed(() => balanceRechargeMultiplier.value !== 1 || bonusQuote.value.percent > 0)
 
 const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
@@ -713,7 +710,7 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      ...paymentMethodAvailability(validAmount.value, type),
+      ...paymentMethodAvailability(payBaseAmount.value, type),
       minimum_amount: ml?.single_min,
       maximum_amount: ml?.single_max,
       currency,
@@ -721,28 +718,36 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
   })
 )
 
+const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const feeAmount = computed(() =>
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.ceil(((payBaseAmount.value * feeRate.value) / 100) * 100) / 100
+    : 0
+)
+const totalAmount = computed(() =>
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.round((payBaseAmount.value + feeAmount.value) * 100) / 100
+    : payBaseAmount.value
+)
+const showActualPay = computed(() => feeRate.value > 0 || discountAmount.value > 0)
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
-  // Prefer a concrete limit over the generic no-method message. The method
-  // card stays visible so users can see exactly how much is required.
+  // No method can handle this amount
+  if (!enabledMethods.value.some((m) => amountFitsMethod(payBaseAmount.value, m))) {
+    return t('payment.amountNoMethod')
+  }
+  // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) {
-      return t('payment.minimumToUse', { amount: formatSelectedPaymentAmount(ml.single_min) })
-    }
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) {
-      return t('payment.maximumToUse', { amount: formatSelectedPaymentAmount(ml.single_max) })
-    }
-  }
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
-    return t('payment.amountNoMethod')
+    if (ml.single_min > 0 && payBaseAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && payBaseAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
+    && amountFitsMethod(payBaseAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -794,7 +799,7 @@ const canSubmitSubscription = computed(() =>
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
+watch(() => [payBaseAmount.value, selectedMethod.value] as const, ([amt, method]) => {
   if (amt <= 0 || amountFitsMethod(amt, method)) return
   const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
   if (available) selectedMethod.value = available

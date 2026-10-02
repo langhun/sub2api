@@ -74,21 +74,6 @@ func RegisterRoutes(
 		v1.Use(middleware.AdminComplianceGuard(settingService))
 		runtime.ChannelMonitorV2ActiveProbes.RegisterRoutes(v1)
 	}
-	if runtime.RechargePromotions != nil {
-		v1 := r.Group("/api/v1")
-		preview := v1.Group("")
-		preview.Use(gin.HandlerFunc(jwtAuth))
-		preview.Use(middleware.BackendModeUserGuard(settingService))
-		authenticated := v1.Group("")
-		authenticated.Use(gin.HandlerFunc(jwtAuth))
-		authenticated.Use(middleware.BackendModeUserGuard(settingService))
-		authenticated.Use(gin.HandlerFunc(auditLog))
-		admin := v1.Group("/custom/admin")
-		admin.Use(gin.HandlerFunc(adminAuth))
-		admin.Use(gin.HandlerFunc(auditLog))
-		admin.Use(middleware.AdminComplianceGuard(settingService))
-		runtime.RechargePromotions.RegisterRoutes(admin, preview, authenticated)
-	}
 	if runtime.SupportContacts != nil {
 		v1 := r.Group("/api/v1")
 		public := v1.Group("")
