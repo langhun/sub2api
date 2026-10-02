@@ -159,6 +159,9 @@ func (p *Policy) CheckinRewardAllowed(ctx context.Context, userID int64) error {
 		case RiskActionManualUnlock:
 			return nil
 		}
+		if decision.Action == RiskActionMedium || decision.Action == RiskActionHigh {
+			return infraerrors.Forbidden("CHECKIN_REWARD_NOT_ALLOWED", "check-in rewards are not available for this account")
+		}
 	}
 	if p.store == nil {
 		return infraerrors.ServiceUnavailable("REGISTRATION_REWARD_PROTECTION_UNAVAILABLE", "registration reward protection is temporarily unavailable")
@@ -176,16 +179,6 @@ func (p *Policy) CheckinRewardAllowed(ctx context.Context, userID int64) error {
 			return infraerrors.Forbidden("CHECKIN_REWARD_NOT_ALLOWED", "check-in rewards are not available for this account")
 		}
 	}
-	if p.risk != nil {
-		_ = p.risk.RecordBehavior(ctx, userID, "fast_checkin")
-		decision, err := p.risk.Decision(ctx, userID)
-		if err != nil {
-			return infraerrors.ServiceUnavailable("REGISTRATION_REWARD_PROTECTION_UNAVAILABLE", "registration reward protection is temporarily unavailable").WithCause(err)
-		}
-		if decision.Action == RiskActionMedium || decision.Action == RiskActionHigh || decision.Action == RiskActionManualLock {
-			return infraerrors.Forbidden("CHECKIN_REWARD_NOT_ALLOWED", "check-in rewards are not available for this account")
-		}
-	}
 	return nil
 }
 
@@ -195,7 +188,6 @@ func (p *Policy) AllowAPIKeyCreation(ctx context.Context, userID int64) error {
 	if p == nil || p.risk == nil {
 		return nil
 	}
-	_ = p.risk.RecordBehavior(ctx, userID, "api_key_created")
 	decision, err := p.risk.Decision(ctx, userID)
 	if err != nil {
 		return infraerrors.ServiceUnavailable("REGISTRATION_RISK_UNAVAILABLE", "registration risk protection is temporarily unavailable").WithCause(err)

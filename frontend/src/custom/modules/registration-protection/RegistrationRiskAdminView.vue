@@ -40,6 +40,7 @@
                   <td class="px-4 py-4"><span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium" :class="actionClass(item.action)">{{ actionLabel(item.action) }}</span></td>
                   <td class="min-w-[160px] max-w-[240px] px-4 py-4 text-xs text-gray-600 dark:text-gray-300"><div class="flex flex-wrap gap-1"><span v-for="signal in item.signals" :key="signal" class="rounded bg-gray-100 px-2 py-1 dark:bg-dark-700">{{ signalLabel(signal) }}</span><span v-if="item.signals.length === 0">{{ t('admin.registrationRisk.noSignals') }}</span></div></td>
                   <td class="min-w-[240px] max-w-[320px] px-4 py-4 text-xs text-gray-600 dark:text-gray-300"><ul v-if="item.evidence?.length" class="space-y-1"><li v-for="entry in item.evidence" :key="`${entry.signal}-${entry.detail}`" class="leading-5">{{ evidenceDetail(entry.detail) }}</li></ul><span v-else>{{ t('admin.registrationRisk.noEvidence') }}</span></td>
+                  <td class="min-w-[220px] max-w-[300px] px-4 py-4 text-xs text-gray-600 dark:text-gray-300"><ul v-if="item.related_accounts?.length" class="space-y-1"><li v-for="account in item.related_accounts" :key="account.user_id" class="leading-5">#{{ account.user_id }} {{ account.email || '-' }}</li></ul><span v-else>{{ t('admin.registrationRisk.noRelatedAccounts') }}</span></td>
                   <td class="whitespace-nowrap px-4 py-4 text-xs text-gray-500 dark:text-gray-400">{{ formatDate(item.expires_at) }}</td>
                   <td class="whitespace-nowrap px-4 py-4 text-xs" :class="item.payment_unlocked ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'">{{ item.payment_unlocked ? t('admin.registrationRisk.paymentUnlocked') : t('admin.registrationRisk.paymentLocked') }}</td>
                   <td class="whitespace-nowrap px-4 py-4 text-right">
@@ -59,6 +60,7 @@
               <div class="flex flex-wrap gap-2 text-xs"><span class="rounded-full px-2 py-1 font-medium" :class="actionClass(item.action)">{{ actionLabel(item.action) }}</span><span class="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-dark-700 dark:text-gray-300">{{ item.payment_unlocked ? t('admin.registrationRisk.paymentUnlocked') : t('admin.registrationRisk.paymentLocked') }}</span></div>
               <div class="text-xs text-gray-500 dark:text-gray-400"><span class="font-medium">{{ t('admin.registrationRisk.signals') }}:</span> {{ item.signals.map(signalLabel).join(', ') || t('admin.registrationRisk.noSignals') }}</div>
               <div class="text-xs text-gray-500 dark:text-gray-400"><span class="font-medium">{{ t('admin.registrationRisk.evidence') }}:</span> <span v-if="item.evidence?.length">{{ item.evidence.map((entry) => evidenceDetail(entry.detail)).join('；') }}</span><span v-else>{{ t('admin.registrationRisk.noEvidence') }}</span></div>
+              <div class="text-xs text-gray-500 dark:text-gray-400"><span class="font-medium">{{ t('admin.registrationRisk.relatedAccounts') }}:</span> <span v-if="item.related_accounts?.length">{{ item.related_accounts.map(formatRelatedAccount).join('、') }}</span><span v-else>{{ t('admin.registrationRisk.noRelatedAccounts') }}</span></div>
               <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.registrationRisk.expires') }}: {{ formatDate(item.expires_at) }}</p>
               <div class="flex justify-end gap-2">
                 <button v-if="item.action !== 'manual_lock'" type="button" class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="loadingMore || saving" @click="openOverride(item, 'lock')"><Icon name="lock" size="sm" class="mr-1" />{{ t('admin.registrationRisk.lock') }}</button>
@@ -113,7 +115,7 @@ const saving = ref(false)
 const errorMessage = ref('')
 const dialog = reactive<{ show: boolean; mode: 'lock' | 'unlock'; userID: number | null; reason: string; reasonTouched: boolean }>({ show: false, mode: 'unlock', userID: null, reason: '', reasonTouched: false })
 
-const headings = computed(() => [t('admin.registrationRisk.userId'), t('admin.users.email'), t('admin.registrationRisk.score'), t('admin.registrationRisk.action'), t('admin.registrationRisk.signals'), t('admin.registrationRisk.evidence'), t('admin.registrationRisk.expires'), t('admin.registrationRisk.paymentUnlocked'), t('common.actions')])
+const headings = computed(() => [t('admin.registrationRisk.userId'), t('admin.users.email'), t('admin.registrationRisk.score'), t('admin.registrationRisk.action'), t('admin.registrationRisk.signals'), t('admin.registrationRisk.evidence'), t('admin.registrationRisk.relatedAccounts'), t('admin.registrationRisk.expires'), t('admin.registrationRisk.paymentUnlocked'), t('common.actions')])
 
 async function load(append = false) {
   if (loading.value || loadingMore.value) return
@@ -139,6 +141,7 @@ async function load(append = false) {
 
 function signalLabel(signal: string) { const key = `admin.registrationRisk.signalLabels.${signal}`; return te(key) ? t(key) : signal }
 function evidenceDetail(detail: string) { const key = `admin.registrationRisk.evidenceDetails.${detail}`; return te(key) ? t(key) : detail }
+function formatRelatedAccount(account: { user_id: number; email: string }) { return `#${account.user_id} ${account.email || '-'}` }
 function actionLabel(action: string) { if (action === 'observe' || action === 'none') return t('admin.registrationRisk.observe'); if (action === 'high') return t('admin.registrationRisk.high'); if (action === 'medium') return t('admin.registrationRisk.medium'); if (action === 'manual_lock') return t('admin.registrationRisk.manualLock'); if (action === 'manual_unlock') return t('admin.registrationRisk.manualUnlock'); return action }
 function actionClass(action: string) { if (action === 'manual_unlock') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'; if (action === 'observe' || action === 'none') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'; return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' }
 function scoreClass(score: number) { return score >= 5 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }

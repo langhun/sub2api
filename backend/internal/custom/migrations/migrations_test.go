@@ -174,3 +174,34 @@ func TestSmartRoutingUsageMarksMigrationIsDurable(t *testing.T) {
 		t.Fatal("usage routing markers must remain available for historical usage records")
 	}
 }
+
+func TestRegistrationRiskBehaviorCleanupMigrationRemovesNormalActionSignals(t *testing.T) {
+	content, err := files.ReadFile("022_registration_risk_remove_behavior_signals.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"fast_checkin",
+		"api_key_created",
+		"jsonb_array_elements_text",
+		"GREATEST(",
+		"registration_cluster_medium_threshold",
+		"registration_cluster_high_threshold",
+		"registration_auto_high_risk_lock_enabled",
+		"remaining_signals ? 'exact_fingerprint_repeat'",
+		"recalculated_action",
+		"custom_registration_fingerprint_events_user_repeat_hash_idx",
+		"custom_registration_fingerprint_events_hash_registered_user_idx",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("registration risk cleanup migration missing %q", expected)
+		}
+	}
+	if strings.Contains(sql, "DROP TABLE") || strings.Contains(sql, "TRUNCATE") {
+		t.Fatal("registration risk cleanup migration must preserve registration history")
+	}
+	if strings.Contains(sql, "CASE WHEN admin_override = '' THEN 'none'") {
+		t.Fatal("registration risk cleanup must not unconditionally clear non-admin risk actions")
+	}
+}

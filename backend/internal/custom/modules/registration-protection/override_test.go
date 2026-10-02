@@ -38,9 +38,6 @@ func TestManualOverrideEnforcesBenefitGates(t *testing.T) {
 				db, mock := newFingerprintSQLMock(t)
 				defer func() { _ = db.Close() }()
 				policy := NewPolicy(policySettingsStub{}, NewStore(db))
-				if operation == "api_key" {
-					mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(986)).WillReturnRows(sqlmock.NewRows([]string{"recent"}).AddRow(false))
-				}
 				expectRiskProfile(mock, action, nil, true)
 				var err error
 				switch operation {
@@ -73,10 +70,6 @@ func TestLowScoreObservationKeepsExistingEligibility(t *testing.T) {
 			policy := NewPolicy(policySettingsStub{}, NewStore(db))
 			expectRiskProfile(mock, RiskActionNone, nil, false)
 			mock.ExpectQuery("SELECT COALESCE\\(BOOL_OR").WithArgs(int64(986)).WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(repeat))
-			if !repeat {
-				mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(986)).WillReturnRows(sqlmock.NewRows([]string{"recent"}).AddRow(false))
-				expectRiskProfile(mock, RiskActionNone, nil, false)
-			}
 			err := policy.CheckinRewardAllowed(context.Background(), 986)
 			if repeat {
 				require.Error(t, err)

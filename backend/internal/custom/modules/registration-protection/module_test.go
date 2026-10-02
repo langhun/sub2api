@@ -30,10 +30,10 @@ func TestRiskListIncludesLowScoresAndRetainsHistoricalEvidence(t *testing.T) {
 	// scoring action is none. Limits use a lookahead row for pagination.
 	mock.ExpectQuery(regexp.QuoteMeta("WHERE p.risk_action <> 'none' OR p.risk_score > 0 OR p.risk_signals <> '[]'::jsonb ORDER BY p.updated_at DESC, p.user_id DESC LIMIT $1 OFFSET $2")).
 		WithArgs(3, 0).
-		WillReturnRows(sqlmock.NewRows([]string{"user_id", "email", "risk_score", "risk_action", "risk_signals", "risk_expires_at", "payment_unlocked"}).
-			AddRow(986, "test4@example.com", 2, "none", `["exact_fingerprint_repeat"]`, expired, false).
-			AddRow(985, "test3@example.com", 2, "none", `["fast_checkin","fast_checkin"]`, nil, false).
-			AddRow(741, "other@example.com", 3, "medium", `[]`, expired, false))
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "email", "risk_score", "risk_action", "risk_signals", "risk_expires_at", "payment_unlocked", "related_accounts"}).
+			AddRow(986, "test4@example.com", 2, "none", `["exact_fingerprint_repeat"]`, expired, false, `[{"user_id":741,"email":"other@example.com"}]`).
+			AddRow(985, "test3@example.com", 2, "none", `["fast_checkin","fast_checkin"]`, nil, false, `[]`).
+			AddRow(741, "other@example.com", 3, "medium", `[]`, expired, false, `[]`))
 
 	rec := httptest.NewRecorder()
 	riskTestRouter(db).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/registration-risk?limit=2", nil))
@@ -48,7 +48,8 @@ func TestRiskListIncludesLowScoresAndRetainsHistoricalEvidence(t *testing.T) {
 	require.Equal(t, "observe", result.Items[0].Action)
 	require.Equal(t, 2, result.Items[0].Score)
 	require.Equal(t, "fingerprint_repeat", result.Items[0].Evidence[0].Detail)
-	require.NotContains(t, rec.Body.String(), "test4@example.com")
+	require.Contains(t, rec.Body.String(), "test4@example.com")
+	require.Equal(t, []riskRelatedAccount{{UserID: 741, Email: "other@example.com"}}, result.Items[0].RelatedAccounts)
 	require.Equal(t, "observe", result.Items[1].Action)
 	require.Equal(t, []string{"fast_checkin"}, result.Items[1].Signals)
 	require.Len(t, result.Items[1].Evidence, 1)
@@ -59,7 +60,7 @@ func TestRiskListNextPageAndEmptyState(t *testing.T) {
 	db, mock := newFingerprintSQLMock(t)
 	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("SELECT p.user_id").WithArgs(101, 100).
-		WillReturnRows(sqlmock.NewRows([]string{"user_id", "email", "risk_score", "risk_action", "risk_signals", "risk_expires_at", "payment_unlocked"}))
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "email", "risk_score", "risk_action", "risk_signals", "risk_expires_at", "payment_unlocked", "related_accounts"}))
 	rec := httptest.NewRecorder()
 	riskTestRouter(db).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/registration-risk?offset=100", nil))
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -125,13 +126,4 @@ func TestRiskOverrideRejectsInvalidReasonsWithoutWrites(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	}
 	require.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestMaskRiskEmailDoesNotExposeFullLocalPart(t *testing.T) {
-	if got := maskRiskEmail("alice@example.com"); got != "a***e@example.com" {
-		t.Fatalf("maskRiskEmail() = %q", got)
-	}
-	if got := maskRiskEmail("a@example.com"); got != "*@example.com" {
-		t.Fatalf("maskRiskEmail() short local = %q", got)
-	}
 }

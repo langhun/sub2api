@@ -7,6 +7,11 @@ export interface RegistrationRiskEvidence {
   detail: string
 }
 
+export interface RegistrationRiskRelatedAccount {
+  user_id: number
+  email: string
+}
+
 export interface RegistrationRiskItem {
   user_id: number
   email: string
@@ -15,6 +20,7 @@ export interface RegistrationRiskItem {
   signals: string[]
   /** Added by the risk API; optional for compatibility with older responses. */
   evidence?: RegistrationRiskEvidence[]
+  related_accounts?: RegistrationRiskRelatedAccount[]
   expires_at: string | null
   payment_unlocked: boolean
 }

@@ -7,9 +7,9 @@ export const registrationRiskAdminLocaleMessages = {
         refresh: 'Refresh', loading: 'Loading registration risk records...', loadMore: 'Load more records',
         empty: 'No registration risk records need attention', loadFailed: 'Failed to load registration risk records',
         action: 'Status', userId: 'User ID', lock: 'Lock', unlock: 'Allow', locked: 'Locked', overridden: 'Manually allowed',
-        score: 'Risk score', signals: 'Signals', expires: 'Score expires', evidence: 'Evidence',
+        score: 'Risk score', signals: 'Signals', expires: 'Score expires', evidence: 'Evidence', relatedAccounts: 'Related accounts',
         paymentUnlocked: 'Payment unlocked', paymentLocked: 'Not payment-unlocked', noExpiry: 'No expiry',
-        noSignals: 'No risk signals', noEvidence: 'No evidence available',
+        noSignals: 'No risk signals', noEvidence: 'No evidence available', noRelatedAccounts: 'No repeated fingerprint account found',
         signalLabels: {
           exact_fingerprint_repeat: 'Repeated registration fingerprint',
           api_key_created: 'API key requested after registration', fast_checkin: 'Check-in attempted after registration',
@@ -41,9 +41,9 @@ export const registrationRiskAdminLocaleMessages = {
         refresh: '刷新', loading: '正在加载风控记录...', loadMore: '加载更多记录',
         empty: '当前没有需要处理的注册风控记录', loadFailed: '加载注册风控记录失败',
         action: '状态', userId: '用户 ID', lock: '锁定', unlock: '放行', locked: '已锁定', overridden: '人工放行',
-        score: '风险分数', signals: '命中信号', expires: '评分有效期', evidence: '风险证据',
+        score: '风险分数', signals: '命中信号', expires: '评分有效期', evidence: '风险证据', relatedAccounts: '关联账号',
         paymentUnlocked: '支付已解锁', paymentLocked: '未支付解锁', noExpiry: '长期有效',
-        noSignals: '无风险信号', noEvidence: '暂无可展示的证据',
+        noSignals: '无风险信号', noEvidence: '暂无可展示的证据', noRelatedAccounts: '未找到重复指纹关联账号',
         signalLabels: {
           exact_fingerprint_repeat: '重复注册指纹', api_key_created: '注册后申请 API 密钥', fast_checkin: '注册后尝试签到',
           cluster_6h: '6 小时内注册聚集', cluster_24h: '24 小时内注册聚集',

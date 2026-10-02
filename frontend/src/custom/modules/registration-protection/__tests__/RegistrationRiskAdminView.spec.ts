@@ -44,6 +44,7 @@ function observation(userID = 44) {
     action: 'observe',
     signals: ['exact_fingerprint_repeat'],
     evidence: [{ signal: 'exact_fingerprint_repeat', detail: 'fingerprint_repeat' }],
+    related_accounts: [{ user_id: 43, email: 'duplicate@example.com' }],
     expires_at: '2026-09-24T00:00:00Z',
     payment_unlocked: false,
   }
@@ -81,6 +82,7 @@ describe('admin RegistrationRiskView', () => {
           { signal: 'exact_fingerprint_repeat', detail: 'fingerprint_repeat' },
           { signal: 'future_signal', detail: 'unknown' },
         ],
+        related_accounts: [{ user_id: 43, email: 'duplicate@example.com' }],
         expires_at: null,
         payment_unlocked: false,
       }],
@@ -101,6 +103,7 @@ describe('admin RegistrationRiskView', () => {
     expect(wrapper.text()).toContain('future_signal')
     expect(wrapper.text()).toContain('admin.registrationRisk.evidenceDetails.fingerprint_repeat')
     expect(wrapper.text()).toContain('admin.registrationRisk.evidenceDetails.unknown')
+    expect(wrapper.text()).toContain('duplicate@example.com')
   })
 
   it('supports older responses without evidence', async () => {

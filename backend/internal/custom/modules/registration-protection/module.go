@@ -31,14 +31,20 @@ func (m *Module) RegisterRoutes(admin *gin.RouterGroup) {
 }
 
 type riskListItem struct {
-	UserID      int64          `json:"user_id"`
-	Email       string         `json:"email"`
-	Score       int            `json:"score"`
-	Action      string         `json:"action"`
-	Signals     []string       `json:"signals"`
-	Evidence    []riskEvidence `json:"evidence"`
-	ExpiresAt   any            `json:"expires_at"`
-	PaymentOpen bool           `json:"payment_unlocked"`
+	UserID          int64                `json:"user_id"`
+	Email           string               `json:"email"`
+	Score           int                  `json:"score"`
+	Action          string               `json:"action"`
+	Signals         []string             `json:"signals"`
+	Evidence        []riskEvidence       `json:"evidence"`
+	RelatedAccounts []riskRelatedAccount `json:"related_accounts"`
+	ExpiresAt       any                  `json:"expires_at"`
+	PaymentOpen     bool                 `json:"payment_unlocked"`
+}
+
+type riskRelatedAccount struct {
+	UserID int64  `json:"user_id"`
+	Email  string `json:"email"`
 }
 
 // riskEvidence is intentionally descriptive rather than raw telemetry. The
@@ -92,9 +98,31 @@ func (m *Module) list(c *gin.Context) {
 	}
 	rows, err := m.db.QueryContext(c.Request.Context(), `
 		SELECT p.user_id, COALESCE(u.email, ''), p.risk_score, p.risk_action,
-		       p.risk_signals, p.risk_expires_at, p.payment_unlocked
+		       p.risk_signals, p.risk_expires_at, p.payment_unlocked,
+		       COALESCE(related.related_accounts, '[]'::jsonb)
 		FROM custom_registration_risk_profiles p
 		LEFT JOIN users u ON u.id = p.user_id
+		LEFT JOIN LATERAL (
+			SELECT jsonb_agg(
+				jsonb_build_object('user_id', matches.user_id, 'email', matches.email)
+				ORDER BY matches.registered_at, matches.user_id
+			) AS related_accounts
+			FROM (
+				SELECT e.user_id, COALESCE(u2.email, '') AS email, MIN(e.registered_at) AS registered_at
+				FROM custom_registration_fingerprint_events e
+				LEFT JOIN users u2 ON u2.id = e.user_id
+				WHERE e.user_id IS NOT NULL
+				  AND e.user_id <> p.user_id
+				  AND e.fingerprint_hash IN (
+					SELECT DISTINCT e2.fingerprint_hash
+					FROM custom_registration_fingerprint_events e2
+					WHERE e2.user_id = p.user_id AND e2.is_repeat = TRUE
+				  )
+				GROUP BY e.user_id, u2.email
+				ORDER BY MIN(e.registered_at), e.user_id
+				LIMIT 50
+			) matches
+		) related ON TRUE
 		WHERE p.risk_action <> 'none'
 		   OR p.risk_score > 0 OR p.risk_signals <> '[]'::jsonb
 		ORDER BY p.updated_at DESC, p.user_id DESC LIMIT $1 OFFSET $2`, limit+1, offset)
@@ -107,7 +135,8 @@ func (m *Module) list(c *gin.Context) {
 	for rows.Next() {
 		var item riskListItem
 		var raw []byte
-		if err := rows.Scan(&item.UserID, &item.Email, &item.Score, &item.Action, &raw, &item.ExpiresAt, &item.PaymentOpen); err != nil {
+		var relatedRaw []byte
+		if err := rows.Scan(&item.UserID, &item.Email, &item.Score, &item.Action, &raw, &item.ExpiresAt, &item.PaymentOpen, &relatedRaw); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode registration risk profile"})
 			return
 		}
@@ -125,10 +154,13 @@ func (m *Module) list(c *gin.Context) {
 			}
 		}
 		item.Evidence = evidenceForSignals(item.Signals)
+		if err := json.Unmarshal(relatedRaw, &item.RelatedAccounts); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode related registration accounts"})
+			return
+		}
 		if item.Action == RiskActionNone {
 			item.Action = "observe"
 		}
-		item.Email = maskRiskEmail(item.Email)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -140,19 +172,6 @@ func (m *Module) list(c *gin.Context) {
 		items = items[:limit]
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items, "has_more": hasMore})
-}
-
-func maskRiskEmail(email string) string {
-	email = strings.TrimSpace(email)
-	local, domain, ok := strings.Cut(email, "@")
-	if !ok || local == "" || domain == "" {
-		return ""
-	}
-	if len([]rune(local)) <= 2 {
-		return "*@" + domain
-	}
-	runes := []rune(local)
-	return string(runes[0]) + "***" + string(runes[len(runes)-1]) + "@" + domain
 }
 
 func (m *Module) updateOverride(c *gin.Context, action string) {
