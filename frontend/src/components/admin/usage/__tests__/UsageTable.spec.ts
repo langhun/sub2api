@@ -613,7 +613,7 @@ describe('admin UsageTable tooltip', () => {
 })
 
 describe('admin UsageTable smart-routing marker', () => {
-  it('places the smart-routing badge before the selected group only for marked rows', () => {
+  it('overlays a compact smart-routing icon above the selected group only for marked rows', () => {
     const DataTableGroupStub = {
       props: ['data'],
       template: `
@@ -646,8 +646,11 @@ describe('admin UsageTable smart-routing marker', () => {
     const cells = wrapper.findAll('[data-testid="smart-routing-badge"]')
     expect(cells).toHaveLength(1)
     expect(cells[0].text()).toBe('Smart routing')
+    expect(cells[0].attributes('title')).toBe('Smart routing')
+    expect(cells[0].attributes('aria-label')).toBe('Smart routing')
+    expect(cells[0].element.parentElement?.className).toContain('relative')
     expect(cells[0].element.parentElement?.textContent).toContain('GPT-Plus')
-    expect(wrapper.findAll('[data-testid="smart-routing-badge"] + span').length).toBe(1)
+    expect(wrapper.findAll('[data-testid="smart-routing-badge"] .sr-only')).toHaveLength(1)
   })
 })
 

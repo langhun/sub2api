@@ -119,15 +119,32 @@
 
         <template #cell-group="{ row }">
           <div v-if="row.smart_routing || row.group" class="flex flex-wrap items-center gap-1">
-            <span
-              v-if="row.smart_routing"
-              data-testid="smart-routing-badge"
-              class="inline-flex items-center rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium leading-tight text-sky-800 ring-1 ring-inset ring-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:ring-sky-700"
-            >
-              {{ t('usage.smartRouting') }}
+            <span v-if="row.group" class="relative inline-flex pt-1">
+              <span
+                v-if="row.smart_routing"
+                data-testid="smart-routing-badge"
+                role="img"
+                :title="t('usage.smartRouting')"
+                :aria-label="t('usage.smartRouting')"
+                class="absolute -top-1.5 left-1 z-10 inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-100 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200 dark:bg-sky-900/80 dark:text-sky-200 dark:ring-sky-700"
+              >
+                <Icon name="swap" size="xs" class="h-3 w-3" :stroke-width="2" aria-hidden="true" />
+                <span class="sr-only">{{ t('usage.smartRouting') }}</span>
+              </span>
+              <span class="inline-flex max-w-full items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                {{ row.group.name }}
+              </span>
             </span>
-            <span v-if="row.group" class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-              {{ row.group.name }}
+            <span
+              v-else-if="row.smart_routing"
+              data-testid="smart-routing-badge"
+              role="img"
+              :title="t('usage.smartRouting')"
+              :aria-label="t('usage.smartRouting')"
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200 dark:bg-sky-900/80 dark:text-sky-200 dark:ring-sky-700"
+            >
+              <Icon name="swap" size="xs" class="h-3 w-3" :stroke-width="2" aria-hidden="true" />
+              <span class="sr-only">{{ t('usage.smartRouting') }}</span>
             </span>
             <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
           </div>
