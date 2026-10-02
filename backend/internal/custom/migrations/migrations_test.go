@@ -175,6 +175,27 @@ func TestSmartRoutingUsageMarksMigrationIsDurable(t *testing.T) {
 	}
 }
 
+func TestLegacyRechargeBonusMigrationStaysInOverlay(t *testing.T) {
+	content, err := files.ReadFile("023_migrate_legacy_recharge_bonus.sql")
+	if err != nil {
+		t.Fatalf("read legacy recharge migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"custom_recharge_promotion_orders",
+		"payment_orders",
+		"bonus_amount",
+		"MAX(bonus_credit)",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("legacy recharge migration missing %q", expected)
+		}
+	}
+	if strings.Contains(sql, "DROP TABLE") || strings.Contains(sql, "DELETE FROM") {
+		t.Fatal("legacy recharge migration must preserve historical promotion data")
+	}
+}
+
 func TestRegistrationRiskBehaviorCleanupMigrationRemovesNormalActionSignals(t *testing.T) {
 	content, err := files.ReadFile("022_registration_risk_remove_behavior_signals.sql")
 	if err != nil {
