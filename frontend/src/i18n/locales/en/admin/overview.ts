@@ -50,6 +50,7 @@ export default {
       accountCost: 'Cost',
       noDataAvailable: 'No data available',
       recentUsage: 'Recent Usage',
+      actualSpending: 'Actual spending ($)',
       viewModelDistribution: 'Model Distribution',
       viewSpendingRanking: 'User Spending Ranking',
       spendingRankingTitle: 'User Spending Ranking',
@@ -1146,19 +1147,18 @@ export default {
       },
       modelAllowlist: {
         title: 'Model Allowlist',
-        hint: 'When enabled, models outside this allowlist are rejected (404 model_not_found), and model-list endpoints only show allowlisted models. Entries support exact model IDs and trailing * wildcards.',
+        hint: 'When enabled, models outside the allowlist are rejected with 404 model_not_found, and model listing endpoints only show allowlisted models. Entries support exact model IDs and * wildcards anywhere (e.g., gpt-*-codex). Note: Claude Code probes with haiku-family models for titles/summaries and /messages/count_tokens is also allowlist-controlled, so make sure the small models you need are selected too.',
         loading: 'Loading candidate models...',
         empty: 'No candidate models. Add entries manually below.',
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
         invertSelection: 'Invert',
         wildcardTag: 'Wildcard',
-        customPlaceholder: 'Custom entry, e.g. claude-* or gpt-5.5-codex',
+        customPlaceholder: 'Custom entry, e.g. gpt-*-codex or claude-*',
         addCustom: 'Add',
         emptySelectionError: 'Model allowlist is enabled. Select or add at least one model entry.',
         errors: {
           empty: 'Enter a model entry',
-          invalidWildcard: 'The wildcard * may only appear at the end of an entry',
           duplicate: 'This entry already exists'
         }
       },

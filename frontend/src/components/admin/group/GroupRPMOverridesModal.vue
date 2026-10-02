@@ -421,6 +421,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('click', handleClickOutside)
 }
 onBeforeUnmount(() => {
+  clearTimeout(searchTimeout)
   if (typeof document !== 'undefined') {
     document.removeEventListener('click', handleClickOutside)
   }
