@@ -651,6 +651,8 @@ describe('admin UsageTable smart-routing marker', () => {
     expect(cells[0].attributes('title')).toBe('Smart routing')
     expect(cells[0].attributes('aria-label')).toBe('Smart routing')
     expect(cells[0].element.parentElement?.className).toContain('relative')
+    expect(cells[0].classes()).toContain('rotate-[24deg]')
+    expect(cells[0].classes()).toContain('w-14')
     expect(cells[0].element.parentElement?.textContent).toContain('GPT-Plus')
     expect(wrapper.findAll('[data-testid="smart-routing-badge"] .sr-only')).toHaveLength(1)
   })

@@ -119,14 +119,14 @@
 
         <template #cell-group="{ row }">
           <div v-if="row.smart_routing || row.group" class="flex flex-wrap items-center gap-1">
-            <span v-if="row.group" class="relative inline-flex pt-1">
+            <span v-if="row.group" class="relative inline-flex">
               <span
                 v-if="row.smart_routing"
                 data-testid="smart-routing-badge"
                 role="img"
                 :title="t('usage.smartRouting')"
                 :aria-label="t('usage.smartRouting')"
-                class="absolute -right-1 -top-2 z-10 inline-flex items-center gap-0.5 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:bg-indigo-500 dark:ring-dark-800"
+                class="absolute -right-3 -top-3 z-10 inline-flex h-5 w-14 rotate-[24deg] items-center justify-center gap-0.5 rounded-md bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 px-1 text-[10px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(79,70,229,0.38)] ring-2 ring-white dark:from-blue-500 dark:via-indigo-500 dark:to-violet-500 dark:ring-dark-900"
               >
                 <Icon name="sparkles" size="xs" class="h-2.5 w-2.5" :stroke-width="2" aria-hidden="true" />
                 <span>{{ t('usage.smartRoutingShort') }}</span>
@@ -142,7 +142,7 @@
               role="img"
               :title="t('usage.smartRouting')"
               :aria-label="t('usage.smartRouting')"
-              class="inline-flex items-center gap-0.5 rounded-full bg-indigo-600 px-1.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm ring-1 ring-inset ring-indigo-400 dark:bg-indigo-500 dark:ring-indigo-300"
+              class="inline-flex h-5 w-14 rotate-[24deg] items-center justify-center gap-0.5 rounded-md bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 px-1 text-[10px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(79,70,229,0.38)] ring-1 ring-inset ring-indigo-400 dark:from-blue-500 dark:via-indigo-500 dark:to-violet-500 dark:ring-indigo-300"
             >
               <Icon name="sparkles" size="xs" class="h-2.5 w-2.5" :stroke-width="2" aria-hidden="true" />
               <span>{{ t('usage.smartRoutingShort') }}</span>
