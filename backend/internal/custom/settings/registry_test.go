@@ -59,6 +59,7 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.Equal(t, true, public["enable_apple_theme"])
 	require.Equal(t, "auto", public["default_theme_mode"])
 	require.Equal(t, 0.01, public["game_exchange_min_amount"])
+	require.Equal(t, 500.0, public["payment_quick_amount_max"])
 }
 
 func TestRegistryWritePersistsRegistrationProtectionSwitches(t *testing.T) {
@@ -111,6 +112,16 @@ func TestRegistryWriteRejectsInvalidModuleValuesWithoutWriting(t *testing.T) {
 	err = registry.Write(context.Background(), snapshot)
 	require.ErrorContains(t, err, "game_slots_max_bet")
 	require.Zero(t, store.writes)
+}
+
+func TestRegistryWritesPaymentQuickAmountLimit(t *testing.T) {
+	store := &memoryStore{values: map[string]string{}}
+	registry := NewRegistry(store)
+	snapshot, err := registry.Read(context.Background())
+	require.NoError(t, err)
+	snapshot.PaymentDisplay.QuickAmountMax = 1000
+	require.NoError(t, registry.Write(context.Background(), snapshot))
+	require.Equal(t, "1000.00000000", store.values["payment_quick_amount_max"])
 }
 
 func TestMergePublicValuesRejectsOverlappingOwnership(t *testing.T) {

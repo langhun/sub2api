@@ -1,19 +1,15 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-6xl space-y-5" data-glass-content>
+    <div class="mx-auto max-w-4xl space-y-6">
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
-        <div
-          v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan"
-          data-testid="payment-tabs"
-          class="flex w-fit gap-8 px-1"
-        >
+        <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" data-testid="payment-tabs" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
           <button v-for="tab in tabs" :key="tab.key"
-            class="relative flex min-h-10 items-center justify-center px-3 py-2 text-sm font-medium transition-colors after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-7 after:-translate-x-1/2 after:transition-colors"
-            :class="activeTab === tab.key ? 'text-primary-700 after:bg-primary-500 dark:text-primary-300' : 'text-gray-500 after:bg-transparent hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+            :class="activeTab === tab.key ? 'bg-white text-gray-900 shadow dark:bg-dark-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
             @click="activeTab = tab.key">{{ tab.label }}</button>
         </div>
         <!-- Payment in progress (shared by recharge and subscription) -->
@@ -49,7 +45,7 @@
               <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
               <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
             </div>
-            <div v-if="enabledMethods.length === 0" class="rounded-lg border border-gray-200 bg-white py-16 text-center shadow-card dark:border-dark-700 dark:bg-dark-800">
+            <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
             <template v-else>
@@ -63,7 +59,7 @@
               ></div>
               <AmountInput
                 v-model="amount"
-                :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
+                :amounts="quickRechargeAmounts"
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
                 :bonus-tiers="rechargeBonusTiers"
@@ -110,6 +106,7 @@
                   {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
                 </p>
               </div>
+            </div>
             <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmit || submitting" @click="handleSubmitRecharge">
               <span v-if="submitting" class="flex items-center justify-center gap-2">
                 <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
@@ -117,7 +114,6 @@
               </span>
               <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
             </button>
-            </div>
             </template>
           </template>
           <!-- Subscribe Tab -->
@@ -334,6 +330,7 @@ import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSele
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
 import { customPaymentTypeDefinition } from '@/custom/payments'
+import { filterQuickRechargeAmounts } from '@/custom/modules/payment-display/quickAmounts'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -597,6 +594,11 @@ const subscriptionUsdToCnyRate = computed(() => {
 })
 const rechargeBonusTiers = computed(() => normalizeRechargeBonusTiers(checkout.value.recharge_bonus_tiers))
 const rechargeBonusMode = computed(() => normalizeRechargeBonusMode(checkout.value.recharge_bonus_mode))
+const quickRechargeAmountMax = computed(() => {
+  const value = Number(appStore.cachedPublicSettings?.payment_quick_amount_max)
+  return Number.isFinite(value) && value >= 0 ? value : 500
+})
+const quickRechargeAmounts = computed(() => filterQuickRechargeAmounts(quickRechargeAmountMax.value))
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {

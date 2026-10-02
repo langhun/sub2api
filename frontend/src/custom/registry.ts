@@ -30,6 +30,7 @@ import { supportContactsSettingsPanels } from './modules/support-contacts/settin
 import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
 import { formatAuditAction } from './modules/audit-log-localization/actionLabels'
 import { appleThemeSettingsPanels } from './modules/apple-theme/settings'
+import { paymentDisplaySettingsPanels } from './modules/payment-display/settings'
 import CheckinUserAccessModal from './modules/checkin-user-access/CheckinUserAccessModal.vue'
 import { checkinUserAccessActions } from './modules/checkin-user-access/userActions'
 import {
@@ -192,6 +193,7 @@ export const customChannelMonitorV2SourceExtensions: readonly CustomChannelMonit
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,
   ...appleThemeSettingsPanels,
+  ...paymentDisplaySettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
   ...supportContactsSettingsPanels,

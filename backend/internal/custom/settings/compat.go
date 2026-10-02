@@ -18,6 +18,7 @@ type Compatibility struct {
 	EnableAppleTheme                               bool                                             `json:"enable_apple_theme"`
 	DefaultThemeMode                               string                                           `json:"default_theme_mode"`
 	GameHallEnabled                                bool                                             `json:"game_hall_enabled"`
+	PaymentQuickAmountMax                          float64                                          `json:"payment_quick_amount_max"`
 	RegistrationAliasProtectionEnabled             bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
 	RegistrationClusterProtectionEnabled           bool                                             `json:"registration_cluster_protection_enabled"`
@@ -78,6 +79,7 @@ type PublicCompatibility struct {
 	EnableAppleTheme                bool                                             `json:"enable_apple_theme"`
 	DefaultThemeMode                string                                           `json:"default_theme_mode"`
 	GameHallEnabled                 bool                                             `json:"game_hall_enabled"`
+	PaymentQuickAmountMax           float64                                          `json:"payment_quick_amount_max"`
 	SupportTicketEnabled            bool                                             `json:"support_ticket_enabled"`
 	GameSlotsEnabled                bool                                             `json:"game_slots_enabled"`
 	GameSlotsMinBet                 float64                                          `json:"game_slots_min_bet"`
@@ -116,6 +118,7 @@ type Patch struct {
 	EnableAppleTheme                               *bool                                             `json:"enable_apple_theme"`
 	DefaultThemeMode                               *string                                           `json:"default_theme_mode"`
 	GameHallEnabled                                *bool                                             `json:"game_hall_enabled"`
+	PaymentQuickAmountMax                          *float64                                          `json:"payment_quick_amount_max"`
 	RegistrationAliasProtectionEnabled             *bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled *bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
 	RegistrationClusterProtectionEnabled           *bool                                             `json:"registration_cluster_protection_enabled"`
@@ -173,7 +176,7 @@ type Patch struct {
 // module store while keeping the flat JSON request contract.
 func (p Patch) HasChanges() bool {
 	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.ThemeStyle != nil || p.EnableAppleTheme != nil || p.DefaultThemeMode != nil || p.GameHallEnabled != nil || p.RegistrationAliasProtectionEnabled != nil || p.RegistrationRewardFingerprintProtectionEnabled != nil || p.RegistrationClusterProtectionEnabled != nil || p.RegistrationClusterWindow6h != nil || p.RegistrationClusterWindow24h != nil || p.RegistrationClusterMediumThreshold != nil || p.RegistrationClusterHighThreshold != nil || p.RegistrationAutoHighRiskLockEnabled != nil || p.RegistrationTrialEnabled != nil || p.RegistrationTrialHours != nil || p.RegistrationTrialCostLimit != nil || p.RegistrationTrialRPMLimit != nil || p.RegistrationTrialConcurrency != nil || p.RegistrationPaymentUnlockEnabled != nil || p.RegistrationPaymentUnlockAmount != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
-		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
+		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil || p.PaymentQuickAmountMax != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
 		p.CheckinBlindboxTriggerType != nil || p.CheckinBlindboxInterval != nil || p.RedPacketEnabled != nil ||
@@ -223,6 +226,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	brandHome := snapshot.BrandHome
 	codeFormat := snapshot.CodeFormat
 	gameHall := snapshot.GameHall
+	paymentDisplay := snapshot.PaymentDisplay
 	registrationProtection := snapshot.RegistrationProtection
 	supportTickets := snapshot.SupportTickets
 	rechargePromotions := snapshot.RechargePromotions
@@ -233,6 +237,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 		EnableAppleTheme:   appleTheme.Enabled,
 		DefaultThemeMode:   appleTheme.DefaultThemeMode,
 		GameHallEnabled:    gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
+		PaymentQuickAmountMax:                          paymentDisplay.QuickAmountMax,
 		RegistrationAliasProtectionEnabled:             registrationProtection.AliasEnabled,
 		RegistrationRewardFingerprintProtectionEnabled: registrationProtection.FingerprintEnabled,
 		RegistrationClusterProtectionEnabled:           registrationProtection.ClusterEnabled,
@@ -280,8 +285,9 @@ func (c Compatibility) Public() PublicCompatibility {
 		EnableAppleTheme: c.EnableAppleTheme,
 		DefaultThemeMode: c.DefaultThemeMode,
 		GameHallEnabled:  c.GameHallEnabled, GameSlotsEnabled: c.GameSlotsEnabled,
-		SupportTicketEnabled: c.SupportTicketEnabled,
-		GameSlotsMinBet:      c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
+		PaymentQuickAmountMax: c.PaymentQuickAmountMax,
+		SupportTicketEnabled:  c.SupportTicketEnabled,
+		GameSlotsMinBet:       c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
 		GameExchangeMinAmount: c.GameExchangeMinAmount, GameExchangeMaxAmount: c.GameExchangeMaxAmount,
 		GameExchangeDailyLimit: c.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: c.GameExchangeAllowDGToBalance,
 		CheckinEnabled: c.CheckinEnabled, CheckinLuckEnabled: c.CheckinLuckEnabled, CheckinBlindboxEnabled: c.CheckinBlindboxEnabled,
@@ -307,6 +313,7 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	brandHome := &snapshot.BrandHome
 	codeFormat := &snapshot.CodeFormat
 	gameHall := &snapshot.GameHall
+	paymentDisplay := &snapshot.PaymentDisplay
 	registrationProtection := &snapshot.RegistrationProtection
 	supportTickets := &snapshot.SupportTickets
 	rechargePromotions := &snapshot.RechargePromotions
@@ -396,6 +403,9 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	}
 	if p.GameExchangeAllowDGToBalance != nil {
 		gameHall.ExchangeAllowDGToBalance = *p.GameExchangeAllowDGToBalance
+	}
+	if p.PaymentQuickAmountMax != nil {
+		paymentDisplay.QuickAmountMax = *p.PaymentQuickAmountMax
 	}
 	if p.CheckinEnabled != nil {
 		activity.CheckinEnabled = *p.CheckinEnabled

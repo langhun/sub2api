@@ -7,6 +7,7 @@ export const customPublicSettingsDefaults: Readonly<Record<string, unknown>> = {
   enable_apple_theme: true,
   default_theme_mode: 'auto',
   theme_style: 'glass',
+  payment_quick_amount_max: 500,
   ...activityPublicSettingsDefaults,
   ...gameHallPublicSettingsDefaults,
   ...rechargePromotionPublicSettingsDefaults,

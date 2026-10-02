@@ -11,6 +11,7 @@ import (
 	brandhomesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/brand-home/settings"
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
+	paymentdisplaysettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/payment-display/settings"
 	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 	registrationprotectionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection/settings"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
@@ -31,6 +32,7 @@ type Snapshot struct {
 	BrandHome              brandhomesettings.Config
 	CodeFormat             codeformatsettings.Config
 	GameHall               gamehallsettings.Config
+	PaymentDisplay         paymentdisplaysettings.Config
 	RegistrationProtection registrationprotectionsettings.Config
 	SupportTickets         supporttickets.Settings
 	RechargePromotions     rechargepromotionsettings.Config
@@ -79,6 +81,10 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
+	paymentDisplayConfig, err := paymentdisplaysettings.New(r.store).Read(ctx)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	registrationProtectionConfig, err := registrationprotectionsettings.New(r.store).Read(ctx)
 	if err != nil {
 		return Snapshot{}, err
@@ -91,7 +97,7 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read recharge promotion settings: %w", err)
 	}
-	return Snapshot{Activity: activityConfig, AppleTheme: appleThemeConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, RegistrationProtection: registrationProtectionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
+	return Snapshot{Activity: activityConfig, AppleTheme: appleThemeConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, PaymentDisplay: paymentDisplayConfig, RegistrationProtection: registrationProtectionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
@@ -108,6 +114,9 @@ func (r *Registry) Validate(snapshot Snapshot) error {
 		return err
 	}
 	if err := gamehallsettings.Validate(snapshot.GameHall); err != nil {
+		return err
+	}
+	if err := paymentdisplaysettings.Validate(snapshot.PaymentDisplay); err != nil {
 		return err
 	}
 	if err := registrationprotectionsettings.Validate(snapshot.RegistrationProtection); err != nil {
@@ -178,6 +187,10 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	paymentDisplayValues, err := paymentdisplaysettings.Values(snapshot.PaymentDisplay)
+	if err != nil {
+		return nil, err
+	}
 	registrationProtectionValues, err := registrationprotectionsettings.Values(snapshot.RegistrationProtection)
 	if err != nil {
 		return nil, err
@@ -190,7 +203,7 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, appleThemeValues, brandHomeValues, codeFormatValues, gameHallValues, registrationProtectionValues, supportTicketValues, rechargePromotionValues)
+	return mergeStringValues(activityValues, appleThemeValues, brandHomeValues, codeFormatValues, gameHallValues, paymentDisplayValues, registrationProtectionValues, supportTicketValues, rechargePromotionValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
@@ -199,6 +212,7 @@ func Public(snapshot Snapshot) map[string]any {
 		applethemesettings.Public(snapshot.AppleTheme),
 		brandhomesettings.Public(snapshot.BrandHome),
 		gamehallsettings.Public(snapshot.GameHall),
+		paymentdisplaysettings.Public(snapshot.PaymentDisplay),
 		rechargepromotionsettings.Public(snapshot.RechargePromotions),
 		map[string]any{supporttickets.KeyEnabled: snapshot.SupportTickets.Enabled},
 	)

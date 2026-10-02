@@ -105,6 +105,7 @@ describe('custom overlay registry', () => {
       'activity-entry-switches',
       'apple-theme',
       'activity',
+      'payment-display',
       'registration-protection',
       'support-contacts',
     ])

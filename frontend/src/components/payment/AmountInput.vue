@@ -1,38 +1,11 @@
 <template>
-  <div class="space-y-5">
-    <!-- Custom Amount Input -->
-    <div>
-      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {{ t('payment.amountLabel') }}
-      </label>
-      <div class="relative">
-        <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-medium text-gray-500 dark:text-gray-400">
-          {{ currencyMark }}
-        </span>
-        <input
-          data-testid="amount-input"
-          type="text"
-          inputmode="decimal"
-          :value="customText"
-          :placeholder="placeholderText"
-          class="input h-14 w-full rounded-md border-gray-300 pl-10 pr-16 text-lg tabular-nums dark:border-dark-600"
-          :aria-label="t('payment.amountLabel')"
-          :aria-invalid="!!error"
-          @input="handleInput"
-        />
-        <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 dark:text-gray-400">
-          {{ normalizedCurrency }}
-        </span>
-      </div>
-      <p class="min-h-10 pt-2 text-xs leading-4 text-amber-700 dark:text-amber-300" role="status">{{ error }}</p>
-    </div>
-
+  <div class="space-y-4">
     <!-- Quick Amount Buttons -->
     <div>
       <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
         {{ t('payment.quickAmounts') }}
       </label>
-      <div class="grid grid-cols-3 gap-x-4 gap-y-4 pt-2 sm:grid-cols-6">
+      <div class="grid grid-cols-3 gap-x-4 gap-y-4 pt-2">
         <button
           v-for="amt in filteredAmounts"
           :key="amt"
@@ -40,12 +13,12 @@
           :data-testid="`quick-amount-${amt}`"
           :aria-pressed="modelValue === amt"
           :class="[
-            'amount-preset relative h-10 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+            'relative rounded-lg border-2 px-3 py-3 text-center font-medium transition-colors',
             modelValue === amt
               ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-300'
               : quoteFor(amt).percent > 0
                 ? 'border-red-200 bg-white text-gray-700 hover:border-red-300 dark:border-red-500/40 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-red-400/60'
-                : 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:text-primary-300',
+                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500',
           ]"
           @click="selectAmount(amt)"
         >
@@ -74,6 +47,33 @@
           >{{ secondLine(amt) }}</span>
         </button>
       </div>
+    </div>
+
+    <!-- Custom Amount Input -->
+    <div>
+      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {{ t('payment.customAmount') }}
+      </label>
+      <div class="relative">
+        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500">
+          {{ currencyMark }}
+        </span>
+        <input
+          data-testid="amount-input"
+          type="text"
+          inputmode="decimal"
+          :value="customText"
+          :placeholder="placeholderText"
+          class="input w-full py-3 pl-8 pr-16"
+          :aria-label="t('payment.amountLabel')"
+          :aria-invalid="!!error"
+          @input="handleInput"
+        />
+        <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400 dark:text-dark-500">
+          {{ normalizedCurrency }}
+        </span>
+      </div>
+      <p class="mt-2 text-xs text-amber-600 empty:hidden dark:text-amber-300" role="status">{{ error }}</p>
     </div>
   </div>
 </template>
