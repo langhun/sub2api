@@ -614,7 +614,7 @@ describe('admin UsageTable tooltip', () => {
 })
 
 describe('admin UsageTable smart-routing marker', () => {
-  it('overlays a compact smart-routing icon above the selected group only for marked rows', () => {
+  it('overlays a diagonal smart-routing ribbon without changing the group badge', () => {
     const DataTableGroupStub = {
       props: ['data'],
       template: `
@@ -651,9 +651,14 @@ describe('admin UsageTable smart-routing marker', () => {
     expect(cells[0].attributes('title')).toBe('Smart routing')
     expect(cells[0].attributes('aria-label')).toBe('Smart routing')
     expect(cells[0].element.parentElement?.className).toContain('relative')
-    expect(cells[0].classes()).toContain('rotate-[24deg]')
-    expect(cells[0].classes()).toContain('w-14')
+    expect(cells[0].element.parentElement?.className).toContain('overflow-hidden')
+    expect(cells[0].classes()).toContain('rotate-45')
+    expect(cells[0].classes()).toContain('w-[46px]')
+    expect(cells[0].classes()).toContain('h-3')
+    expect(cells[0].classes()).toContain('-right-[13px]')
     expect(cells[0].element.parentElement?.textContent).toContain('GPT-Plus')
+    expect(cells[0].element.parentElement?.querySelector('.bg-indigo-100')).not.toBeNull()
+    expect(wrapper.findAll('[data-testid="smart-routing-badge"]')[0].exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="smart-routing-badge"] .sr-only')).toHaveLength(1)
   })
 })
