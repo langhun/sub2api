@@ -62,7 +62,7 @@ const health: MonitorHealth = {
   minimum_sample: 20,
 }
 
-function metrics(requestCount: number): MonitorMetric {
+function metrics(requestCount: number, cacheDenominator = 100): MonitorMetric {
   return {
     success_requests: requestCount ? requestCount - 1 : 0,
     error_requests: requestCount ? 1 : 0,
@@ -71,9 +71,9 @@ function metrics(requestCount: number): MonitorMetric {
     rpm: 1.5,
     tpm: 10.2,
     error_rate: requestCount ? 1 / requestCount : 0,
-    cache_rate: 0.5,
-    cache_rate_numerator: 50,
-    cache_rate_denominator: 100,
+    cache_rate: cacheDenominator > 0 ? 0.5 : 0,
+    cache_rate_numerator: cacheDenominator > 0 ? cacheDenominator / 2 : 0,
+    cache_rate_denominator: cacheDenominator,
     ttft: { sample_count: requestCount, p50_ms: 100, p95_ms: 300, avg_ms: 150 },
     duration: { sample_count: requestCount, p50_ms: 500, p95_ms: 900, avg_ms: 600 },
     upstream_affected_requests: 2,
@@ -177,5 +177,81 @@ describe('RelayPulseMatrix axis range', () => {
     })
     // 5 minutes @ 60s buckets → 5 cells spanning the selected range
     expect(wrapper.findAll('.pulse-cell')).toHaveLength(5)
+  })
+})
+
+describe('RelayPulseMatrix cache sampling', () => {
+  it('shows an em dash when a bucket and row have no cache samples', async () => {
+    const unknownCacheHealth: MonitorHealth = {
+      ...health,
+      overall: 'healthy',
+      cache: 'unknown',
+      cache_score: null,
+    }
+    const wrapper = mount(RelayPulseMatrix, {
+      props: {
+        rows: [{
+          platform: 'deepseek',
+          model: 'deepseek-chat',
+          metrics: metrics(1, 0),
+          health: unknownCacheHealth,
+          buckets: [{
+            bucket_start: '2026-08-01T00:00:00Z',
+            metrics: metrics(1, 0),
+            health: unknownCacheHealth,
+          }],
+        }],
+        coverage: {
+          requested_start: '2026-08-01T00:00:00Z',
+          requested_end: '2026-08-01T00:01:00Z',
+          coverage_start: '2026-08-01T00:00:00Z',
+          data_through: '2026-08-01T00:01:00Z',
+          computed_at: '2026-08-01T00:01:00Z',
+          aggregation_lag_seconds: 0,
+          coverage_complete: true,
+          bucket_seconds: 60,
+        },
+        healthMode: 'overall',
+      },
+    })
+
+    const summaryValues = wrapper.findAll('.summary-value')
+    expect(summaryValues.at(-1)?.text()).toBe('—')
+    expect(wrapper.find('.pulse-cell').text()).toContain('缓存率 —')
+
+    await wrapper.setProps({ healthMode: 'cache' })
+    expect(wrapper.find('.pulse-cell').classes()).toContain('health-unknown')
+  })
+
+  it('keeps displaying real cache rates when cache samples exist', () => {
+    const wrapper = mount(RelayPulseMatrix, {
+      props: {
+        rows: [{
+          platform: 'openai',
+          model: 'gpt-5',
+          metrics: metrics(10, 100),
+          health,
+          buckets: [{
+            bucket_start: '2026-08-01T00:00:00Z',
+            metrics: metrics(10, 100),
+            health,
+          }],
+        }],
+        coverage: {
+          requested_start: '2026-08-01T00:00:00Z',
+          requested_end: '2026-08-01T00:01:00Z',
+          coverage_start: '2026-08-01T00:00:00Z',
+          data_through: '2026-08-01T00:01:00Z',
+          computed_at: '2026-08-01T00:01:00Z',
+          aggregation_lag_seconds: 0,
+          coverage_complete: true,
+          bucket_seconds: 60,
+        },
+        healthMode: 'overall',
+      },
+    })
+
+    expect(wrapper.findAll('.summary-value').at(-1)?.text()).toBe('50.0%')
+    expect(wrapper.find('.pulse-cell').text()).toContain('缓存率 50.0%')
   })
 })

@@ -246,6 +246,88 @@ func TestSourceForFactsPreservesDegradedWhenNoTargetIsOperational(t *testing.T) 
 	require.Equal(t, float64(50), *health.Score)
 }
 
+func TestHealthForActiveProbeWithoutCacheSamples(t *testing.T) {
+	thresholds := service.DefaultChannelMonitorV2HealthThresholds()
+	latency := int64(400)
+	tests := []struct {
+		name       string
+		status     string
+		latency    *int64
+		wantHealth string
+	}{
+		{name: "operational", status: service.MonitorStatusOperational, latency: &latency, wantHealth: "healthy"},
+		{name: "degraded", status: service.MonitorStatusDegraded, latency: &latency, wantHealth: "warning"},
+		{name: "failed", status: service.MonitorStatusFailed, latency: &latency, wantHealth: "critical"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := probeSource{
+				ActiveProbe:          true,
+				ActiveProbeStatus:    tt.status,
+				ActiveProbeLatencyMs: tt.latency,
+				CacheSampled:         false,
+			}
+			health := healthForSource(source, service.ChannelMonitorV2Metric{}, false, thresholds)
+			require.Equal(t, tt.wantHealth, health.Overall)
+			require.Equal(t, "unknown", health.Cache)
+			require.Nil(t, health.CacheScore)
+		})
+	}
+}
+
+func TestHealthForActiveProbeWarnsWhenLatencyIsHigh(t *testing.T) {
+	thresholds := service.DefaultChannelMonitorV2HealthThresholds()
+	latency := thresholds.WarningTTFTMs
+	health := healthForSource(probeSource{
+		ActiveProbe:          true,
+		ActiveProbeStatus:    service.MonitorStatusOperational,
+		ActiveProbeLatencyMs: &latency,
+	}, service.ChannelMonitorV2Metric{}, false, thresholds)
+
+	require.Equal(t, "warning", health.Overall)
+	require.Equal(t, "healthy", health.ErrorRate)
+	require.Equal(t, "unknown", health.TTFT, "sync probe latency is not user TTFT")
+	require.Equal(t, "unknown", health.Cache)
+	require.Nil(t, health.CacheScore)
+}
+
+func TestHealthForMixedPassiveTrafficDoesNotPenalizeMissingCacheSamples(t *testing.T) {
+	thresholds := service.DefaultChannelMonitorV2HealthThresholds()
+	health := healthForSource(probeSource{
+		ActiveProbe:       true,
+		ActiveProbeStatus: service.MonitorStatusOperational,
+	}, service.ChannelMonitorV2Metric{
+		RequestCount: 1,
+		ErrorRate:    1,
+	}, true, thresholds)
+
+	require.Equal(t, "healthy", health.Overall, "fresh probe is the availability signal when passive samples are insufficient")
+	require.Equal(t, "unknown", health.Cache)
+	require.Nil(t, health.CacheScore)
+}
+
+func TestHealthForSourcePreservesMeasuredCacheFailures(t *testing.T) {
+	thresholds := service.DefaultChannelMonitorV2HealthThresholds()
+	thresholds.WarningCacheRate = 0.85
+	thresholds.CriticalCacheRate = 0.60
+	health := healthForSource(probeSource{
+		ActiveProbe:       true,
+		ActiveProbeStatus: service.MonitorStatusOperational,
+	}, service.ChannelMonitorV2Metric{
+		RequestCount:         thresholds.MinimumSample,
+		ErrorRate:            0,
+		CacheRate:            0,
+		CacheRateDenominator: thresholds.MinimumSample,
+		CacheRateNumerator:   0,
+		SuccessRequests:      thresholds.MinimumSample,
+	}, true, thresholds)
+
+	require.Equal(t, "critical", health.Cache, "actual sampled cache misses remain visible")
+	require.NotNil(t, health.CacheScore)
+	require.Equal(t, float64(0), *health.CacheScore)
+}
+
 func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -328,6 +410,7 @@ func TestExtendModelsMergesRequestsButPreservesPassiveTokenAndCacheData(t *testi
 	source, ok := row.Extensions[extensionKey].(probeSource)
 	require.True(t, ok)
 	require.True(t, source.PassiveTraffic)
+	require.True(t, source.CacheSampled)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

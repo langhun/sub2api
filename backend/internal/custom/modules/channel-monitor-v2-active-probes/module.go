@@ -66,6 +66,7 @@ type probeFact struct {
 type probeSource struct {
 	PassiveTraffic       bool       `json:"passive_traffic,omitempty"`
 	ActiveProbe          bool       `json:"active_probe,omitempty"`
+	CacheSampled         bool       `json:"cache_sampled"`
 	LastActiveProbeAt    *time.Time `json:"last_active_probe_at,omitempty"`
 	ActiveProbeLatencyMs *int64     `json:"active_probe_latency_ms,omitempty"`
 	ActiveProbeStatus    string     `json:"active_probe_status,omitempty"`
@@ -487,6 +488,7 @@ func sourceForFacts(facts []probeFact, passive bool) probeSource {
 }
 
 func activeOnlyHealth(source probeSource, thresholds service.ChannelMonitorV2HealthThresholds) service.ChannelMonitorV2Health {
+	thresholds = service.NormalizeChannelMonitorV2HealthThresholds(thresholds)
 	health := service.ChannelMonitorV2HealthForWithThresholds(service.ChannelMonitorV2Metric{}, thresholds)
 	if !source.ActiveProbe {
 		return health
@@ -496,6 +498,11 @@ func activeOnlyHealth(source probeSource, thresholds service.ChannelMonitorV2Hea
 		health.Overall, health.ErrorRate = "healthy", "healthy"
 		score := float64(100)
 		health.Score, health.ErrorRateScore = &score, &score
+		if source.ActiveProbeLatencyMs != nil && *source.ActiveProbeLatencyMs >= thresholds.WarningTTFTMs {
+			health.Overall = "warning"
+			score = 50
+			health.Score = &score
+		}
 	case service.MonitorStatusDegraded:
 		health.Overall, health.ErrorRate = "warning", "warning"
 		score := float64(50)
@@ -504,6 +511,35 @@ func activeOnlyHealth(source probeSource, thresholds service.ChannelMonitorV2Hea
 		health.Overall, health.ErrorRate = "critical", "critical"
 		score := float64(0)
 		health.Score, health.ErrorRateScore = &score, &score
+	}
+	return health
+}
+
+// healthForSource keeps active probes useful when passive traffic is sparse.
+// Probe responses intentionally do not contain provider cache usage, so a
+// missing cache denominator is never treated as a cache miss or allowed to
+// make an otherwise usable channel critical.
+func healthForSource(source probeSource, metrics service.ChannelMonitorV2Metric, passive bool, thresholds service.ChannelMonitorV2HealthThresholds) service.ChannelMonitorV2Health {
+	if !source.ActiveProbe {
+		return service.ChannelMonitorV2HealthForWithThresholds(metrics, thresholds)
+	}
+	if !passive {
+		return activeOnlyHealth(source, thresholds)
+	}
+
+	health := service.ChannelMonitorV2HealthForWithThresholds(metrics, thresholds)
+	if metrics.CacheRateDenominator == 0 {
+		health.Cache = "unknown"
+		health.CacheScore = nil
+	}
+
+	// A mixed row can contain a small amount of historical passive traffic
+	// without enough samples for an error/latency score. In that case the
+	// fresh active probe is the only meaningful availability signal.
+	if metrics.CacheRateDenominator == 0 &&
+		health.ErrorRate == "unknown" &&
+		health.TTFT == "unknown" {
+		return activeOnlyHealth(source, thresholds)
 	}
 	return health
 }
@@ -590,12 +626,9 @@ func (m *Module) ExtendChannelMonitorV2Snapshot(ctx context.Context, filter serv
 	added := metricForFacts(windowFacts, durationMinutes(filter), admin)
 	mergeMetric(&snapshot.Metrics, added, durationMinutes(filter), admin)
 	source := sourceForFacts(freshFacts(facts), passive)
+	source.CacheSampled = snapshot.Metrics.CacheRateDenominator > 0
 	setExtension(&snapshot.Extensions, source)
-	if !passive {
-		snapshot.Health = activeOnlyHealth(source, cfg.HealthThresholds)
-	} else {
-		snapshot.Health = service.ChannelMonitorV2HealthForWithThresholds(snapshot.Metrics, cfg.HealthThresholds)
-	}
+	snapshot.Health = healthForSource(source, snapshot.Metrics, passive, cfg.HealthThresholds)
 	byBucket := make(map[time.Time][]probeFact)
 	for _, fact := range windowFacts {
 		bucket := fact.CheckedAt.UTC().Truncate(filter.Bucket)
@@ -616,13 +649,10 @@ func (m *Module) ExtendChannelMonitorV2Snapshot(ctx context.Context, filter serv
 		point := &snapshot.Trend[index]
 		passivePoint := point.Metrics.RequestCount > 0
 		mergeMetric(&point.Metrics, metricForFacts(bucketFacts, filter.Bucket.Minutes(), admin), filter.Bucket.Minutes(), admin)
-		pointSource := sourceForFacts(bucketFacts, passivePoint)
+		pointSource := sourceForFacts(freshFacts(bucketFacts), passivePoint)
+		pointSource.CacheSampled = point.Metrics.CacheRateDenominator > 0
 		setExtension(&point.Extensions, pointSource)
-		if !passivePoint {
-			point.Health = activeOnlyHealth(pointSource, cfg.HealthThresholds)
-		} else {
-			point.Health = service.ChannelMonitorV2HealthForWithThresholds(point.Metrics, cfg.HealthThresholds)
-		}
+		point.Health = healthForSource(pointSource, point.Metrics, passivePoint, cfg.HealthThresholds)
 	}
 	sort.Slice(snapshot.Trend, func(i, j int) bool { return snapshot.Trend[i].BucketStart.Before(snapshot.Trend[j].BucketStart) })
 	return nil
@@ -657,12 +687,9 @@ func (m *Module) ExtendChannelMonitorV2Models(ctx context.Context, filter servic
 		passive := row.Metrics.RequestCount > 0
 		mergeMetric(&row.Metrics, metricForFacts(inWindowFacts(group), durationMinutes(filter), admin), durationMinutes(filter), admin)
 		rowSource := sourceForFacts(freshFacts(group), passive)
+		rowSource.CacheSampled = row.Metrics.CacheRateDenominator > 0
 		setExtension(&row.Extensions, rowSource)
-		if !passive {
-			row.Health = activeOnlyHealth(rowSource, cfg.HealthThresholds)
-		} else {
-			row.Health = service.ChannelMonitorV2HealthForWithThresholds(row.Metrics, cfg.HealthThresholds)
-		}
+		row.Health = healthForSource(rowSource, row.Metrics, passive, cfg.HealthThresholds)
 	}
 	sort.Slice(list.Items, func(i, j int) bool {
 		if list.Items[i].Platform == list.Items[j].Platform {
@@ -711,12 +738,9 @@ func (m *Module) ExtendChannelMonitorV2Matrix(ctx context.Context, filter servic
 		windowGroup := inWindowFacts(group)
 		mergeMetric(&row.Metrics, metricForFacts(windowGroup, durationMinutes(filter), admin), durationMinutes(filter), admin)
 		rowSource := sourceForFacts(freshFacts(group), passive)
+		rowSource.CacheSampled = row.Metrics.CacheRateDenominator > 0
 		setExtension(&row.Extensions, rowSource)
-		if !passive {
-			row.Health = activeOnlyHealth(rowSource, cfg.HealthThresholds)
-		} else {
-			row.Health = service.ChannelMonitorV2HealthForWithThresholds(row.Metrics, cfg.HealthThresholds)
-		}
+		row.Health = healthForSource(rowSource, row.Metrics, passive, cfg.HealthThresholds)
 		bucketFacts := make(map[time.Time][]probeFact)
 		for _, fact := range windowGroup {
 			bucket := fact.CheckedAt.UTC().Truncate(filter.Bucket)
@@ -737,13 +761,10 @@ func (m *Module) ExtendChannelMonitorV2Matrix(ctx context.Context, filter servic
 			point := &row.Buckets[bucketIndex]
 			passivePoint := point.Metrics.RequestCount > 0
 			mergeMetric(&point.Metrics, metricForFacts(factsInBucket, filter.Bucket.Minutes(), admin), filter.Bucket.Minutes(), admin)
-			pointSource := sourceForFacts(factsInBucket, passivePoint)
+			pointSource := sourceForFacts(freshFacts(factsInBucket), passivePoint)
+			pointSource.CacheSampled = point.Metrics.CacheRateDenominator > 0
 			setExtension(&point.Extensions, pointSource)
-			if !passivePoint {
-				point.Health = activeOnlyHealth(pointSource, cfg.HealthThresholds)
-			} else {
-				point.Health = service.ChannelMonitorV2HealthForWithThresholds(point.Metrics, cfg.HealthThresholds)
-			}
+			point.Health = healthForSource(pointSource, point.Metrics, passivePoint, cfg.HealthThresholds)
 		}
 		sort.Slice(row.Buckets, func(i, j int) bool { return row.Buckets[i].BucketStart.Before(row.Buckets[j].BucketStart) })
 	}
