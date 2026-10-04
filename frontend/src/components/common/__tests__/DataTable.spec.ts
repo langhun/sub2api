@@ -1,7 +1,15 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import DataTable from '../DataTable.vue'
+
+const componentSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../DataTable.vue'),
+  'utf8'
+)
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -83,6 +91,22 @@ describe('DataTable', () => {
     expect(nameHeader.findAll('svg')[1].classes()).toContain('text-primary-600')
   })
 
+  it('supports compact desktop density without changing the mobile card layout', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name' }],
+        data: [{ id: 1, name: 'Compact' }],
+        density: 'compact'
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('thead th').classes()).toContain('py-2')
+    expect(wrapper.find('tbody tr[data-index] td').classes()).toContain('py-2')
+    expect(wrapper.find('tbody tr[data-index] td').classes()).toContain('text-xs')
+  })
+
   it('renders every row with no virtual padding spacer for small datasets (virtualization off)', async () => {
     const data = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
     const wrapper = mount(DataTable, {
@@ -100,6 +124,13 @@ describe('DataTable', () => {
     expect(wrapper.findAll('tbody tr[data-index]')).toHaveLength(data.length)
     // …and there are no aria-hidden virtual padding spacer rows.
     expect(wrapper.findAll('tbody tr[aria-hidden="true"]')).toHaveLength(0)
+  })
+
+  it('keeps the table content-sized while the scroll wrapper fills the page', () => {
+    expect(componentSource).toContain('align-items: flex-start;')
+    expect(componentSource).toContain('.table-wrapper > table')
+    expect(componentSource).toContain('align-self: flex-start;')
+    expect(componentSource).toContain('flex: 0 0 auto;')
   })
 
   it('switches to windowed rendering once row count exceeds virtualizeThreshold', async () => {

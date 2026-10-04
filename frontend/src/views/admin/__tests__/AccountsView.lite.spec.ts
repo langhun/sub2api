@@ -62,7 +62,11 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = defineComponent({
-  props: { data: { type: Array, default: () => [] } },
+  props: {
+    data: { type: Array, default: () => [] },
+    density: { type: String, default: 'default' },
+    estimateRowHeight: { type: Number, default: 56 }
+  },
   template: `
     <div>
       <div v-for="row in data" :key="row.id" :data-account-name="row.name">
@@ -186,6 +190,16 @@ describe('admin AccountsView lite account list', () => {
       expect.objectContaining({ lite: '1' }),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
+    wrapper.unmount()
+  })
+
+  it('uses compact density for the dense account table', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const table = wrapper.getComponent(DataTableStub)
+    expect(table.props('density')).toBe('compact')
+    expect(table.props('estimateRowHeight')).toBe(112)
     wrapper.unmount()
   })
 

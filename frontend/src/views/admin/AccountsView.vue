@@ -191,7 +191,7 @@
           @select-all-results="handleSelectAllResults"
           @toggle-schedulable="handleBulkToggleSchedulable"
         />
-        <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div ref="accountTableRef" class="accounts-table-container flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
           ref="dataTableRef"
           :columns="cols"
@@ -203,8 +203,9 @@
           default-sort-key="name"
           default-sort-order="asc"
           :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
-          :estimate-row-height="156"
-          :overscan="5"
+          density="compact"
+          :estimate-row-height="112"
+          :overscan="4"
           :virtualize-threshold="50"
         >
           <template #header-select>
@@ -2597,5 +2598,14 @@ onUnmounted(() => {
 
 .account-tools-menu-icon {
   @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md;
+}
+
+.accounts-table-container :deep(.table-wrapper tbody td) {
+  line-height: 1.25;
+}
+
+.accounts-table-container :deep(.table-wrapper tbody td > .flex),
+.accounts-table-container :deep(.table-wrapper tbody td > .block) {
+  min-height: 0;
 }
 </style>

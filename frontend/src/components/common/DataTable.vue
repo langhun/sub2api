@@ -106,7 +106,7 @@
           <th
             v-if="selectable"
             scope="col"
-            class="sticky-header-cell w-11 min-w-11 px-3 py-3 text-center"
+            :class="['sticky-header-cell w-11 min-w-11 px-3 text-center', headerPaddingClass]"
           >
             <input
               type="checkbox"
@@ -124,7 +124,8 @@
             scope="col"
             :aria-sort="column.sortable ? getColumnAriaSort(column.key) : undefined"
             :class="[
-              'sticky-header-cell py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
+              'sticky-header-cell text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
+              headerPaddingClass,
               getAdaptivePaddingClass(),
               { 'cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700': column.sortable },
               getStickyColumnClass(column, index),
@@ -170,10 +171,10 @@
       <tbody class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
         <!-- Loading skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
-          <td v-if="selectable" class="w-11 min-w-11 px-3 py-4">
+          <td v-if="selectable" :class="['w-11 min-w-11 px-3', rowPaddingClass]">
             <div class="mx-auto h-4 w-4 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
           </td>
-          <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
+          <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap', rowPaddingClass, getAdaptivePaddingClass()]">
             <div class="animate-pulse">
               <div class="h-4 w-3/4 rounded bg-gray-200 dark:bg-dark-700"></div>
             </div>
@@ -222,7 +223,7 @@
             }"
             @click="clickableRows && emit('rowClick', item.row)"
           >
-            <td v-if="selectable" class="w-11 min-w-11 px-3 py-4 text-center">
+            <td v-if="selectable" :class="['w-11 min-w-11 px-3 text-center', rowPaddingClass]">
               <input
                 type="checkbox"
                 class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
@@ -237,7 +238,9 @@
               v-for="(column, colIndex) in columns"
               :key="column.key"
               :class="[
-                'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                'whitespace-nowrap text-gray-900 dark:text-gray-100',
+                cellTextClass,
+                rowPaddingClass,
                 getAdaptivePaddingClass(),
                 getStickyColumnClass(column, colIndex),
                 column.class
@@ -459,6 +462,8 @@ interface Props {
   clickableRows?: boolean
   /** Estimated row height in px for the virtualizer (default 56) */
   estimateRowHeight?: number
+  /** Compact desktop table spacing for dense operational lists. */
+  density?: 'default' | 'compact'
   /** Number of rows to render beyond the visible area (default 5) */
   overscan?: number
   /**
@@ -483,12 +488,16 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   serverSideSort: false,
   selectable: false,
+  density: 'default',
   selectedKeys: () => []
 })
 
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
+const rowPaddingClass = computed(() => props.density === 'compact' ? 'py-2' : 'py-4')
+const headerPaddingClass = computed(() => props.density === 'compact' ? 'py-2' : 'py-3')
+const cellTextClass = computed(() => props.density === 'compact' ? 'text-xs' : 'text-sm')
 
 type PersistedSortState = {
   key: string
@@ -961,7 +970,16 @@ defineExpose({
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  align-items: flex-start;
   isolation: isolate;
+}
+
+/* The wrapper is a horizontal flex scroller. Prevent the table from being
+   stretched to the viewport height, which makes short datasets distribute
+   the remaining space into their rows. */
+.table-wrapper > table {
+  align-self: flex-start;
+  flex: 0 0 auto;
 }
 
 /* 表头容器，确保在滚动时覆盖表体内容 */
