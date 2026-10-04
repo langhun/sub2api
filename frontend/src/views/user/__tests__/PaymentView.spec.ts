@@ -5,8 +5,6 @@ import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
-import en from '@/i18n/locales/en'
-import zh from '@/i18n/locales/zh'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
 
 const routeState = vi.hoisted(() => ({
@@ -375,7 +373,7 @@ describe('PaymentView subscription plan grid', () => {
 })
 
 describe('PaymentView recharge rate preview', () => {
-  it('uses the selected payment method currency in both locale templates', async () => {
+  it('does not render the recharge rate preview', async () => {
     translate.mockClear()
     routeState.path = '/purchase'
     routeState.query = {}
@@ -402,12 +400,39 @@ describe('PaymentView recharge rate preview', () => {
     wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 10)
     await flushPromises()
 
-    expect(translate).toHaveBeenCalledWith('payment.rechargeRatePreview', {
-      currency: 'USD',
-      usd: '0.50',
+    expect(translate).not.toHaveBeenCalledWith('payment.rechargeRatePreview', expect.anything())
+    expect(wrapper.html()).not.toContain('rechargeRatePreview')
+  })
+})
+
+describe('PaymentView recharge bonus settings', () => {
+  it('passes each backend-configured tier to the amount picker', async () => {
+    routeState.path = '/purchase'
+    routeState.query = {}
+    const tiers = [
+      { min_amount: 50, bonus_percent: 5 },
+      { min_amount: 100, bonus_percent: 10 },
+      { min_amount: 500, bonus_percent: 20 },
+    ]
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
+      recharge_bonus_tiers: tiers,
+      recharge_bonus_mode: 'bonus',
+    }))
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
+      },
     })
-    expect(en.payment.rechargeRatePreview).toBe('Current rate: 1 {currency} = {usd} USD')
-    expect(zh.payment.rechargeRatePreview).toBe('当前倍率：1 {currency} = {usd} USD')
+    await flushPromises()
+
+    const amountInput = wrapper.getComponent(AmountInput)
+    expect(amountInput.props('bonusTiers')).toEqual(tiers)
+    expect(amountInput.props('bonusMode')).toBe('bonus')
   })
 })
 

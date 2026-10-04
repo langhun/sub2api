@@ -17,9 +17,9 @@ describe('payment display settings Overlay', () => {
     expect(panel.validate({ payment_quick_amount_max: -1 }, {})).not.toBe('')
   })
 
-  it('filters only preset buttons while preserving zero as unlimited', () => {
+  it('keeps only the supported preset buttons even when the setting is unlimited', () => {
     expect(filterQuickRechargeAmounts(500)).toEqual([10, 20, 50, 100, 200, 500])
-    expect(filterQuickRechargeAmounts(0)).toEqual([10, 20, 50, 100, 200, 500, 1000, 2000, 5000])
+    expect(filterQuickRechargeAmounts(0)).toEqual([10, 20, 50, 100, 200, 500])
     expect(filterQuickRechargeAmounts('invalid')).toEqual([10, 20, 50, 100, 200, 500])
   })
 })
