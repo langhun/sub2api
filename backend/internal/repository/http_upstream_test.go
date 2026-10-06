@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -49,6 +51,144 @@ func TestHTTPUpstreamDoCanDisableRedirectsPerRequest(t *testing.T) {
 	require.Equal(t, http.StatusFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Zero(t, redirectedCalls.Load())
+}
+
+func TestHTTPUpstreamSmartRoutingCountsRedirectReplaysForRequestAndWSTurn(t *testing.T) {
+	testCases := []struct {
+		name           string
+		reserve        func(context.Context, int64) error
+		wantTotalSends int
+	}{
+		{
+			name:           "http request",
+			reserve:        service.ReserveSmartRoutingOpenAIRequestAttempt,
+			wantTotalSends: 2,
+		},
+		{
+			name:           "websocket turn",
+			reserve:        service.ReserveSmartRoutingOpenAIWSTurnAttempt,
+			wantTotalSends: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestCount atomic.Int64
+			var mu sync.Mutex
+			var paths []string
+			var methods []string
+			var bodies []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestCount.Add(1)
+				body, _ := io.ReadAll(r.Body)
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				methods = append(methods, r.Method)
+				bodies = append(bodies, string(body))
+				mu.Unlock()
+				switch r.URL.Path {
+				case "/start":
+					http.Redirect(w, r, "/second", http.StatusTemporaryRedirect)
+				case "/second":
+					http.Redirect(w, r, "/third", http.StatusPermanentRedirect)
+				case "/third":
+					w.WriteHeader(http.StatusOK)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			state := &service.SmartRoutingRequestState{
+				SmartRoutingActive:      true,
+				MainGroupID:             10,
+				CurrentGroupID:          20,
+				SmartRoutingMaxAttempts: 8,
+				SmartRoutingMaxDuration: time.Minute,
+			}
+			ctx := service.WithSmartRoutingState(context.Background(), state)
+			const accountID int64 = 31
+			require.NoError(t, tc.reserve(ctx, accountID), "the initial request/turn send is reserved at its gateway boundary")
+
+			ctx = service.WithHTTPUpstreamRedirectAttemptReserver(ctx, func(redirectCtx context.Context) error {
+				return tc.reserve(redirectCtx, accountID)
+			})
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL+"/start", bytes.NewReader([]byte("payload")))
+			require.NoError(t, err)
+			require.NotNil(t, req.GetBody, "307/308 redirects must replay the POST body to exercise the hidden send")
+
+			resp, err := NewHTTPUpstream(nil).Do(req, "", accountID, 1)
+			require.Nil(t, resp, "the redirect denied by the budget returns as an error; the prior redirect body is closed")
+			var budgetErr *service.UpstreamFailoverError
+			require.ErrorAs(t, err, &budgetErr, "the url.Error wrapper must preserve the typed routing failure")
+			require.Equal(t, service.SmartRoutingSiteAttemptBudgetExceededReason, budgetErr.Reason)
+			require.True(t, budgetErr.ShouldRetryNextAccount())
+			require.Equal(t, int64(2), requestCount.Load(), "only the initial and first redirected sends may reach the upstream")
+
+			mu.Lock()
+			require.Equal(t, []string{"/start", "/second"}, paths)
+			require.Equal(t, []string{http.MethodPost, http.MethodPost}, methods)
+			require.Equal(t, []string{"payload", "payload"}, bodies, "307 and 308 must preserve and replay the original request body")
+			mu.Unlock()
+			require.Equal(t, tc.wantTotalSends, state.TotalAttempts, "request and WebSocket-turn budgets use separate global counters")
+		})
+	}
+}
+
+func TestHTTPUpstreamSmartRoutingRedirectBudgetPreservesRedirectPolicies(t *testing.T) {
+	upstream := NewHTTPUpstream(nil).(*httpUpstreamService)
+	var events []string
+	ctx := service.WithHTTPUpstreamRedirectAttemptReserver(context.Background(), func(context.Context) error {
+		events = append(events, "reserve")
+		return nil
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://upstream.test/start", nil)
+	require.NoError(t, err)
+
+	customPolicyErr := errors.New("custom redirect policy rejected target")
+	clientWithPolicy := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			events = append(events, "policy")
+			return customPolicyErr
+		},
+	}
+	wrapped := upstream.httpClientForUpstreamRequest(clientWithPolicy, req)
+	require.NotSame(t, clientWithPolicy, wrapped, "the request-scoped callback must not mutate the cached client")
+	require.ErrorIs(t, wrapped.CheckRedirect(req, nil), customPolicyErr)
+	require.Equal(t, []string{"policy"}, events, "a rejected redirect must not consume budget")
+
+	events = nil
+	wrapped = upstream.httpClientForUpstreamRequest(&http.Client{}, req)
+	require.NoError(t, wrapped.CheckRedirect(req, make([]*http.Request, 9)))
+	require.Equal(t, []string{"reserve"}, events)
+	require.ErrorContains(t, wrapped.CheckRedirect(req, make([]*http.Request, 10)), "stopped after 10 redirects")
+	require.Equal(t, []string{"reserve"}, events, "the default 10-hop cap is applied before reserving an unsent redirect")
+}
+
+func TestHTTPUpstreamOrdinaryRequestStillFollows307And308(t *testing.T) {
+	var requestCount atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		switch r.URL.Path {
+		case "/start":
+			http.Redirect(w, r, "/second", http.StatusTemporaryRedirect)
+		case "/second":
+			http.Redirect(w, r, "/third", http.StatusPermanentRedirect)
+		case "/third":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/start", bytes.NewReader([]byte("payload")))
+	require.NoError(t, err)
+	resp, err := NewHTTPUpstream(nil).Do(req, "", 1, 1)
+	require.NoError(t, err, "ordinary requests retain the existing automatic redirect behavior")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int64(3), requestCount.Load())
 }
 
 func TestHTTPUpstreamDoWithTLSPlainHTTPUsesConfiguredHTTPProxy(t *testing.T) {

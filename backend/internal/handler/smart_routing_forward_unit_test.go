@@ -4,6 +4,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -106,11 +107,34 @@ func (r *routingForwardResolver) SuppressSameAccountRetry(err *service.UpstreamF
 
 type routingForwardUpstream struct {
 	service.HTTPUpstream
-	calls           []int64
-	partial         bool
-	failureStatus   int
-	succeedAfter    int
-	failedSiteCalls int
+	calls                     []int64
+	partial                   bool
+	disconnectBeforeCompleted bool
+	disconnectAfterOutput     bool
+	failureStatus             int
+	succeedAfter              int
+	failedSiteCalls           int
+}
+
+type routingForwardReadErrorBody struct {
+	*strings.Reader
+	err  error
+	done bool
+}
+
+func (r *routingForwardReadErrorBody) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err == io.EOF && !r.done {
+		r.done = true
+		if r.err != nil {
+			return 0, r.err
+		}
+	}
+	return n, err
+}
+
+func (r *routingForwardReadErrorBody) Close() error {
+	return nil
 }
 
 func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) (*http.Response, error) {
@@ -118,6 +142,18 @@ func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) 
 	status, body := 200, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_routed\",\"object\":\"response\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n"
 	if id == 1 {
 		u.failedSiteCalls++
+		if u.disconnectBeforeCompleted || u.disconnectAfterOutput {
+			if u.disconnectAfterOutput {
+				body = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}\n\n"
+			} else {
+				body = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_disconnected\",\"status\":\"in_progress\"}}\n\n"
+			}
+			return &http.Response{
+				StatusCode: status,
+				Header:     http.Header{"Content-Type": {"text/event-stream"}},
+				Body:       &routingForwardReadErrorBody{Reader: strings.NewReader(body), err: errors.New("stream closed before response.completed")},
+			}, nil
+		}
 		if u.succeedAfter > 0 && u.failedSiteCalls > u.succeedAfter {
 			return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": {"text/event-stream"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
 		}
@@ -135,7 +171,10 @@ func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) 
 }
 
 func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
-	upstream := &routingForwardUpstream{failureStatus: 503, succeedAfter: 2}
+	// A routed pool website gets one fast same-site retry. The first request
+	// recovers on that retry; a later request can use the recovered website
+	// immediately without a cooldown or a forced cross-group switch.
+	upstream := &routingForwardUpstream{failureStatus: 503, succeedAfter: 1}
 	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	groups := routingForwardGroups{groups: map[int64]*service.Group{
@@ -164,12 +203,11 @@ func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "resp_routed")
 	}
 
-	require.Equal(t, []int64{1, 1, 1, 1}, upstream.calls, "pool recovery must stay on the same website and remain available")
-	require.Len(t, resolver.attempts, 4)
+	require.Equal(t, []int64{1, 1, 1}, upstream.calls, "a routed pool website may recover on one same-site retry and remain available")
+	require.Len(t, resolver.attempts, 3)
 	require.False(t, resolver.attempts[0].HealthFinal)
-	require.False(t, resolver.attempts[1].HealthFinal)
+	require.True(t, resolver.attempts[1].Success)
 	require.True(t, resolver.attempts[2].Success)
-	require.True(t, resolver.attempts[3].Success)
 	for _, attempt := range resolver.attempts {
 		require.False(t, attempt.HealthOnly, "a recovered website must not receive a terminal failure notification")
 	}
@@ -210,7 +248,16 @@ func TestSmartRoutingSpeedPolicyCannotStealPoolRetry(t *testing.T) {
 	h.Responses(c)
 
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Equal(t, []int64{1, 1, 1}, upstream.calls, "speed re-scoring must not move a pool retry to another website")
+	require.Equal(t, []int64{1, 1, 2}, upstream.calls, "speed re-scoring must not steal the one same-site pool retry, but the next failure must switch websites")
+	// The exhausted website also emits one health-only terminal observation
+	// before the scheduler selects the next website.
+	require.Len(t, resolver.attempts, 4)
+	require.False(t, resolver.attempts[0].Success)
+	require.False(t, resolver.attempts[1].Success)
+	require.True(t, resolver.attempts[2].HealthFinal)
+	require.True(t, resolver.attempts[2].HealthOnly)
+	require.True(t, resolver.attempts[3].Success)
+	require.Equal(t, int64(2), resolver.attempts[3].AccountID)
 	require.Zero(t, state.RetryAccountID)
 }
 
@@ -222,10 +269,10 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 		wantFailedSiteCalls int
 	}{
 		{name: "402 is website failure by default", status: 402, wantFailedSiteCalls: 1},
-		{name: "401 exhausts website pool", status: 401, wantFailedSiteCalls: 4},
+		{name: "401 releases website after one same-site retry", status: 401, wantFailedSiteCalls: 2},
 		{name: "403 balance exhaustion switches website immediately", status: 403, wantFailedSiteCalls: 1},
-		{name: "429 exhausts website pool", status: 429, wantFailedSiteCalls: 4},
-		{name: "configured 503 exhausts website pool", status: 503, customRetryCodes: []any{float64(503)}, wantFailedSiteCalls: 4},
+		{name: "429 releases website after one same-site retry", status: 429, wantFailedSiteCalls: 2},
+		{name: "configured 503 releases website after one same-site retry", status: 503, customRetryCodes: []any{float64(503)}, wantFailedSiteCalls: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			upstream := &routingForwardUpstream{failureStatus: tc.status}
@@ -267,7 +314,7 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 				wantCalls = append(wantCalls, 1)
 			}
 			wantCalls = append(wantCalls, 2, 2)
-			require.Equal(t, wantCalls, upstream.calls, "retry the website pool first, then keep the next request on the healthy website")
+			require.Equal(t, wantCalls, upstream.calls, "retry a website once, then move to the next website and keep the next request on the healthy website")
 			wantAttempts := tc.wantFailedSiteCalls + 2
 			if tc.wantFailedSiteCalls > 1 {
 				wantAttempts++ // terminal website-health notification; not SQL telemetry
@@ -338,4 +385,96 @@ func TestSmartRoutingResponsesRealForwardFailover(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSmartRoutingResponsesDisconnectBeforeCompletionFailsOver(t *testing.T) {
+	upstream := &routingForwardUpstream{disconnectBeforeCompleted: true}
+	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	groups := routingForwardGroups{groups: map[int64]*service.Group{
+		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+		3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+	}}
+	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
+		{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"access_token": "test-one"}},
+		{ID: 2, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3132}, Credentials: map[string]any{"access_token": "test-two"}},
+	}}}
+	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
+	t.Cleanup(billing.Stop)
+	channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+	resolver := &routingForwardResolver{}
+	h.gatewayService.SetSmartRoutingResolver(resolver)
+
+	c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())
+	key, _ := c.Get(string(middleware.ContextKeyAPIKey))
+	apiKey := key.(*service.APIKey)
+	apiKey.Group = groups.groups[3131]
+	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-5.1","stream":true,"input":"hello"}`))
+	ctx := service.WithAPIKeyContext(c.Request.Context(), apiKey)
+	state := &service.SmartRoutingRequestState{
+		MainGroupID:          3131,
+		CurrentGroupID:       3131,
+		EndpointType:         "responses",
+		MaxGroupSwitches:     2,
+		PrimaryGroupSnapshot: apiKey.Group,
+	}
+	c.Request = c.Request.WithContext(service.WithSmartRoutingState(ctx, state))
+
+	h.Responses(c)
+
+	require.Equal(t, []int64{1, 2}, upstream.calls, "a pre-completion disconnect before semantic output must fail over to the next candidate")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "resp_routed")
+	require.NotContains(t, rec.Body.String(), "stream closed before response.completed")
+	require.NotContains(t, rec.Body.String(), "response.failed")
+	require.Len(t, resolver.attempts, 2)
+	require.False(t, resolver.attempts[0].Success)
+	require.True(t, resolver.attempts[1].Success)
+	require.Equal(t, int64(3132), resolver.attempts[1].GroupID)
+}
+
+func TestSmartRoutingResponsesDisconnectAfterTokenDoesNotReplay(t *testing.T) {
+	upstream := &routingForwardUpstream{disconnectAfterOutput: true}
+	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	groups := routingForwardGroups{groups: map[int64]*service.Group{
+		3131: {ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+		3132: {ID: 3132, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard},
+	}}
+	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
+		{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"access_token": "test-one"}},
+		{ID: 2, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3132}, Credentials: map[string]any{"access_token": "test-two"}},
+	}}}
+	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
+	t.Cleanup(billing.Stop)
+	channels := service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{}, groups, nil, nil, nil)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, routingForwardUsers{}, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, channels, nil, nil, nil)
+	resolver := &routingForwardResolver{}
+	h.gatewayService.SetSmartRoutingResolver(resolver)
+
+	c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())
+	key, _ := c.Get(string(middleware.ContextKeyAPIKey))
+	apiKey := key.(*service.APIKey)
+	apiKey.Group = groups.groups[3131]
+	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-5.1","stream":true,"input":"hello"}`))
+	ctx := service.WithAPIKeyContext(c.Request.Context(), apiKey)
+	state := &service.SmartRoutingRequestState{
+		MainGroupID:          3131,
+		CurrentGroupID:       3131,
+		EndpointType:         "responses",
+		MaxGroupSwitches:     2,
+		PrimaryGroupSnapshot: apiKey.Group,
+	}
+	c.Request = c.Request.WithContext(service.WithSmartRoutingState(ctx, state))
+
+	h.Responses(c)
+
+	require.Equal(t, []int64{1}, upstream.calls, "once semantic output is visible, replaying the request would duplicate downstream output")
+	require.NotContains(t, rec.Body.String(), "resp_routed")
+	require.Contains(t, rec.Body.String(), "partial")
+	require.Contains(t, rec.Body.String(), "response.failed", "a Responses stream must terminate with a protocol terminal event")
+	require.NotContains(t, rec.Body.String(), "event: error\n", "legacy error events make Codex report stream closed before response.completed")
+	require.GreaterOrEqual(t, len(resolver.attempts), 1)
+	require.False(t, resolver.attempts[0].Success)
 }

@@ -27,8 +27,19 @@ type SmartRoutingAttempt struct {
 	// HealthOnly prevents the terminal pool failure notification from being
 	// persisted as a duplicate request attempt.
 	HealthOnly bool
-	SpeedMs    int64
-	CreatedAt  time.Time
+	// SpeedMs is the cumulative speed sample for the selected group. It
+	// includes same-group account failover, pool retries and their backoff, but
+	// is only non-zero for a successful request with a valid terminal speed.
+	SpeedMs int64
+	// AccountSpeedMs is the cumulative speed sample for one upstream website
+	// entry. It includes pool retries for the same account and resets when the
+	// scheduler changes account or group.
+	AccountSpeedMs int64
+	// RequestElapsedMs is retained for request-level diagnostics. It must not
+	// be used as an account speed sample after a cross-account or cross-group
+	// switch.
+	RequestElapsedMs int64
+	CreatedAt        time.Time
 }
 
 type SmartRoutingAttemptObserver interface {
@@ -36,12 +47,16 @@ type SmartRoutingAttemptObserver interface {
 }
 
 type SmartRoutingAccountMetric struct {
-	SpeedMs   float64
-	ErrorRate float64
+	SpeedMs    float64
+	SpeedP90Ms float64
+	ErrorRate  float64
 	// Samples is the number of request-level outcomes in the metric window.
-	// Speed preference is ignored until this reaches the routing cold-start
-	// threshold, so one lucky request cannot label an account as fastest.
+	// It is used for the reliability of the success-rate dimension.
 	Samples int64
+	// SpeedSamples counts only successful request-level outcomes with a
+	// positive speed sample. It is the reliability gate for speed preference;
+	// total request samples must not make one lucky success look authoritative.
+	SpeedSamples int64
 }
 
 type SmartRoutingAccountMetricProvider interface {
@@ -76,6 +91,22 @@ func BeginSmartRoutingAttempt(ctx context.Context, accountID int64) (func(), err
 		return func() {}, &UpstreamFailoverError{StatusCode: 503, Reason: SmartRoutingAccountUnavailableReason}
 	}
 	s.ProbeToken = token
+	// Keep one request-level origin for outcome diagnostics, while maintaining
+	// independent group/account origins for latency attribution.
+	now := time.Now()
+	if s.SmartRoutingStartedAt.IsZero() {
+		s.SmartRoutingStartedAt = now
+	}
+	s.CurrentAttemptStartedAt = now
+	if s.GroupMetricGroupID != s.CurrentGroupID || s.GroupMetricStartedAt.IsZero() {
+		s.GroupMetricGroupID = s.CurrentGroupID
+		s.GroupMetricStartedAt = now
+	}
+	if s.AccountMetricGroupID != s.CurrentGroupID || s.AccountMetricAccountID != accountID || s.AccountMetricStartedAt.IsZero() {
+		s.AccountMetricGroupID = s.CurrentGroupID
+		s.AccountMetricAccountID = accountID
+		s.AccountMetricStartedAt = now
+	}
 	model, endpoint, stream := s.RequestedModel, s.EndpointType, s.Stream
 	return func() {
 		controller.ReleaseRoutingAccount(accountID, model, endpoint, stream, token)
@@ -101,10 +132,10 @@ func smartRoutingOrderBySpeed(ctx context.Context, accounts []accountWithLoad) [
 	minSpeed, maxSpeed := 0.0, 0.0
 	for _, a := range accounts {
 		metric := s.AccountMetrics[a.account.ID]
-		if metric.Samples < minSamplesForSmartRoutingMetric {
+		if metric.SpeedSamples < minSamplesForSmartRoutingMetric {
 			continue
 		}
-		v := metric.SpeedMs
+		v := smartRoutingMetricSpeedMs(metric)
 		if v > 0 && (minSpeed == 0 || v < minSpeed) {
 			minSpeed = v
 		}
@@ -118,10 +149,11 @@ func smartRoutingOrderBySpeed(ctx context.Context, accounts []accountWithLoad) [
 	score := func(id int64) float64 {
 		m := s.AccountMetrics[id]
 		speed, success := 0.5, 0.5
-		if m.Samples >= minSamplesForSmartRoutingMetric && m.SpeedMs > 0 {
+		metricSpeed := smartRoutingMetricSpeedMs(m)
+		if m.SpeedSamples >= minSamplesForSmartRoutingMetric && metricSpeed > 0 {
 			speed = 1
 			if maxSpeed > minSpeed {
-				speed = (maxSpeed - m.SpeedMs) / (maxSpeed - minSpeed)
+				speed = (maxSpeed - metricSpeed) / (maxSpeed - minSpeed)
 			}
 		}
 		if m.Samples >= minSamplesForSmartRoutingMetric {
@@ -145,22 +177,24 @@ func smartRoutingPreferAccountBySpeed(ctx context.Context, account, selected *Ac
 	bMetric := state.AccountMetrics[selected.ID]
 	minSpeed, maxSpeed := 0.0, 0.0
 	for _, metric := range []SmartRoutingAccountMetric{aMetric, bMetric} {
-		if metric.Samples < minSamplesForSmartRoutingMetric || metric.SpeedMs <= 0 {
+		metricSpeed := smartRoutingMetricSpeedMs(metric)
+		if metric.SpeedSamples < minSamplesForSmartRoutingMetric || metricSpeed <= 0 {
 			continue
 		}
-		if minSpeed == 0 || metric.SpeedMs < minSpeed {
-			minSpeed = metric.SpeedMs
+		if minSpeed == 0 || metricSpeed < minSpeed {
+			minSpeed = metricSpeed
 		}
-		if metric.SpeedMs > maxSpeed {
-			maxSpeed = metric.SpeedMs
+		if metricSpeed > maxSpeed {
+			maxSpeed = metricSpeed
 		}
 	}
 	score := func(metric SmartRoutingAccountMetric) float64 {
 		speed, success := 0.5, 0.5
-		if metric.Samples >= minSamplesForSmartRoutingMetric && metric.SpeedMs > 0 {
+		metricSpeed := smartRoutingMetricSpeedMs(metric)
+		if metric.SpeedSamples >= minSamplesForSmartRoutingMetric && metricSpeed > 0 {
 			speed = 1
 			if maxSpeed > minSpeed {
-				speed = (maxSpeed - metric.SpeedMs) / (maxSpeed - minSpeed)
+				speed = (maxSpeed - metricSpeed) / (maxSpeed - minSpeed)
 			}
 		}
 		if metric.Samples >= minSamplesForSmartRoutingMetric {
@@ -173,6 +207,18 @@ func smartRoutingPreferAccountBySpeed(ctx context.Context, account, selected *Ac
 }
 
 const minSamplesForSmartRoutingMetric = 20
+
+func smartRoutingMetricSpeedMs(metric SmartRoutingAccountMetric) float64 {
+	if metric.SpeedMs <= 0 {
+		return 0
+	}
+	if metric.SpeedP90Ms > 0 {
+		// P50 captures normal latency while P90 prevents a route with a bad
+		// tail from winning solely because its median is occasionally low.
+		return metric.SpeedMs*0.6 + metric.SpeedP90Ms*0.4
+	}
+	return metric.SpeedMs
+}
 
 func smartRoutingAccountMetricScore(state *SmartRoutingRequestState, speed, success float64) float64 {
 	speedWeight, successWeight := smartRoutingQualityWeights(state)
@@ -250,12 +296,10 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 	}
 	state.Attempt++
 	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
-	speed := duration.Milliseconds()
-	if stream {
-		speed = 0
-		if firstTokenMs != nil {
-			speed = int64(*firstTokenMs)
-		}
+	now := time.Now()
+	groupSpeed, accountSpeed, requestElapsed := smartRoutingTiming(state, account.ID, stream, duration, firstTokenMs, err == nil, now)
+	if requestElapsed > 0 {
+		state.RequestElapsedMs = requestElapsed
 	}
 	if err == nil {
 		state.FinalSuccess = true
@@ -263,7 +307,7 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 		state.FinalGroupID = state.CurrentGroupID
 		state.FinalAccountID = account.ID
 		if firstTokenMs != nil {
-			state.FirstTokenMs = int64(*firstTokenMs)
+			state.FirstTokenMs = requestElapsed
 		}
 	}
 	state.Observer.ObserveRoutingAttempt(SmartRoutingAttempt{
@@ -271,8 +315,64 @@ func ObserveSmartRoutingAttempt(ctx context.Context, account *Account, stream bo
 		AccountID: account.ID, Attempt: state.Attempt, Model: state.RequestedModel,
 		Endpoint: state.EndpointType, Stream: stream, Success: err == nil,
 		ProbeToken: state.ProbeToken, StatusCode: statusCode, HealthFinal: healthFinal,
-		SpeedMs: speed, CreatedAt: time.Now(),
+		SpeedMs: groupSpeed, AccountSpeedMs: accountSpeed,
+		RequestElapsedMs: requestElapsed, CreatedAt: now,
 	})
+}
+
+// smartRoutingRequestElapsedMs converts an attempt-local result into a
+// request-level speed sample. The request origin is intentionally stored in
+// SmartRoutingRequestState so pool-mode retries include their previous
+// failures and backoff without changing any upstream stream parser.
+func smartRoutingTiming(state *SmartRoutingRequestState, accountID int64, stream bool, duration time.Duration, firstTokenMs *int, success bool, now time.Time) (groupSpeed, accountSpeed, requestElapsed int64) {
+	localElapsed := smartRoutingLocalElapsed(stream, duration, firstTokenMs)
+	if state == nil {
+		return 0, 0, localElapsed
+	}
+	requestElapsed = smartRoutingElapsedAt(state.SmartRoutingStartedAt, state.CurrentAttemptStartedAt, now, stream, duration, firstTokenMs)
+	groupElapsed := smartRoutingElapsedAt(state.GroupMetricStartedAt, state.CurrentAttemptStartedAt, now, stream, duration, firstTokenMs)
+	accountElapsed := smartRoutingElapsedAt(state.AccountMetricStartedAt, state.CurrentAttemptStartedAt, now, stream, duration, firstTokenMs)
+	if success && localElapsed > 0 {
+		groupSpeed = groupElapsed
+		accountSpeed = accountElapsed
+	}
+	return groupSpeed, accountSpeed, requestElapsed
+}
+
+func smartRoutingLocalElapsed(stream bool, duration time.Duration, firstTokenMs *int) int64 {
+	if stream {
+		if firstTokenMs == nil || *firstTokenMs <= 0 {
+			return 0
+		}
+		return int64(*firstTokenMs)
+	}
+	if duration <= 0 {
+		return 0
+	}
+	return duration.Milliseconds()
+}
+
+func smartRoutingElapsedAt(start, attemptStart, now time.Time, stream bool, duration time.Duration, firstTokenMs *int) int64 {
+	if start.IsZero() {
+		return smartRoutingLocalElapsed(stream, duration, firstTokenMs)
+	}
+	if stream {
+		if firstTokenMs == nil || *firstTokenMs <= 0 {
+			return 0
+		}
+		if attemptStart.IsZero() || attemptStart.Before(start) {
+			attemptStart = start
+		}
+		return maxInt64(0, attemptStart.Sub(start).Milliseconds()+int64(*firstTokenMs))
+	}
+	return maxInt64(0, now.Sub(start).Milliseconds())
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func smartRoutingFailureStatus(err error) int {

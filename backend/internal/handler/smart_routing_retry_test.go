@@ -254,18 +254,16 @@ func TestSmartRoutingBudgetFailureRecordsTerminalStatusWithoutForward(t *testing
 	c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(ctx)
 
 	_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
-		t.Fatal("budget-exhausted request must not start another upstream forward")
-		return nil, nil
+		return nil, service.ReserveSmartRoutingRequestAttempt(c.Request.Context(), 11)
 	})
 	var failure *service.UpstreamFailoverError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, service.SmartRoutingAttemptBudgetExceededReason, failure.Reason)
-	require.Equal(t, 503, state.FinalErrorStatus)
 	require.Equal(t, 1, state.TotalAttempts)
 	require.Equal(t, 1, controller.releases)
 }
 
-func TestSmartRoutingForwardEnforcesWallClockDeadline(t *testing.T) {
+func TestSmartRoutingForwardDoesNotDeadlineLongRunningUpstreamResponse(t *testing.T) {
 	controller := &routingAdmissionFixture{allowed: true}
 	state := &service.SmartRoutingRequestState{
 		SmartRoutingActive:      true,
@@ -282,15 +280,16 @@ func TestSmartRoutingForwardEnforcesWallClockDeadline(t *testing.T) {
 
 	started := time.Now()
 	_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {
-		<-c.Request.Context().Done()
-		return nil, c.Request.Context().Err()
+		_, hasDeadline := c.Request.Context().Deadline()
+		require.False(t, hasDeadline, "routing budget must not become the model response deadline")
+		require.NoError(t, service.ReserveSmartRoutingRequestAttempt(c.Request.Context(), 11))
+		time.Sleep(30 * time.Millisecond)
+		require.NoError(t, c.Request.Context().Err(), "a valid long response must keep the caller context")
+		return &service.OpenAIForwardResult{}, nil
 	})
 
-	var failure *service.UpstreamFailoverError
-	require.ErrorAs(t, err, &failure)
-	require.Equal(t, service.SmartRoutingAttemptBudgetExceededReason, failure.Reason)
-	require.Equal(t, 503, state.FinalErrorStatus)
-	require.Less(t, time.Since(started), 500*time.Millisecond)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, time.Since(started), 30*time.Millisecond)
 	require.Equal(t, 1, state.TotalAttempts)
 	require.Equal(t, 1, controller.acquires)
 	require.Equal(t, 1, controller.releases)
@@ -325,6 +324,9 @@ func TestSmartRoutingForwardSuppressesOnlyUnsafePoolRetries(t *testing.T) {
 			}
 			if tt.response == "Insufficient account balance" {
 				upstreamFailure.StatusCode = http.StatusForbidden
+			}
+			if tt.maxAttempts == 1 {
+				require.NoError(t, service.ReserveSmartRoutingRequestAttempt(ctx, 11))
 			}
 
 			_, err := forwardWithSmartRouting(c, &service.Account{ID: 11}, false, func() (*service.OpenAIForwardResult, error) {

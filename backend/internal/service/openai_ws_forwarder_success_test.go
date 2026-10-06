@@ -144,7 +144,7 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 	}
 
 	body := []byte(`{"model":"gpt-5.1","stream":false,"previous_response_id":"resp_prev_1","input":[{"type":"input_text","text":"hello"}]}`)
-	result, err := svc.Forward(context.Background(), c, account, body)
+	result, err := svc.Forward(c.Request.Context(), c, account, body)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, 12, result.Usage.InputTokens)
@@ -1021,7 +1021,7 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthHonorsAccountUserAgent(t *testin
 	}
 
 	body := []byte(`{"model":"gpt-5.1","stream":false,"input":[{"type":"input_text","text":"hello"}]}`)
-	result, err := svc.Forward(context.Background(), c, account, body)
+	result, err := svc.Forward(c.Request.Context(), c, account, body)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "codex-tui", captureDialer.lastHeaders.Get("originator"))
@@ -1439,6 +1439,14 @@ func TestOpenAIGatewayService_Forward_WSv2_GeneratePrewarm(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
 	c.Request.Header.Set("session_id", "session-prewarm")
+	smartState := &SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		SmartRoutingStartedAt:   time.Now(),
+		SmartRoutingMaxAttempts: 4,
+		MainGroupID:             1,
+		CurrentGroupID:          1,
+	}
+	c.Request = c.Request.WithContext(WithSmartRoutingState(c.Request.Context(), smartState))
 
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
@@ -1488,7 +1496,7 @@ func TestOpenAIGatewayService_Forward_WSv2_GeneratePrewarm(t *testing.T) {
 	}
 
 	body := []byte(`{"model":"gpt-5.1","stream":false,"input":[{"type":"input_text","text":"hello"}]}`)
-	result, err := svc.Forward(context.Background(), c, account, body)
+	result, err := svc.Forward(c.Request.Context(), c, account, body)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "resp_main_1", result.RequestID)
@@ -1499,6 +1507,7 @@ func TestOpenAIGatewayService_Forward_WSv2_GeneratePrewarm(t *testing.T) {
 	require.True(t, gjson.Get(firstWrite, "generate").Exists())
 	require.False(t, gjson.Get(firstWrite, "generate").Bool())
 	require.False(t, gjson.Get(secondWrite, "generate").Exists())
+	require.Equal(t, 2, smartState.TotalAttempts, "预热和业务 payload 都必须计入智能路由真实发送预算")
 }
 
 func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {

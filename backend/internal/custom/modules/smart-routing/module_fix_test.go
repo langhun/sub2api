@@ -85,9 +85,9 @@ func TestResolveKeepsCurrentGroupWhenKeyGroupNil(t *testing.T) {
 	mock.ExpectQuery("SELECT rg.group_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
 		"group_id", "sort_order", "enabled", "name", "platform",
 	}).AddRow(int64(2), 0, true, "expensive", service.PlatformOpenAI))
-	zeroStats := sqlmock.NewRows([]string{"samples", "success", "speed", "fallback_samples", "fallback_success", "fallback_speed"}).AddRow(0, 0, sql.NullInt64{}, 0, 0, sql.NullInt64{})
+	zeroStats := sqlmock.NewRows([]string{"samples", "success", "speed_samples", "speed", "speed_p90", "fallback_samples", "fallback_success", "fallback_speed_samples", "fallback_speed", "fallback_speed_p90"}).AddRow(0, 0, 0, sql.NullInt64{}, sql.NullInt64{}, 0, 0, 0, sql.NullInt64{}, sql.NullInt64{})
 	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(mainID, "gpt-5", "chat_completions", false).WillReturnRows(zeroStats)
-	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(candidateID, "gpt-5", "chat_completions", false).WillReturnRows(sqlmock.NewRows([]string{"samples", "success", "speed", "fallback_samples", "fallback_success", "fallback_speed"}).AddRow(0, 0, sql.NullInt64{}, 0, 0, sql.NullInt64{}))
+	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(candidateID, "gpt-5", "chat_completions", false).WillReturnRows(sqlmock.NewRows([]string{"samples", "success", "speed_samples", "speed", "speed_p90", "fallback_samples", "fallback_success", "fallback_speed_samples", "fallback_speed", "fallback_speed_p90"}).AddRow(0, 0, 0, sql.NullInt64{}, sql.NullInt64{}, 0, 0, 0, sql.NullInt64{}, sql.NullInt64{}))
 
 	primary := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
 	candidate := &service.Group{ID: candidateID, Name: "expensive", Platform: service.PlatformOpenAI, RateMultiplier: 5, Status: service.StatusActive, SubscriptionType: "standard"}

@@ -175,6 +175,22 @@ func TestSmartRoutingUsageMarksMigrationIsDurable(t *testing.T) {
 	}
 }
 
+func TestSmartRoutingAttemptTimingMigrationAddsAccountSpeedColumn(t *testing.T) {
+	content, err := files.ReadFile("024_smart_routing_attempt_timing.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"ALTER TABLE custom_route_attempts",
+		"ADD COLUMN IF NOT EXISTS account_speed_ms BIGINT NOT NULL DEFAULT 0",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("migration missing %q", expected)
+		}
+	}
+}
+
 func TestLegacyRechargeBonusMigrationStaysInOverlay(t *testing.T) {
 	content, err := files.ReadFile("023_migrate_legacy_recharge_bonus.sql")
 	if err != nil {

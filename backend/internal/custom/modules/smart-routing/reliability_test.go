@@ -25,8 +25,9 @@ func expectRoutingProfile(mock sqlmock.Sqlmock, keyID int64) {
 
 func expectRoutingStats(mock sqlmock.Sqlmock, groupID int64, samples, success, speed int) {
 	mock.ExpectQuery("FROM custom_route_attempts").WithArgs(groupID, "gpt-5", "responses", true).WillReturnRows(sqlmock.NewRows([]string{
-		"samples", "success", "speed", "fallback_samples", "fallback_success", "fallback_speed",
-	}).AddRow(samples, success, speed, samples, success, speed))
+		"samples", "success", "speed_samples", "speed", "speed_p90",
+		"fallback_samples", "fallback_success", "fallback_speed_samples", "fallback_speed", "fallback_speed_p90",
+	}).AddRow(samples, success, success, speed, speed, samples, success, success, speed, speed))
 }
 
 func TestRoutingOutcomeWriterIsBoundedAndCleansExpiredRows(t *testing.T) {
@@ -166,11 +167,11 @@ func TestRoutingAccountMetricsFallsBackToReliableHourlyWindow(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	m := &Module{repo: NewRepository(db)}
 	mock.ExpectQuery("SELECT account_id").WithArgs(int64(2), "gpt-5", "responses", true).WillReturnRows(
-		sqlmock.NewRows([]string{"account_id", "recent_samples", "recent_speed", "recent_error", "fallback_samples", "fallback_speed", "fallback_error"}).
-			AddRow(int64(12), int64(3), 120.0, 0.0, int64(minSamples), 640.0, 0.2),
+		sqlmock.NewRows([]string{"account_id", "recent_samples", "recent_speed_samples", "recent_speed", "recent_speed_p90", "recent_error", "fallback_samples", "fallback_speed_samples", "fallback_speed", "fallback_speed_p90", "fallback_error"}).
+			AddRow(int64(12), int64(3), int64(2), 120.0, 180.0, 0.0, int64(minSamples), int64(minSamples), 640.0, 900.0, 0.2),
 	)
 	metrics := m.RoutingAccountMetrics(context.Background(), 2, "gpt-5", "responses", true)
-	require.Equal(t, service.SmartRoutingAccountMetric{Samples: minSamples, SpeedMs: 640, ErrorRate: 0.2}, metrics[12])
+	require.Equal(t, service.SmartRoutingAccountMetric{Samples: minSamples, SpeedSamples: minSamples, SpeedMs: 640, SpeedP90Ms: 900, ErrorRate: 0.2}, metrics[12])
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

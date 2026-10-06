@@ -448,7 +448,7 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 	// requests. A stale or over-broad account mapping must never send a GPT
 	// request to a foreign provider family (for example Gemini or Claude).
 	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
-		!SmartRoutingAccountModelCompatible(account, requestedModel) {
+		!SmartRoutingAccountModelCompatibleForRequest(account, requestedModel, requireCompact) {
 		return "smart_routing_foreign_model_mapping"
 	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {

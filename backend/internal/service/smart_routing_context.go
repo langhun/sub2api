@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 
@@ -77,6 +78,11 @@ func CommitSmartRoutingAdmission(ctx context.Context, resolver SmartRoutingResol
 type apiKeyContextKey struct{}
 type smartRoutingStateContextKey struct{}
 
+type smartRoutingSiteAttemptKey struct {
+	groupID   int64
+	accountID int64
+}
+
 // WithAPIKeyContext makes the authenticated key available to shared gateway
 // services without coupling them to gin.Context.
 func WithAPIKeyContext(ctx context.Context, key *APIKey) context.Context {
@@ -106,6 +112,10 @@ type SmartRoutingRequestState struct {
 	// intentionally asynchronous and may inspect the marker while a streaming
 	// request is still advancing through another account/group attempt.
 	selectedMu       sync.RWMutex
+	attemptMu        sync.Mutex
+	turnAttemptCount int
+	turnAttemptStart time.Time
+	siteAttempts     map[smartRoutingSiteAttemptKey]int
 	MainGroupID      int64
 	CurrentGroupID   int64
 	ExhaustedGroups  map[int64]struct{}
@@ -128,8 +138,27 @@ type SmartRoutingRequestState struct {
 	// including attempts whose error is not eligible for telemetry. It is the
 	// hard request-level safety budget; Attempt remains the historical
 	// telemetry counter.
-	TotalAttempts           int
-	SmartRoutingStartedAt   time.Time
+	TotalAttempts         int
+	SmartRoutingStartedAt time.Time
+	// CurrentAttemptStartedAt is refreshed immediately before each actual
+	// upstream forward. It is used with the metric windows below to convert a
+	// per-attempt TTFT into a cumulative group or website sample.
+	CurrentAttemptStartedAt time.Time
+	// RequestElapsedMs is the latest request-level elapsed sample observed by
+	// the route. It is kept for outcome diagnostics and is never written as a
+	// website/account speed sample after a cross-account or cross-group switch.
+	RequestElapsedMs int64
+	// GroupMetricStartedAt starts a cumulative speed window for the current
+	// group. It survives account changes inside one group so a group sample
+	// includes same-group failover, pool retries and their backoff.
+	GroupMetricStartedAt time.Time
+	GroupMetricGroupID   int64
+	// AccountMetricStartedAt starts a cumulative speed window for the current
+	// website/account entry. It survives pool retries for the same account but
+	// resets when the scheduler moves to another website or group.
+	AccountMetricStartedAt  time.Time
+	AccountMetricGroupID    int64
+	AccountMetricAccountID  int64
 	SmartRoutingMaxAttempts int
 	SmartRoutingMaxDuration time.Duration
 	CapacityRetries         int
@@ -196,6 +225,10 @@ type SmartRoutingRequestState struct {
 	// in flight. Restoring the frozen snapshot keeps billing metadata coherent,
 	// but must not allow downstream schedulers to reload the changed row by ID.
 	ContractInvalid bool
+	// SmartRoutingGroupAdapterUnavailable asks the Overlay to confirm whether
+	// an enabled route exists before the shared selector can continue without
+	// its group repository. The selector clears it after the resolver returns.
+	SmartRoutingGroupAdapterUnavailable bool
 	// ContinuityLocked is set for requests carrying previous_response_id.
 	// Such requests must stay with their verified response owner; moving the
 	// response chain to another group would produce an upstream 404/401 or,
@@ -214,12 +247,167 @@ const (
 	// cross-account/group failover. A pool website still gets its configured
 	// same-site retry budget, while the request cannot fan out indefinitely.
 	SmartRoutingDefaultMaxAttempts = 12
-	// SmartRoutingDefaultMaxDuration bounds wall-clock time spent attempting
-	// upstreams. It only applies after smart routing has been activated.
+	// SmartRoutingDefaultMaxDuration is retained for compatibility with callers
+	// that still populate the legacy duration field. It must not become a hard
+	// timeout for an in-flight model response; routing fan-out is bounded by
+	// send counts instead.
 	SmartRoutingDefaultMaxDuration = 30 * time.Second
+	// SmartRoutingMaxSiteAttempts bounds real OpenAI sends to one routed
+	// website/account. It includes the initial send and all internal retries.
+	SmartRoutingMaxSiteAttempts = 2
 )
 
 const SmartRoutingAttemptBudgetExceededReason GatewayFailureReason = "smart_routing_attempt_budget_exceeded"
+const SmartRoutingTurnAttemptBudgetExceededReason GatewayFailureReason = "smart_routing_turn_attempt_budget_exceeded"
+const SmartRoutingSiteAttemptBudgetExceededReason GatewayFailureReason = "smart_routing_site_attempt_budget_exceeded"
+
+func prepareSmartRoutingAttemptBudget(state *SmartRoutingRequestState) {
+	if state == nil {
+		return
+	}
+	state.attemptMu.Lock()
+	defer state.attemptMu.Unlock()
+	if state.SmartRoutingStartedAt.IsZero() {
+		state.SmartRoutingStartedAt = time.Now()
+	}
+	if state.SmartRoutingMaxAttempts <= 0 {
+		state.SmartRoutingMaxAttempts = SmartRoutingDefaultMaxAttempts
+	}
+}
+
+// PrepareSmartRoutingOpenAIRequestBudget starts the request-level timer before
+// the first OpenAI send without consuming an attempt slot. Attempts are
+// reserved at the transport boundary, after account admission and immediately
+// before a real upstream send.
+func PrepareSmartRoutingOpenAIRequestBudget(ctx context.Context) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return
+	}
+	prepareSmartRoutingAttemptBudget(state)
+}
+
+func smartRoutingAttemptGroupID(ctx context.Context, state *SmartRoutingRequestState) int64 {
+	if state != nil && state.CurrentGroupID > 0 {
+		return state.CurrentGroupID
+	}
+	if state != nil && state.MainGroupID > 0 {
+		return state.MainGroupID
+	}
+	if key, ok := APIKeyFromContext(ctx); ok && key != nil {
+		if key.GroupID != nil && *key.GroupID > 0 {
+			return *key.GroupID
+		}
+		if key.Group != nil && key.Group.ID > 0 {
+			return key.Group.ID
+		}
+	}
+	return 0
+}
+
+func smartRoutingAttemptBudgetError(reason GatewayFailureReason, scope GatewayFailureScope, accountID int64) *UpstreamFailoverError {
+	if reason == SmartRoutingSiteAttemptBudgetExceededReason {
+		return &UpstreamFailoverError{
+			StatusCode:             http.StatusServiceUnavailable,
+			RequestScopedTransient: true,
+			Reason:                 reason,
+			Scope:                  GatewayFailureScopeAccount,
+			NextAccountAction:      NextAccountLegacyRetry,
+			ClientStatusCode:       http.StatusServiceUnavailable,
+			ClientMessage:          "OpenAI upstream attempt limit reached; switching to another upstream",
+		}
+	}
+	return &UpstreamFailoverError{
+		StatusCode:        http.StatusServiceUnavailable,
+		Reason:            reason,
+		Scope:             scope,
+		NextAccountAction: NextAccountStop,
+		ClientStatusCode:  http.StatusServiceUnavailable,
+		ClientMessage:     "smart routing attempt budget exhausted",
+	}
+}
+
+func reserveSmartRoutingOpenAIAttempt(ctx context.Context, accountID int64, turn bool) error {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return nil
+	}
+	if ctx == nil || ctx.Err() != nil {
+		if ctx != nil {
+			return ctx.Err()
+		}
+		return context.Canceled
+	}
+	if accountID <= 0 {
+		return smartRoutingAttemptBudgetError(SmartRoutingAttemptBudgetExceededReason, GatewayFailureScopeRequest, 0)
+	}
+
+	state.attemptMu.Lock()
+	defer state.attemptMu.Unlock()
+
+	maxAttempts := state.SmartRoutingMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = SmartRoutingDefaultMaxAttempts
+		state.SmartRoutingMaxAttempts = maxAttempts
+	}
+	now := time.Now()
+	if turn {
+		if state.turnAttemptCount >= maxAttempts {
+			return smartRoutingAttemptBudgetError(SmartRoutingTurnAttemptBudgetExceededReason, GatewayFailureScopeRequest, accountID)
+		}
+		if state.turnAttemptStart.IsZero() {
+			state.turnAttemptStart = now
+		}
+	} else {
+		if state.SmartRoutingStartedAt.IsZero() {
+			state.SmartRoutingStartedAt = now
+		}
+		if state.TotalAttempts >= maxAttempts {
+			return smartRoutingAttemptBudgetError(SmartRoutingAttemptBudgetExceededReason, GatewayFailureScopeRequest, accountID)
+		}
+	}
+
+	groupID := smartRoutingAttemptGroupID(ctx, state)
+	if groupID <= 0 {
+		return smartRoutingAttemptBudgetError(SmartRoutingAttemptBudgetExceededReason, GatewayFailureScopeRequest, accountID)
+	}
+	if state.siteAttempts == nil {
+		state.siteAttempts = make(map[smartRoutingSiteAttemptKey]int)
+	}
+	key := smartRoutingSiteAttemptKey{groupID: groupID, accountID: accountID}
+	if state.siteAttempts[key] >= SmartRoutingMaxSiteAttempts {
+		return smartRoutingAttemptBudgetError(SmartRoutingSiteAttemptBudgetExceededReason, GatewayFailureScopeAccount, accountID)
+	}
+	state.siteAttempts[key]++
+	if turn {
+		state.turnAttemptCount++
+	} else {
+		state.TotalAttempts++
+	}
+	return nil
+}
+
+// ReserveSmartRoutingRequestAttempt accounts one actual upstream request send.
+// Its request-wide and (group, account) counters are shared by handler calls,
+// protocol repair, and internal transport retries. The implementation is
+// platform-neutral even though OpenAI is currently the primary consumer.
+func ReserveSmartRoutingRequestAttempt(ctx context.Context, accountID int64) error {
+	return reserveSmartRoutingOpenAIAttempt(ctx, accountID, false)
+}
+
+// ReserveSmartRoutingOpenAIRequestAttempt is kept as a compatibility alias for
+// OpenAI-specific callers. The budget itself is shared by every smart-routed
+// platform so a non-OpenAI gateway retry cannot bypass the request cap.
+func ReserveSmartRoutingOpenAIRequestAttempt(ctx context.Context, accountID int64) error {
+	return ReserveSmartRoutingRequestAttempt(ctx, accountID)
+}
+
+// ReserveSmartRoutingOpenAIWSTurnAttempt accounts one actual Responses
+// WebSocket turn send. The site counter is shared with every retry for the
+// same account and reset only when that logical turn terminates.
+func ReserveSmartRoutingOpenAIWSTurnAttempt(ctx context.Context, accountID int64) error {
+	return reserveSmartRoutingOpenAIAttempt(ctx, accountID, true)
+}
 
 // SmartRoutingAttemptBudgetAvailable reserves one upstream attempt. It is
 // intentionally request-local, so concurrent requests never share a budget.
@@ -228,23 +416,78 @@ func SmartRoutingAttemptBudgetAvailable(ctx context.Context) bool {
 	if state == nil || !state.SmartRoutingActive || ctx == nil || ctx.Err() != nil {
 		return false
 	}
+	state.attemptMu.Lock()
+	defer state.attemptMu.Unlock()
 	if state.SmartRoutingStartedAt.IsZero() {
 		state.SmartRoutingStartedAt = time.Now()
 	}
 	if state.SmartRoutingMaxAttempts <= 0 {
 		state.SmartRoutingMaxAttempts = SmartRoutingDefaultMaxAttempts
 	}
-	if state.SmartRoutingMaxDuration <= 0 {
-		state.SmartRoutingMaxDuration = SmartRoutingDefaultMaxDuration
-	}
 	if state.TotalAttempts >= state.SmartRoutingMaxAttempts {
-		return false
-	}
-	if time.Since(state.SmartRoutingStartedAt) >= state.SmartRoutingMaxDuration {
 		return false
 	}
 	state.TotalAttempts++
 	return true
+}
+
+// SmartRoutingInternalAttemptBudgetAvailable reserves a request attempt for a
+// provider call made inside an already admitted account attempt (for example,
+// an OpenAI WS reconnect or a protocol-repair replay). It deliberately shares
+// the same counter as the handler-level admission, so internal retries cannot
+// multiply the configured smart-routing fan-out. Ordinary single-group
+// requests are unaffected.
+func SmartRoutingInternalAttemptBudgetAvailable(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return true
+	}
+	return SmartRoutingAttemptBudgetAvailable(ctx)
+}
+
+// SmartRoutingTurnAttemptBudgetAvailable reserves one upstream request for the
+// current logical Responses WebSocket turn. A WebSocket can carry many
+// response.create turns over one connection, so its retry budget is isolated
+// from the request-level HTTP budget and is cleared only after a successful
+// terminal response. Account/group failover re-entry shares this same state.
+func SmartRoutingTurnAttemptBudgetAvailable(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return true
+	}
+	if ctx == nil || ctx.Err() != nil {
+		return false
+	}
+	state.attemptMu.Lock()
+	defer state.attemptMu.Unlock()
+	maxAttempts := state.SmartRoutingMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = SmartRoutingDefaultMaxAttempts
+		state.SmartRoutingMaxAttempts = maxAttempts
+	}
+	if state.turnAttemptCount >= maxAttempts {
+		return false
+	}
+	if state.turnAttemptStart.IsZero() {
+		state.turnAttemptStart = time.Now()
+	}
+	state.turnAttemptCount++
+	return true
+}
+
+// CompleteSmartRoutingTurnAttemptBudget closes the current WebSocket turn's
+// retry window after a terminal response. Failed turns deliberately retain
+// their counters so account/group retries cannot reset the budget.
+func CompleteSmartRoutingTurnAttemptBudget(ctx context.Context) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return
+	}
+	state.attemptMu.Lock()
+	state.turnAttemptCount = 0
+	state.turnAttemptStart = time.Time{}
+	state.siteAttempts = nil
+	state.attemptMu.Unlock()
 }
 
 // SmartRoutingRetryBudgetAllows is used before sleeping for a same-site pool
@@ -255,32 +498,26 @@ func SmartRoutingRetryBudgetAllows(ctx context.Context) bool {
 	if state == nil || !state.SmartRoutingActive {
 		return true
 	}
+	state.attemptMu.Lock()
+	defer state.attemptMu.Unlock()
 	if state.SmartRoutingStartedAt.IsZero() {
 		return true
 	}
 	if state.SmartRoutingMaxAttempts > 0 && state.TotalAttempts >= state.SmartRoutingMaxAttempts {
 		return false
 	}
-	return state.SmartRoutingMaxDuration <= 0 || time.Since(state.SmartRoutingStartedAt) < state.SmartRoutingMaxDuration
+	return true
 }
 
-// SmartRoutingAttemptContext derives the request context used by one upstream
-// forward. The pre-forward budget check prevents unbounded fan-out, while this
-// deadline also interrupts a single provider call that hangs past the request
-// wall-clock budget. Existing caller deadlines remain the stricter boundary.
+// SmartRoutingAttemptContext preserves the caller's request lifetime. Routing
+// budgets cap the number of upstream sends, not model-generation time; applying
+// a route deadline here would terminate valid long-running streams and prevent
+// a slow failed upstream from switching to another candidate.
 func SmartRoutingAttemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		return context.Background(), func() {}
 	}
-	state := SmartRoutingStateFromContext(ctx)
-	if state == nil || !state.SmartRoutingActive || state.SmartRoutingStartedAt.IsZero() || state.SmartRoutingMaxDuration <= 0 {
-		return ctx, func() {}
-	}
-	deadline := state.SmartRoutingStartedAt.Add(state.SmartRoutingMaxDuration)
-	if current, ok := ctx.Deadline(); ok && !deadline.Before(current) {
-		return ctx, func() {}
-	}
-	return context.WithDeadline(ctx, deadline)
+	return ctx, func() {}
 }
 
 func SmartRoutingSuppressSameAccountRetry(ctx context.Context, err *UpstreamFailoverError) bool {
@@ -305,6 +542,66 @@ func MarkSmartRoutingContractInvalid(ctx context.Context) {
 	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
 		state.ContractInvalid = true
 	}
+}
+
+func resolveSmartRoutingWithoutGroupRepository(
+	ctx context.Context,
+	groupID *int64,
+	requestedModel, sessionHash string,
+	excludedAccountIDs map[int64]struct{},
+	resolver SmartRoutingResolver,
+) *int64 {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || resolver == nil {
+		return groupID
+	}
+	if state.SmartRoutingActive {
+		MarkSmartRoutingContractInvalid(ctx)
+		if apiKey, ok := APIKeyFromContext(ctx); ok && apiKey != nil {
+			RestoreSmartRoutingPrimarySnapshot(ctx, apiKey)
+		}
+		if state.MainGroupID > 0 {
+			primaryID := state.MainGroupID
+			return &primaryID
+		}
+		return groupID
+	}
+	apiKey, ok := APIKeyFromContext(ctx)
+	if !ok || apiKey == nil || apiKey.ID <= 0 {
+		return groupID
+	}
+
+	previous := state.SmartRoutingGroupAdapterUnavailable
+	state.SmartRoutingGroupAdapterUnavailable = true
+	_, _ = resolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedAccountIDs)
+	state.SmartRoutingGroupAdapterUnavailable = previous
+	if !state.SmartRoutingActive {
+		return groupID
+	}
+
+	MarkSmartRoutingContractInvalid(ctx)
+	RestoreSmartRoutingPrimarySnapshot(ctx, apiKey)
+	if state.MainGroupID > 0 {
+		primaryID := state.MainGroupID
+		return &primaryID
+	}
+	return groupID
+}
+
+// SmartRoutingForwardModelCompatible validates the model that will actually be
+// sent to an OpenAI-compatible upstream. This final check is intentionally
+// smart-routing-only; legacy single-group channel mappings retain their
+// existing behavior.
+func SmartRoutingForwardModelCompatible(ctx context.Context, model string) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return true
+	}
+	if knownForeignModelFamilyForModel(model) == "" {
+		return true
+	}
+	MarkSmartRoutingContractInvalid(ctx)
+	return false
 }
 
 func SetSmartRoutingRetryAccount(ctx context.Context, accountID int64) {

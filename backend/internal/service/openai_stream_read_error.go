@@ -36,12 +36,30 @@ func (e *openAIUpstreamStreamReadError) Error() string {
 func (e *openAIUpstreamStreamReadError) Unwrap() error { return e.cause }
 
 func newOpenAIUpstreamStreamReadError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var existing *openAIUpstreamStreamReadError
+	if errors.As(err, &existing) && existing != nil {
+		return err
+	}
 	code, message := classifyOpenAIUpstreamStreamReadError(err)
 	return &openAIUpstreamStreamReadError{
 		cause:         err,
 		clientCode:    code,
 		clientMessage: message,
 	}
+}
+
+// normalizeOpenAIUpstreamStreamReadError gives every post-output upstream
+// stream failure the same typed contract. The smart-routing observer uses this
+// type to record the failed website without treating client cancellation,
+// deadlines, or response-size enforcement as provider health failures.
+func normalizeOpenAIUpstreamStreamReadError(err error, contexts ...context.Context) error {
+	if err == nil || !shouldClassifyOpenAIUpstreamStreamReadError(err, contexts...) {
+		return err
+	}
+	return newOpenAIUpstreamStreamReadError(err)
 }
 
 // shouldClassifyOpenAIUpstreamStreamReadError excludes cancellation and
@@ -61,6 +79,14 @@ func shouldClassifyOpenAIUpstreamStreamReadError(err error, contexts ...context.
 // OpenAIUpstreamStreamReadErrorDetails returns the stable, sanitized client
 // classification attached to an upstream stream read failure.
 func OpenAIUpstreamStreamReadErrorDetails(err error) (code, message string, ok bool) {
+	// Keep the exported sentinel useful to callers that only have the clean-EOF
+	// cause. The normal streaming paths wrap it in
+	// openAIUpstreamStreamReadError, but handler-level fallbacks and tests may
+	// receive the sentinel directly.
+	if errors.Is(err, ErrOpenAIUpstreamStreamTruncated) {
+		code, message = classifyOpenAIUpstreamStreamReadError(ErrOpenAIUpstreamStreamTruncated)
+		return code, message, true
+	}
 	var streamErr *openAIUpstreamStreamReadError
 	if !errors.As(err, &streamErr) || streamErr == nil {
 		return "", "", false

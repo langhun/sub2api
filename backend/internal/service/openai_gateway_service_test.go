@@ -1730,24 +1730,71 @@ func TestOpenAIStreamingReadErrorAfterOutputUsesResponsesErrorSchema(t *testing.
 			require.NotContains(t, body, "stream ID")
 			require.NotContains(t, body, "response.completed")
 			require.NotContains(t, body, "[DONE]")
-			require.Equal(t, 1, strings.Count(body, "event: error\n"))
+			require.Equal(t, 1, strings.Count(body, "event: response.failed\n"))
+			require.NotContains(t, body, "event: error\n")
 			require.True(t, IsResponseCommitted(c), "the handler must not append another failure")
 			var events []gjson.Result
 			for _, line := range strings.Split(body, "\n") {
 				if strings.HasPrefix(line, "data: ") {
 					event := gjson.Parse(strings.TrimPrefix(line, "data: "))
-					if event.Get("type").String() == "error" {
+					if event.Get("type").String() == "response.failed" {
 						events = append(events, event)
 					}
 				}
 			}
 			require.Len(t, events, 1)
-			require.Equal(t, tc.code, events[0].Get("code").String())
-			require.NotEmpty(t, events[0].Get("message").String())
-			require.False(t, events[0].Get("error").Exists(), "Responses errors have top-level fields")
-			require.True(t, events[0].Get("param").Exists())
+			require.Equal(t, "response.failed", events[0].Get("type").String())
+			require.Equal(t, tc.code, events[0].Get("response.error.code").String())
+			require.NotEmpty(t, events[0].Get("response.error.message").String())
+			require.Equal(t, "failed", events[0].Get("response.status").String())
+			require.Equal(t, "response", events[0].Get("response.object").String())
+			require.Greater(t, events[0].Get("response.created_at").Int(), int64(0))
+			require.True(t, events[0].Get("sequence_number").Exists())
 		})
 	}
+}
+
+func TestOpenAIStreamingReadErrorAfterOutputKeepsChatCompletionsErrorSchema(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	cause := errors.New("stream disconnected")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: &openAIStreamReadThenErrorCloser{
+			reader: strings.NewReader("data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n"),
+			err:    cause,
+		},
+	}
+
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{
+		ID:       1,
+		Platform: PlatformOpenAI,
+	}, time.Now(), "model", "model")
+	require.ErrorIs(t, err, cause)
+	body := rec.Body.String()
+	require.Contains(t, body, "partial")
+	require.Equal(t, 1, strings.Count(body, "event: error\n"))
+	require.NotContains(t, body, "event: response.failed\n")
+	parts := strings.Split(body, "\n\n")
+	require.NotEmpty(t, parts)
+	payload := ""
+	for _, part := range parts {
+		if strings.Contains(part, "event: error") {
+			payload = strings.TrimSpace(strings.TrimPrefix(part, "event: error\ndata: "))
+			break
+		}
+	}
+	require.NotEmpty(t, payload)
+	require.Equal(t, "error", gjson.Get(payload, "type").String())
+	require.Equal(t, OpenAIUpstreamStreamReadErrorCode, gjson.Get(payload, "code").String())
+	require.NotEmpty(t, gjson.Get(payload, "message").String())
+	require.True(t, gjson.Get(payload, "param").Exists())
+	require.False(t, gjson.Get(payload, "error").Exists())
+	require.True(t, IsResponseCommitted(c))
 }
 
 func TestOpenAIStreamingPostOutputDisconnectQuarantinesSharedProxyWithoutSameStreamFailover(t *testing.T) {
@@ -1785,6 +1832,7 @@ func TestOpenAIStreamingPostOutputDisconnectQuarantinesSharedProxyWithoutSameStr
 				reader: strings.NewReader(strings.Join([]string{
 					"event: response.output_text.delta",
 					`data: {"type":"response.output_text.delta","delta":"partial"}`,
+					"",
 					"",
 				}, "\n")),
 				err: readErr,
@@ -2518,6 +2566,42 @@ func TestOpenAIStreamingMissingTerminalEventReturnsIncompleteError(t *testing.T)
 	}
 }
 
+func TestOpenAIResponsesStreamingCleanEOFAfterOutputReturnsTypedTruncation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			StreamDataIntervalTimeout: 0,
+			StreamKeepaliveInterval:   0,
+			MaxLineSize:               defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Body: pr, Header: http.Header{}}
+	go func() {
+		defer func() { _ = pw.Close() }()
+		_, _ = pw.Write([]byte("event: response.output_text.delta\n" +
+			`data: {"type":"response.output_text.delta","delta":"partial","sequence_number":3}` + "\n\n"))
+	}()
+
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{
+		ID:       1,
+		Platform: PlatformOpenAI,
+	}, time.Now(), "model", "model")
+	_ = pr.Close()
+
+	require.ErrorIs(t, err, ErrOpenAIUpstreamStreamTruncated)
+	require.NotNil(t, result, "usage collected before EOF must remain available")
+	require.Contains(t, rec.Body.String(), `"delta":"partial"`)
+	require.NotContains(t, rec.Body.String(), "response.failed",
+		"the gateway handler owns terminal-event synthesis")
+}
+
 func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{
@@ -2529,7 +2613,7 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 
 	pr, pw := io.Pipe()
 	resp := &http.Response{
@@ -2545,8 +2629,8 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 
 	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "", "")
 	_ = pr.Close()
-	if err == nil || !strings.Contains(err.Error(), "missing terminal event") {
-		t.Fatalf("expected missing terminal event error, got %v", err)
+	if !errors.Is(err, ErrOpenAIUpstreamStreamTruncated) {
+		t.Fatalf("expected truncated upstream stream error, got %v", err)
 	}
 }
 

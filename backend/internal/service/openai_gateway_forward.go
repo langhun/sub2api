@@ -803,6 +803,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			hasPreviousResponseID,
 		)
 		maxAttempts := openAIWSReconnectRetryLimit + 1
+		if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+			// Smart routing owns the request-level retry budget. Keep one
+			// bounded reconnect opportunity inside the current website, then
+			// return the typed failover error so the handler can try another
+			// website/group instead of spending all candidates here.
+			maxAttempts = 2
+		}
 		wsAttempts := 0
 		var wsResult *OpenAIForwardResult
 		var wsErr error
@@ -937,7 +944,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 						"reconnect_budget_exhausted account_id=%d attempts=%d max_retries=%d reason=%s elapsed_ms=%d budget_ms=%d",
 						account.ID,
 						attempt,
-						openAIWSReconnectRetryLimit,
+						maxAttempts-1,
 						normalizeOpenAIWSLogValue(reason),
 						time.Since(retryStartedAt).Milliseconds(),
 						retryBudget.Milliseconds(),
@@ -949,7 +956,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					"reconnect_retry account_id=%d retry=%d max_retries=%d reason=%s backoff_ms=%d",
 					account.ID,
 					attempt,
-					openAIWSReconnectRetryLimit,
+					maxAttempts-1,
 					normalizeOpenAIWSLogValue(reason),
 					backoff.Milliseconds(),
 				)
@@ -973,7 +980,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					"reconnect_exhausted account_id=%d attempts=%d max_retries=%d reason=%s",
 					account.ID,
 					attempt,
-					openAIWSReconnectRetryLimit,
+					maxAttempts-1,
 					normalizeOpenAIWSLogValue(reason),
 				)
 			} else if reason != "" {
@@ -1017,8 +1024,30 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			return wsResult, nil
 		}
+		var budgetFailoverErr *UpstreamFailoverError
+		if errors.As(wsErr, &budgetFailoverErr) {
+			return nil, wsErr
+		}
+		// WS reconnects are deliberately handled inside the service first, but
+		// once that bounded retry budget is exhausted the account/group handler
+		// must receive the same typed signal as the HTTP transport.  Returning
+		// the private fallback error here used to make smart routing stop on the
+		// original account even though no semantic bytes had reached the client.
+		smartRoutingActive := false
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			smartRoutingActive = state.SmartRoutingActive
+		}
+		if smartRoutingActive && (c == nil || c.Writer == nil || c.Writer.Size() <= 0) {
+			if failoverErr := s.newOpenAIWSRetryFailoverError(account, wsErr); failoverErr != nil {
+				return nil, failoverErr
+			}
+		}
 		s.writeOpenAIWSFallbackErrorResponse(c, account, wsErr)
-		return nil, wsErr
+		// A post-output WS read failure returns a partial result so the
+		// handler can persist usage observed before the terminal failure.
+		// Typed failover errors above intentionally keep result=nil: they are
+		// safe to replay and must not create a duplicate bill.
+		return wsResult, wsErr
 	}
 
 	reasoningEffort := extractOpenAIReasoningEffortFromBody(body, upstreamModel, billingModel, originalModel)

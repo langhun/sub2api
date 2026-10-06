@@ -445,6 +445,9 @@ func TestGatewaySmartRoutingRejectsCandidateThatChangesPlatformAfterRanking(t *t
 	if key.Group == nil || key.Group.ID != primaryID {
 		t.Fatalf("incompatible candidate remained on request key: %+v", key.Group)
 	}
+	if !state.ContractInvalid {
+		t.Fatal("candidate contract change did not invalidate the active route")
+	}
 }
 
 func TestGatewaySmartRoutingPrimaryPlatformChangeRestoresFrozenSnapshot(t *testing.T) {
@@ -687,8 +690,8 @@ func TestGatewaySmartRoutingRechecksPermissionOnSameGroupRetry(t *testing.T) {
 	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != primaryID {
 		t.Fatalf("revoked candidate route = %v, want primary %d", got, primaryID)
 	}
-	if _, ok := state.TriedGroups[candidateID]; !ok {
-		t.Fatal("revoked candidate was not marked tried")
+	if !state.ContractInvalid {
+		t.Fatal("revoked candidate permission did not invalidate the active route")
 	}
 	if key.Group == nil || key.Group.ID != primaryID {
 		t.Fatalf("revoked candidate remained on request key: %+v", key.Group)
@@ -720,8 +723,8 @@ func TestOpenAISmartRoutingRechecksPermissionOnSameGroupRetry(t *testing.T) {
 	if got := service.resolveSmartRoutingGroup(ctx, key.GroupID, "session", "gpt-5", nil); got == nil || *got != primaryID {
 		t.Fatalf("revoked candidate route = %v, want primary %d", got, primaryID)
 	}
-	if _, ok := state.TriedGroups[candidateID]; !ok {
-		t.Fatal("revoked candidate was not marked tried")
+	if !state.ContractInvalid {
+		t.Fatal("revoked candidate permission did not invalidate the active route")
 	}
 	if key.Group == nil || key.Group.ID != primaryID {
 		t.Fatalf("revoked candidate remained on request key: %+v", key.Group)
@@ -750,6 +753,9 @@ func TestOpenAISmartRoutingRejectsCompositeCandidateAfterHydration(t *testing.T)
 	}
 	if key.Group == nil || key.Group.ID != primaryID {
 		t.Fatalf("composite candidate remained on request key: %+v", key.Group)
+	}
+	if !state.ContractInvalid {
+		t.Fatal("composite candidate contract did not invalidate the active route")
 	}
 }
 
@@ -806,9 +812,10 @@ func TestGatewaySmartRoutingTOCTOUIncompatibleCandidateFailsClosed(t *testing.T)
 		t.Run(tc.name, func(t *testing.T) {
 			key := &APIKey{ID: 1404, GroupID: &primaryID, Group: primary}
 			state := &SmartRoutingRequestState{
-				MainGroupID:    primaryID,
-				CurrentGroupID: primaryID,
-				TriedGroups:    map[int64]struct{}{},
+				MainGroupID:        primaryID,
+				CurrentGroupID:     primaryID,
+				TriedGroups:        map[int64]struct{}{},
+				SmartRoutingActive: true,
 			}
 			resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{
 				{GroupID: badID},
@@ -840,6 +847,9 @@ func TestGatewaySmartRoutingTOCTOUIncompatibleCandidateFailsClosed(t *testing.T)
 			}
 			if key.GroupID == nil || *key.GroupID != primaryID || key.Group == nil || key.Group.ID != primaryID {
 				t.Fatalf("request key was not restored to primary: group_id=%v group=%+v", key.GroupID, key.Group)
+			}
+			if !state.ContractInvalid {
+				t.Fatal("candidate contract race did not invalidate the active route")
 			}
 		})
 	}
@@ -898,9 +908,10 @@ func TestOpenAISmartRoutingTOCTOUIncompatibleCandidateFailsClosed(t *testing.T) 
 		t.Run(tc.name, func(t *testing.T) {
 			key := &APIKey{ID: 1414, GroupID: &primaryID, Group: primary}
 			state := &SmartRoutingRequestState{
-				MainGroupID:    primaryID,
-				CurrentGroupID: primaryID,
-				TriedGroups:    map[int64]struct{}{},
+				MainGroupID:        primaryID,
+				CurrentGroupID:     primaryID,
+				TriedGroups:        map[int64]struct{}{},
+				SmartRoutingActive: true,
 			}
 			resolver := &smartRoutingSequenceResolver{decisions: []*SmartRouteDecision{
 				{GroupID: badID},
@@ -932,6 +943,9 @@ func TestOpenAISmartRoutingTOCTOUIncompatibleCandidateFailsClosed(t *testing.T) 
 			}
 			if key.GroupID == nil || *key.GroupID != primaryID || key.Group == nil || key.Group.ID != primaryID {
 				t.Fatalf("request key was not restored to primary: group_id=%v group=%+v", key.GroupID, key.Group)
+			}
+			if !state.ContractInvalid {
+				t.Fatal("candidate contract race did not invalidate the active route")
 			}
 		})
 	}

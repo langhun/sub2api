@@ -353,20 +353,44 @@ func (s *httpUpstreamService) httpClientForUpstreamRequest(client *http.Client, 
 		return client
 	}
 	ctx := req.Context()
-	switch {
-	case service.HTTPUpstreamRedirectsDisabled(ctx):
+	if service.HTTPUpstreamRedirectsDisabled(ctx) {
 		clone := *client
 		clone.CheckRedirect = func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 		return &clone
-	case service.HTTPUpstreamPublicHostsOnly(ctx) && client.CheckRedirect == nil:
-		clone := *client
-		clone.CheckRedirect = s.redirectChecker
-		return &clone
-	default:
-		return client
 	}
+
+	checkRedirect := client.CheckRedirect
+	cloneClient := false
+	if service.HTTPUpstreamPublicHostsOnly(ctx) && checkRedirect == nil {
+		checkRedirect = s.redirectChecker
+		cloneClient = true
+	}
+	reserver := service.HTTPUpstreamRedirectAttemptReserverFromContext(ctx)
+	if reserver == nil {
+		if !cloneClient {
+			return client
+		}
+		clone := *client
+		clone.CheckRedirect = checkRedirect
+		return &clone
+	}
+
+	clone := *client
+	clone.CheckRedirect = func(redirectReq *http.Request, via []*http.Request) error {
+		if checkRedirect != nil {
+			if err := checkRedirect(redirectReq, via); err != nil {
+				return err
+			}
+		} else if len(via) >= 10 {
+			// A custom CheckRedirect replaces net/http's default 10-hop policy.
+			// Preserve that default when the only custom behavior is metering.
+			return errors.New("stopped after 10 redirects")
+		}
+		return reserver(redirectReq.Context())
+	}
+	return &clone
 }
 
 // grokAccessDeniedFallbackTransport preserves the subscription CLI proxy as

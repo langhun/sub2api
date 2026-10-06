@@ -120,6 +120,40 @@ func TestClassifyOpenAIWSReconnectReason(t *testing.T) {
 	reason, retryable = classifyOpenAIWSReconnectReason(wrapOpenAIWSFallback("read_event", errors.New("io")))
 	require.Equal(t, "read_event", reason)
 	require.True(t, retryable)
+
+	reason, retryable = classifyOpenAIWSReconnectReason(wrapOpenAIWSFallback("invalid_event_json", errors.New("malformed upstream frame")))
+	require.Equal(t, "invalid_event_json", reason)
+	require.False(t, retryable, "malformed upstream frames should fail closed and let smart routing switch sites")
+}
+
+func TestNewOpenAIWSDialFailoverErrorRejectsLocalAndRateLimitFailures(t *testing.T) {
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	account := &Account{ID: 42, Platform: PlatformOpenAI}
+
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, context.Canceled))
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, &openAIWSDialError{
+		StatusCode: http.StatusBadGateway,
+		Err:        context.DeadlineExceeded,
+	}))
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, errOpenAIWSConnQueueFull))
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, errOpenAIWSPreferredConnUnavailable))
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, &openAIWSDialError{
+		StatusCode: http.StatusTooManyRequests,
+		Err:        errors.New("rate limited"),
+	}), "429 is handled by the existing rate-limit failover policy")
+	require.Nil(t, svc.newOpenAIWSDialFailoverError(account, &openAIWSDialError{
+		StatusCode: http.StatusBadRequest,
+		Err:        errors.New("invalid websocket upgrade request"),
+	}), "ordinary client/request errors must not fan out across routed upstreams")
+
+	failoverErr := svc.newOpenAIWSDialFailoverError(account, &openAIWSDialError{
+		StatusCode: http.StatusUnauthorized,
+		Err:        errors.New("invalid upstream credential"),
+	})
+	require.NotNil(t, failoverErr, "account-specific handshake authentication errors should switch accounts")
+	require.Equal(t, http.StatusUnauthorized, failoverErr.StatusCode)
+	require.Equal(t, GatewayFailureReason("openai_ws_auth_failed"), failoverErr.Reason)
+	require.True(t, failoverErr.ShouldRetryNextAccount())
 }
 
 func TestOpenAIWSErrorHTTPStatus(t *testing.T) {

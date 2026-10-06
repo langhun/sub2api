@@ -87,11 +87,33 @@ func SmartRoutingAccountModelCompatible(account *Account, requestedModel string)
 	if account.Platform != PlatformOpenAI && account.Platform != PlatformGrok {
 		return true
 	}
+	// Passthrough accounts do not apply ordinary model_mapping on their forward
+	// path. Their compact-only mapping is checked separately by the request-aware
+	// helper below, matching the actual Responses compact behavior.
+	if account.IsOpenAIPassthroughEnabled() {
+		return true
+	}
 	mapped, matched := account.ResolveMappedModel(requestedModel)
 	if !matched {
 		return true
 	}
 	return knownForeignModelFamilyForModel(mapped) == ""
+}
+
+func SmartRoutingAccountModelCompatibleForRequest(account *Account, requestedModel string, requireCompact bool) bool {
+	if account == nil {
+		return false
+	}
+	if account.Platform != PlatformOpenAI && account.Platform != PlatformGrok {
+		return true
+	}
+	if account.IsOpenAIPassthroughEnabled() {
+		if !requireCompact {
+			return true
+		}
+	}
+	actualModel := resolveOpenAIAccountUpstreamModelForRequest(account, requestedModel, requireCompact)
+	return knownForeignModelFamilyForModel(actualModel) == ""
 }
 
 // resolveOpenAIForwardModel 解析 OpenAI 兼容转发使用的模型。

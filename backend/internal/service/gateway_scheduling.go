@@ -58,12 +58,14 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 	} else if groupID != nil {
 		group, resolvedGroupID, err := s.resolveGatewayGroup(ctx, groupID)
 		if err != nil {
+			MarkSmartRoutingContractInvalid(ctx)
 			if key, ok := APIKeyFromContext(ctx); ok {
 				RestoreSmartRoutingPrimarySnapshot(ctx, key)
 			}
 			return nil, err
 		}
 		if group == nil {
+			MarkSmartRoutingContractInvalid(ctx)
 			return nil, ErrGroupNotFound
 		}
 		// The legacy resolver rehydrates the group by ID and can therefore
@@ -72,6 +74,7 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 		// protocol or billing compatibility; fail closed before publishing this
 		// object into request context.
 		if !SmartRoutingResolvedGroupAllowed(ctx, group, resolvedGroupID) {
+			MarkSmartRoutingContractInvalid(ctx)
 			if key, ok := APIKeyFromContext(ctx); ok {
 				RestoreSmartRoutingPrimarySnapshot(ctx, key)
 			}
@@ -82,6 +85,7 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 		// may point at another platform; accepting one here would bypass the
 		// same-platform/subscription contract (for example GPT -> Gemini).
 		if SmartRoutingGroupResolutionChanged(ctx, groupID, resolvedGroupID) {
+			MarkSmartRoutingContractInvalid(ctx)
 			if key, ok := APIKeyFromContext(ctx); ok {
 				RestoreSmartRoutingPrimarySnapshot(ctx, key)
 			}
@@ -177,18 +181,21 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	selectedSmartGroupID := groupID
 	group, groupID, err := s.checkClaudeCodeRestriction(ctx, groupID)
 	if err != nil {
+		MarkSmartRoutingContractInvalid(ctx)
 		if key, ok := APIKeyFromContext(ctx); ok {
 			RestoreSmartRoutingPrimarySnapshot(ctx, key)
 		}
 		return nil, err
 	}
 	if SmartRoutingGroupResolutionChanged(ctx, selectedSmartGroupID, groupID) {
+		MarkSmartRoutingContractInvalid(ctx)
 		if key, ok := APIKeyFromContext(ctx); ok {
 			RestoreSmartRoutingPrimarySnapshot(ctx, key)
 		}
 		return nil, fmt.Errorf("%w: smart routing fallback group is not allowed", ErrNoAvailableAccounts)
 	}
 	if !SmartRoutingResolvedGroupAllowed(ctx, group, groupID) {
+		MarkSmartRoutingContractInvalid(ctx)
 		if key, ok := APIKeyFromContext(ctx); ok {
 			RestoreSmartRoutingPrimarySnapshot(ctx, key)
 		}
@@ -907,12 +914,10 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 		return groupID
 	}
 	if s.groupRepo == nil {
-		// An active Overlay request cannot establish the primary protocol and
-		// billing contract without the group repository. Mark it invalid so the
-		// scheduler fails closed before listing accounts; never route on a stale
-		// candidate snapshot.
-		MarkSmartRoutingContractInvalid(ctx)
-		return groupID
+		// Give the Overlay a chance to confirm whether this key is actively
+		// smart-routed. Marking before Resolve would be a no-op for a newly
+		// authenticated request because SmartRoutingActive is not known yet.
+		return resolveSmartRoutingWithoutGroupRepository(ctx, groupID, requestedModel, sessionHash, excludedIDs, s.smartRoutingResolver)
 	}
 	apiKey, ok := APIKeyFromContext(ctx)
 	if !ok || apiKey == nil || apiKey.ID <= 0 {
@@ -1057,12 +1062,7 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 		if decision.GroupID == *groupID {
 			currentCandidate, compatible := loadCurrentCandidate(decision.GroupID)
 			if !compatible {
-				if state := SmartRoutingStateFromContext(ctx); state != nil {
-					if state.TriedGroups == nil {
-						state.TriedGroups = make(map[int64]struct{})
-					}
-					state.TriedGroups[decision.GroupID] = struct{}{}
-				}
+				MarkSmartRoutingContractInvalid(ctx)
 				return restorePrimary()
 			}
 			// A candidate can remain the current group across account retries while
@@ -1070,17 +1070,8 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 			// admission; otherwise this fast path bypasses the final permission
 			// gate used for cross-group selections.
 			if decision.GroupID != primaryGroupID && !s.checkSmartRoutingCandidatePermission(ctx, apiKey, currentCandidate) {
-				if state := SmartRoutingStateFromContext(ctx); state != nil {
-					if state.TriedGroups == nil {
-						state.TriedGroups = make(map[int64]struct{})
-					}
-					state.TriedGroups[decision.GroupID] = struct{}{}
-					if state.ExhaustedGroups == nil {
-						state.ExhaustedGroups = make(map[int64]struct{})
-					}
-					state.ExhaustedGroups[decision.GroupID] = struct{}{}
-				}
-				continue
+				MarkSmartRoutingContractInvalid(ctx)
+				return restorePrimary()
 			}
 			return groupID
 		}
@@ -1092,10 +1083,10 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 		}
 		group, err := s.groupRepo.GetByIDLite(ctx, decision.GroupID)
 		if err != nil || group == nil {
-			// The candidate was selected before its group snapshot could be
-			// hydrated. Fail open to the authenticated primary and restore its
-			// billing/mapping snapshot; returning the current candidate ID here
-			// would leave APIKey.Group and APIKey.GroupID out of sync.
+			// The resolver selected a route whose current billing/protocol
+			// contract can no longer be verified. Do not fall back and dispatch
+			// the same request under a different group snapshot.
+			MarkSmartRoutingContractInvalid(ctx)
 			return restorePrimary()
 		}
 		// Re-check the immutable platform/subscription contract after hydration.
@@ -1104,12 +1095,7 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 		// Anthropic, or Composite request. Mark the bad row tried so a resolver
 		// that returns stale data cannot spin through the same candidate.
 		if group.Status != StatusActive || !SmartRoutingGroupsCompatible(primaryRoutingGroup, group) {
-			if state := SmartRoutingStateFromContext(ctx); state != nil {
-				if state.TriedGroups == nil {
-					state.TriedGroups = make(map[int64]struct{})
-				}
-				state.TriedGroups[decision.GroupID] = struct{}{}
-			}
+			MarkSmartRoutingContractInvalid(ctx)
 			primaryPlatform, candidatePlatform := "", ""
 			if primaryRoutingGroup != nil {
 				primaryPlatform = primaryRoutingGroup.Platform
@@ -1130,17 +1116,8 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 			return restorePrimary()
 		}
 		if !s.checkSmartRoutingCandidatePermission(ctx, apiKey, group) {
-			if state := SmartRoutingStateFromContext(ctx); state != nil {
-				if state.TriedGroups == nil {
-					state.TriedGroups = make(map[int64]struct{})
-				}
-				state.TriedGroups[group.ID] = struct{}{}
-				if state.PermissionRejectedGroups == nil {
-					state.PermissionRejectedGroups = make(map[int64]struct{})
-				}
-				state.PermissionRejectedGroups[group.ID] = struct{}{}
-			}
-			continue
+			MarkSmartRoutingContractInvalid(ctx)
+			return restorePrimary()
 		}
 		if !s.checkSmartRoutingCandidateBilling(ctx, apiKey, group) {
 			continue

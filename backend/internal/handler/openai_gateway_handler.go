@@ -658,6 +658,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		failedAccountIDs = make(map[int64]struct{})
 		sameAccountRetryCount = make(map[int64]int)
 		switchCount = 0
+		firstOutputTimeoutSwitchCount = 0
 		lastFailoverErr = nil
 		var freshOAuth429State service.OpenAIOAuth429FailoverState
 		oauth429FailoverState = freshOAuth429State
@@ -777,6 +778,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, forwardModel, legacyCompact)
 			seedOpenAIForwardImageIntentHint(c, channelMapping.Mapped, imageIntent)
 			c.Request = c.Request.WithContext(selectedCtx)
+		}
+		if h.rejectSmartRoutingForeignForwardModel(c, selection, account, forwardModel, legacyCompact, streamStarted) {
+			return
 		}
 		if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 			if selection.Acquired && selection.ReleaseFunc != nil {
@@ -1021,7 +1025,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					// re-evaluate the recovered primary/candidate pool.
 					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
-					if switchCount >= maxAccountSwitches {
+					accountSwitchLimit := effectiveAccountSwitchLimit(c.Request.Context(), maxAccountSwitches)
+					if switchCount >= accountSwitchLimit {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
 							resetSmartRoutingAccountFailover()
 							continue
@@ -1042,7 +1047,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						zap.Int64("account_id", account.ID),
 						zap.Int("upstream_status", failoverErr.StatusCode),
 						zap.Int("switch_count", switchCount),
-						zap.Int("max_switches", maxAccountSwitches),
+						zap.Int("max_switches", accountSwitchLimit),
 					}
 					if account.Proxy != nil {
 						failoverSwitchFields = append(failoverSwitchFields,
@@ -1061,7 +1066,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				upstreamErrorAlreadyCommunicated := openAIForwardErrorAlreadyCommunicated(c, writerSizeBeforeForward, err)
 				wroteFallback := false
 				if !upstreamErrorAlreadyCommunicated {
-					wroteFallback = h.ensureForwardErrorResponse(c, streamStarted)
+					// Preserve the stable stream-read classification for Responses
+					// truncation/disconnects. The service leaves already-written
+					// semantic output intact and returns a typed error so this
+					// handler must append one protocol-correct response.failed
+					// with the sanitized code/message instead of collapsing it to
+					// the generic "Upstream request failed".
+					wroteFallback = h.ensureOpenAIStreamReadErrorResponse(c, err, streamStarted)
+					if !wroteFallback {
+						wroteFallback = h.ensureForwardErrorResponse(c, streamStarted)
+					}
 				}
 				fields := []zap.Field{
 					zap.Int64("account_id", account.ID),
@@ -1662,7 +1676,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
-					if switchCount >= maxAccountSwitches {
+					accountSwitchLimit := effectiveAccountSwitchLimit(c.Request.Context(), maxAccountSwitches)
+					if switchCount >= accountSwitchLimit {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {
 							resetSmartRoutingAccountFailover()
 							continue
@@ -1683,7 +1698,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						zap.Int64("account_id", account.ID),
 						zap.Int("upstream_status", failoverErr.StatusCode),
 						zap.Int("switch_count", switchCount),
-						zap.Int("max_switches", maxAccountSwitches),
+						zap.Int("max_switches", accountSwitchLimit),
 					)
 					continue
 				}
@@ -2797,12 +2812,21 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	var lastFailoverErr *service.UpstreamFailoverError
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	wsAttemptMessage := append([]byte(nil), firstMessage...)
+	resetSmartRoutingAccountFailover := func() {
+		service.ClearSmartRoutingRetryAccount(ctx)
+		failedAccountIDs = make(map[int64]struct{})
+		sameAccountRetryCount = make(map[int64]int)
+		switchCount = 0
+		lastFailoverErr = nil
+		var freshOAuth429State service.OpenAIOAuth429FailoverState
+		oauth429FailoverState = freshOAuth429State
+	}
 	waitForWSSameAccountRetry := func(account *service.Account, failoverErr *service.UpstreamFailoverError) bool {
 		if account == nil || failoverErr == nil || failoverErr.StatusCode != http.StatusTooManyRequests || failoverErr.SameAccountRetryDeadline.IsZero() {
 			return false
 		}
 		retryLimit := effectiveSameAccountRetryLimit(failoverErr, account)
-		if !sameAccountRetryAllowed(failoverErr, sameAccountRetryCount[account.ID], retryLimit) {
+		if !smartRoutingSameAccountRetryAllowed(ctx, failoverErr, sameAccountRetryCount[account.ID], retryLimit) {
 			return false
 		}
 		sameAccountRetryCount[account.ID]++
@@ -2839,12 +2863,25 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		failedAccountIDs[account.ID] = struct{}{}
 		h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 		lastFailoverErr = failoverErr
-		if switchCount >= maxAccountSwitches {
+		accountSwitchLimit := effectiveAccountSwitchLimit(ctx, maxAccountSwitches)
+		if switchCount >= accountSwitchLimit {
+			// The account-level budget is scoped to the currently selected
+			// group. Once that pool has spent its budget, a smart-routed
+			// request must get one chance to re-run selection for another
+			// configured group before we close the client connection.
+			if service.TrySmartRoutingGroupFailover(ctx, failoverErr, false) {
+				resetSmartRoutingAccountFailover()
+				return true
+			}
 			closeOpenAIWSFailoverExhausted(c, wsConn, failoverErr)
 			return false
 		}
 		switchCount++
 		if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+			if service.TrySmartRoutingGroupFailover(ctx, failoverErr, false) {
+				resetSmartRoutingAccountFailover()
+				return true
+			}
 			closeOpenAIWSFailoverExhausted(c, wsConn, failoverErr)
 			return false
 		}
@@ -2852,7 +2889,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			zap.Int64("account_id", account.ID),
 			zap.Int("upstream_status", failoverErr.StatusCode),
 			zap.Int("switch_count", switchCount),
-			zap.Int("max_switches", maxAccountSwitches),
+			zap.Int("max_switches", accountSwitchLimit),
 		)
 		if ctx.Err() != nil {
 			return false
@@ -2900,6 +2937,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				zap.Error(openAICompatibleSelectionErrorForLog(err, requestPlatform)),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if len(failedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(ctx) {
+					resetSmartRoutingAccountFailover()
+					continue
+				}
+			} else if service.TrySmartRoutingGroupFailover(ctx, lastFailoverErr, false) {
+				resetSmartRoutingAccountFailover()
+				continue
+			}
 			if lastFailoverErr != nil {
 				closeOpenAIWSFailoverExhausted(c, wsConn, lastFailoverErr)
 			} else {
@@ -2908,6 +2954,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			return
 		}
 		if selection == nil || selection.Account == nil {
+			if service.TrySmartRoutingGroupFailover(ctx, lastFailoverErr, false) {
+				resetSmartRoutingAccountFailover()
+				continue
+			}
 			if lastFailoverErr != nil {
 				closeOpenAIWSFailoverExhausted(c, wsConn, lastFailoverErr)
 			} else {
@@ -2933,6 +2983,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			ctx = selectedCtx
 			c.Request = c.Request.WithContext(selectedCtx)
 			seedOpenAIForwardImageIntentHint(c, channelMappingWS.Mapped, imageIntent)
+		}
+		actualWSModel := service.ResolveOpenAIAccountUpstreamModelForRequest(account, wsForwardModel, false)
+		if !service.SmartRoutingForwardModelCompatible(ctx, wsForwardModel) ||
+			!service.SmartRoutingForwardModelCompatible(ctx, actualWSModel) {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
+			return
 		}
 		if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 			if selection.Acquired && selection.ReleaseFunc != nil {
@@ -3140,6 +3199,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				if turn > 1 && !mappedModelUnchanged && !account.IsModelSupported(model) && !account.IsModelSupported(mapping.MappedModel) {
 					return "", newOpenAIWSUnsupportedModelSwitchError(mapping.MappedModel)
+				}
+				actualTurnModel := service.ResolveOpenAIAccountUpstreamModelForRequest(account, mapping.MappedModel, false)
+				if !service.SmartRoutingForwardModelCompatible(ctx, mapping.MappedModel) ||
+					!service.SmartRoutingForwardModelCompatible(ctx, actualTurnModel) {
+					return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "no available account", nil)
 				}
 				turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: turn, mapping: mapping})
 				return mapping.MappedModel, nil

@@ -86,6 +86,87 @@ func (c *openAIWSPolicyEnforcingFrameConn) Close() error {
 	return c.inner.Close()
 }
 
+// openAIWSPassthroughBudgetFrameConn accounts real response.create writes at
+// the final upstream transport boundary. Passthrough's first frame is written
+// by the adapter while later frames are written by the v2 relay; wrapping the
+// shared FrameConn keeps both paths on the same smart-routing turn budget.
+// Ordinary single-group requests are unchanged because the reserver is a
+// no-op unless a smart-routing state is active in the context.
+type openAIWSPassthroughBudgetFrameConn struct {
+	inner             openaiwsv2.FrameConn
+	ctx               context.Context
+	accountID         int64
+	responseCreateSeq atomic.Int32
+}
+
+var _ openaiwsv2.FrameConn = (*openAIWSPassthroughBudgetFrameConn)(nil)
+
+func (c *openAIWSPassthroughBudgetFrameConn) ReadFrame(ctx context.Context) (coderws.MessageType, []byte, error) {
+	if c == nil || c.inner == nil {
+		return coderws.MessageText, nil, errOpenAIWSConnClosed
+	}
+	return c.inner.ReadFrame(ctx)
+}
+
+func (c *openAIWSPassthroughBudgetFrameConn) WriteFrame(ctx context.Context, msgType coderws.MessageType, payload []byte) error {
+	if c == nil || c.inner == nil {
+		return errOpenAIWSConnClosed
+	}
+	if isOpenAIWSPassthroughResponseCreateFrame(msgType, payload) {
+		turnNo := c.responseCreateSeq.Add(1)
+		if err := ReserveSmartRoutingOpenAIWSTurnAttempt(c.ctx, c.accountID); err != nil {
+			if turnNo > 1 {
+				if retryPayload, ok := openAIWSPassthroughCurrentTurnRetryPayload(payload); ok {
+					return newOpenAIWSCurrentTurnFailoverError(err, retryPayload)
+				}
+				// A later turn cannot safely be replayed without its complete
+				// input context. Do not expose the typed budget error through
+				// OpenAIWSClientCloseError: the outer handler would unwrap it
+				// and replay the first turn on another account.
+				return NewOpenAIWSClientCloseError(
+					coderws.StatusTryAgainLater,
+					"upstream attempt budget exhausted; please reconnect",
+					errors.New("current websocket turn cannot be replayed safely"),
+				)
+			}
+			return err
+		}
+	}
+	return c.inner.WriteFrame(ctx, msgType, payload)
+}
+
+func (c *openAIWSPassthroughBudgetFrameConn) Close() error {
+	if c == nil || c.inner == nil {
+		return nil
+	}
+	return c.inner.Close()
+}
+
+func isOpenAIWSPassthroughResponseCreateFrame(msgType coderws.MessageType, payload []byte) bool {
+	if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
+		return false
+	}
+	return strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "response.create"
+}
+
+func openAIWSPassthroughCurrentTurnRetryPayload(payload []byte) ([]byte, bool) {
+	if len(payload) == 0 || !gjson.ValidBytes(payload) {
+		return nil, false
+	}
+	if strings.TrimSpace(gjson.GetBytes(payload, "previous_response_id").String()) != "" {
+		input := gjson.GetBytes(payload, "input")
+		if !input.Exists() || (!input.IsArray() && !input.IsObject()) {
+			return nil, false
+		}
+		payload = RemovePreviousResponseIDFromBody(payload)
+	}
+	coverage := AnalyzeToolCallOutputContextCoverageBytes(payload)
+	if coverage.HasFunctionCallOutput && !coverage.ContextCoversAllCallIDs {
+		return nil, false
+	}
+	return append([]byte(nil), payload...), true
+}
+
 // openAIWSPassthroughPolicyModelForFrame returns the model actually forwarded
 // by a passthrough WS frame. Passthrough only replaces authentication, so an
 // account's ordinary model_mapping and Codex aliases must not rewrite it.
@@ -593,6 +674,20 @@ func openAIWSPassthroughIsTerminalOutput(payload []byte) bool {
 	}
 }
 
+func openAIWSPassthroughIsSuccessfulTerminalOutput(payload []byte) bool {
+	switch strings.TrimSpace(gjson.GetBytes(payload, "type").String()) {
+	case "response.completed", "response.done":
+		return true
+	default:
+		return false
+	}
+}
+
+func openAIWSPassthroughSmartRoutingActive(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	return state != nil && state.SmartRoutingActive && SmartRoutingContractValid(ctx)
+}
+
 var _ openaiwsv2.FrameConn = (*openAIWSClientFrameConn)(nil)
 var _ openaiwsv2.FrameConn = (*openAIWSPassthroughFirstOutputFrameConn)(nil)
 
@@ -949,6 +1044,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			}
 		},
 	}
+	budgetedUpstreamFrameConn := &openAIWSPassthroughBudgetFrameConn{
+		inner:     relayUpstreamFrameConn,
+		ctx:       ctx,
+		accountID: account.ID,
+	}
 
 	completedTurns := atomic.Int32{}
 	turnLifecycle := newOpenAIWSPassthroughTurnLifecycle(true)
@@ -1136,14 +1236,32 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	}
 	upstreamFirstMessageSent := false
 	firstWriteCtx, cancelFirstWrite := context.WithTimeout(ctx, s.openAIWSWriteTimeout())
-	firstWriteErr := relayUpstreamFrameConn.WriteFrame(firstWriteCtx, coderws.MessageText, firstClientMessage)
+	firstWriteErr := budgetedUpstreamFrameConn.WriteFrame(firstWriteCtx, coderws.MessageText, firstClientMessage)
 	cancelFirstWrite()
 	if firstWriteErr != nil {
-		return wrapOpenAIWSIngressTurnError(
+		turnErr := wrapOpenAIWSIngressTurnError(
 			"write_upstream",
 			fmt.Errorf("write first upstream websocket request: %w", firstWriteErr),
 			false,
 		)
+		// The first response.create is sent before the relay goroutines start,
+		// so a transport write failure must still enter the same smart-routing
+		// failover contract as a read-side disconnect. Keep policy/client
+		// closes and ordinary single-group behavior unchanged.
+		if openAIWSPassthroughSmartRoutingActive(ctx) && ctx.Err() == nil {
+			var existingFailover *UpstreamFailoverError
+			var closeErr *OpenAIWSClientCloseError
+			if errors.As(firstWriteErr, &existingFailover) {
+				return existingFailover
+			}
+			if !errors.As(firstWriteErr, &closeErr) {
+				retryable := wrapOpenAIWSFallback("write_request", firstWriteErr)
+				if failoverErr := s.newOpenAIWSRetryFailoverError(account, retryable); failoverErr != nil {
+					return failoverErr
+				}
+			}
+		}
+		return turnErr
 	}
 	upstreamFirstMessageSent = true
 
@@ -1156,7 +1274,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if (msgType == coderws.MessageText || msgType == coderws.MessageBinary) && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "response.create" {
 				return msgType, payload, nil
 			}
-			if writeErr := upstreamFrameConn.WriteFrame(readCtx, msgType, payload); writeErr != nil {
+			if writeErr := budgetedUpstreamFrameConn.WriteFrame(readCtx, msgType, payload); writeErr != nil {
 				return msgType, payload, writeErr
 			}
 		}
@@ -1170,7 +1288,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	relayResult, relayExit := openaiwsv2.RunEntry(openaiwsv2.EntryInput{
 		Ctx:                ctx,
 		ClientConn:         policyClientConn,
-		UpstreamConn:       relayUpstreamFrameConn,
+		UpstreamConn:       budgetedUpstreamFrameConn,
 		FirstClientMessage: firstClientMessage,
 		Options: openaiwsv2.RelayOptions{
 			WriteTimeout:       s.openAIWSWriteTimeout(),
@@ -1255,6 +1373,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					eventType, _, _ := parseOpenAIWSEventEnvelope(payload)
 					markOpenAIWSClientVisibleFailure(c, eventType, payload)
 				}
+				if writeErr == nil && openAIWSPassthroughIsSuccessfulTerminalOutput(payload) {
+					CompleteSmartRoutingTurnAttemptBudget(ctx)
+				}
 				if msgType == coderws.MessageText && openAIWSPassthroughIsTerminalOutput(payload) {
 					turnLifecycle.finishTerminalWrite(writeErr == nil, clientFrameConn.markTurnCompleted)
 				}
@@ -1263,7 +1384,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if context.Cause(ctx) != nil {
 					return
 				}
-				status, reason, ok := openAIWSPassthroughRelayClientClose(exit, int(completedTurns.Load()))
+				status, reason, ok := openAIWSPassthroughRelayClientClose(
+					exit,
+					int(completedTurns.Load()),
+					openAIWSPassthroughSmartRoutingActive(ctx),
+				)
 				if !ok {
 					return
 				}
@@ -1457,6 +1582,38 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		relayErr,
 		relayExit.WroteDownstream,
 	)
+	// A passthrough transport error before the first downstream frame is still
+	// recoverable for an active smart-routed request. Convert it to the common
+	// failover contract before returning so the handler can select another
+	// account/group. Do not do this after a frame was exposed to the client:
+	// replaying there would duplicate protocol/output bytes and may double bill.
+	if openAIWSPassthroughSmartRoutingActive(ctx) &&
+		ctx.Err() == nil &&
+		completedTurns.Load() == 0 &&
+		!relayExit.WroteDownstream {
+		var existingFailover *UpstreamFailoverError
+		var closeErr *OpenAIWSClientCloseError
+		var firstOutputTimeoutErr *openAIWSPassthroughFirstOutputTimeoutError
+		var activeTurnTimeoutErr *openAIWSPassthroughActiveTurnTimeoutError
+		if !errors.As(relayErr, &existingFailover) &&
+			!errors.As(relayErr, &closeErr) &&
+			!errors.As(relayErr, &firstOutputTimeoutErr) &&
+			!errors.As(relayErr, &activeTurnTimeoutErr) {
+			reason := ""
+			switch relayExit.Stage {
+			case "read_upstream":
+				reason = "read_event"
+			case "write_upstream":
+				reason = "write_request"
+			}
+			if reason != "" {
+				retryable := wrapOpenAIWSFallback(reason, relayErr)
+				if failoverErr := s.newOpenAIWSRetryFailoverError(account, retryable); failoverErr != nil {
+					turnErr = failoverErr
+				}
+			}
+		}
+	}
 	if hooks != nil && hooks.AfterTurn != nil {
 		if hooks.TurnStarted != nil {
 			hooks.TurnStarted(turnCount+1, time.Now().Add(-result.Duration))
@@ -1466,7 +1623,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	return turnErr
 }
 
-func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTurns int) (coderws.StatusCode, string, bool) {
+func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTurns int, smartRoutingActive bool) (coderws.StatusCode, string, bool) {
 	var closeErr *OpenAIWSClientCloseError
 	if errors.As(exit.Err, &closeErr) {
 		return closeErr.StatusCode(), closeErr.Reason(), true
@@ -1483,6 +1640,9 @@ func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTur
 		return 0, "", false
 	}
 	if !exit.Graceful && exit.Stage == "read_upstream" {
+		if completedTurns == 0 && !exit.WroteDownstream && smartRoutingActive {
+			return 0, "", false
+		}
 		return coderws.StatusInternalError, "upstream websocket proxy failed", true
 	}
 	return 0, "", false

@@ -148,7 +148,7 @@ func TestOpenAIStreamingPassthroughKeepsPreamblePendingUntilFirstOutputBoundary(
 func TestOpenAIStreamingPassthroughFlushesTerminalEventAtEOFWithoutBlankLine(t *testing.T) {
 	upstream := "event: response.completed\n" +
 		`data: {"type":"response.completed","response":{"id":"resp_eof","usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}}`
-	wantBody := upstream + "\n"
+	wantBody := upstream + "\n\n"
 
 	result, recorder, writer, err := runPassthroughFlushTest(t, io.NopCloser(strings.NewReader(upstream)), -1)
 
@@ -280,9 +280,12 @@ func TestOpenAIStreamingPassthroughScannerErrorFlushesWrittenResidual(t *testing
 	}, -1)
 
 	require.ErrorIs(t, err, readErr)
-	wantBody := string(upstream) + "\n"
-	require.Equal(t, wantBody, recorder.Body.String())
-	require.Equal(t, []int{len(wantBody)}, writer.flushBodyLengths)
+	body := recorder.Body.String()
+	require.Contains(t, body, string(upstream)+"\n")
+	require.Equal(t, 1, strings.Count(body, `"type":"response.failed"`), "a Responses stream read error after output must have one protocol-correct terminal event")
+	require.Contains(t, body, `"code":"upstream_stream_read_error"`)
+	require.Contains(t, body, `"status":"failed"`)
+	require.Equal(t, []int{len(body)}, writer.flushBodyLengths)
 }
 
 func TestOpenAIStreamingPassthroughNamespaceRestoreErrorFlushesWrittenResidualOnce(t *testing.T) {

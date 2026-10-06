@@ -34,6 +34,14 @@ const (
 	// maxSameAccountRetries 同账号重试次数默认上限（针对 RetryableOnSameAccount 错误）。
 	// 生产调用方通常传入账号级配置 account.GetPoolModeRetryCount()，该常量仅作兜底/测试默认值。
 	maxSameAccountRetries = 3
+	// smartRoutingMaxSameAccountRetries keeps a routed request from spending
+	// the pool-mode retry budget on one website. A single quick retry can
+	// recover a transient pool member, but the next failure must release the
+	// website so the selector can move to the next candidate upstream.
+	smartRoutingMaxSameAccountRetries = 1
+	// smartRoutingMaxAccountSwitches lets a routed group try one alternate
+	// website before the resolver advances to another candidate group.
+	smartRoutingMaxAccountSwitches = 1
 	// sameAccountRetryDelay 同账号重试间隔
 	sameAccountRetryDelay = 500 * time.Millisecond
 	// maxRequestScopedRetryDelay 限制请求级瞬时错误的指数退避上限，避免高重试配置
@@ -103,13 +111,40 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 }
 
 func smartRoutingSameAccountRetryAllowed(ctx context.Context, failoverErr *service.UpstreamFailoverError, retryCount, retryLimit int) bool {
-	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && service.SmartRoutingSuppressSameAccountRetry(ctx, failoverErr) {
+	state := service.SmartRoutingStateFromContext(ctx)
+	if state != nil && state.SmartRoutingActive && service.SmartRoutingSuppressSameAccountRetry(ctx, failoverErr) {
 		return false
 	}
-	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive && !service.SmartRoutingRetryBudgetAllows(ctx) {
+	if state != nil && state.SmartRoutingActive {
+		// OAuth 429 errors may carry a long retry deadline. That deadline is
+		// useful for ordinary pool-mode requests, but it must not bypass the
+		// smart-routing per-website cap and keep a bad website pinned.
+		if retryCount >= smartRoutingMaxSameAccountRetries {
+			return false
+		}
+	}
+	if state != nil && state.SmartRoutingActive && !service.SmartRoutingRetryBudgetAllows(ctx) {
 		return false
 	}
 	return sameAccountRetryAllowed(failoverErr, retryCount, retryLimit)
+}
+
+func effectiveAccountSwitchLimit(ctx context.Context, configuredLimit int) int {
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		return smartRoutingMaxAccountSwitches
+	}
+	return configuredLimit
+}
+
+func isSmartRoutingAttemptBudgetReason(reason service.GatewayFailureReason) bool {
+	switch reason {
+	case service.SmartRoutingAttemptBudgetExceededReason,
+		service.SmartRoutingTurnAttemptBudgetExceededReason,
+		service.SmartRoutingSiteAttemptBudgetExceededReason:
+		return true
+	default:
+		return false
+	}
 }
 
 // sameAccountRetryDeadlineAllows prevents a retry from starting after the
@@ -254,7 +289,8 @@ func (s *FailoverState) HandleFailoverError(
 	s.FailedAccountIDs[accountID] = struct{}{}
 
 	// 检查是否耗尽
-	if s.SwitchCount >= s.MaxSwitches {
+	maxSwitches := effectiveAccountSwitchLimit(ctx, s.MaxSwitches)
+	if s.SwitchCount >= maxSwitches {
 		return FailoverExhausted
 	}
 
@@ -264,7 +300,7 @@ func (s *FailoverState) HandleFailoverError(
 		zap.Int64("account_id", accountID),
 		zap.Int("upstream_status", failoverErr.StatusCode),
 		zap.Int("switch_count", s.SwitchCount),
-		zap.Int("max_switches", s.MaxSwitches),
+		zap.Int("max_switches", maxSwitches),
 	)
 
 	// Antigravity 平台换号线性递增延时
@@ -292,9 +328,11 @@ func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAc
 		return FailoverCanceled
 	}
 
+	maxSwitches := effectiveAccountSwitchLimit(ctx, s.MaxSwitches)
 	if s.LastFailoverErr != nil &&
 		s.LastFailoverErr.StatusCode == http.StatusServiceUnavailable &&
-		s.SwitchCount <= s.MaxSwitches {
+		!isSmartRoutingAttemptBudgetReason(s.LastFailoverErr.Reason) &&
+		s.SwitchCount <= maxSwitches {
 
 		// 排除列表全由利润门否决贡献时，清空后会被原样恢复：退避重试拿不到
 		// 任何新候选，而利润否决不推进 SwitchCount，退避条件将永远成立。
@@ -310,14 +348,14 @@ func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAc
 		logger.FromContext(ctx).Warn("gateway.failover_single_account_backoff",
 			zap.Duration("backoff_delay", singleAccountBackoffDelay),
 			zap.Int("switch_count", s.SwitchCount),
-			zap.Int("max_switches", s.MaxSwitches),
+			zap.Int("max_switches", maxSwitches),
 		)
 		if !sleepWithContext(ctx, singleAccountBackoffDelay) {
 			return FailoverCanceled
 		}
 		logger.FromContext(ctx).Warn("gateway.failover_single_account_retry",
 			zap.Int("switch_count", s.SwitchCount),
-			zap.Int("max_switches", s.MaxSwitches),
+			zap.Int("max_switches", maxSwitches),
 		)
 		s.FailedAccountIDs = make(map[int64]struct{})
 		// 利润门否决的账号不参与退避重试的解除：判定依据（冻结的下游倍率）在

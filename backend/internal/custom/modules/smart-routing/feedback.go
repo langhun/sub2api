@@ -59,13 +59,17 @@ func (m *Module) RoutingAccountMetrics(ctx context.Context, groupID int64, model
 	defer cancel()
 	rows, err := m.repo.db.QueryContext(readCtx, `SELECT account_id,
 		COUNT(*) FILTER (WHERE created_at>=NOW()-INTERVAL '15 minutes'),
-		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0),
+		COUNT(*) FILTER (WHERE success AND account_speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),
+		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY account_speed_ms) FILTER (WHERE success AND account_speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0),
+		COALESCE(percentile_cont(0.9) WITHIN GROUP (ORDER BY account_speed_ms) FILTER (WHERE success AND account_speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0),
 		COUNT(*) FILTER (WHERE NOT success AND created_at>=NOW()-INTERVAL '15 minutes')::float / GREATEST(COUNT(*) FILTER (WHERE created_at>=NOW()-INTERVAL '15 minutes'),1),
 		COUNT(*),
-		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0),0),
+		COUNT(*) FILTER (WHERE success AND account_speed_ms>0),
+		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY account_speed_ms) FILTER (WHERE success AND account_speed_ms>0),0),
+		COALESCE(percentile_cont(0.9) WITHIN GROUP (ORDER BY account_speed_ms) FILTER (WHERE success AND account_speed_ms>0),0),
 		COUNT(*) FILTER (WHERE NOT success)::float / GREATEST(COUNT(*),1)
         FROM (
-			SELECT DISTINCT ON (request_id, group_id, account_id) account_id, success, speed_ms, created_at
+			SELECT DISTINCT ON (request_id, group_id, account_id) account_id, success, account_speed_ms, created_at
             FROM custom_route_attempts
             WHERE group_id=$1 AND requested_model=$2 AND endpoint_type=$3 AND stream=$4
 			  AND created_at>=NOW()-INTERVAL '1 hour'
@@ -79,14 +83,17 @@ func (m *Module) RoutingAccountMetrics(ctx context.Context, groupID int64, model
 	out := map[int64]service.SmartRoutingAccountMetric{}
 	for rows.Next() {
 		var id int64
-		var recentSamples, fallbackSamples int64
-		var recentSpeed, recentError, fallbackSpeed, fallbackError float64
-		if rows.Scan(&id, &recentSamples, &recentSpeed, &recentError, &fallbackSamples, &fallbackSpeed, &fallbackError) != nil {
+		var recentSamples, recentSpeedSamples, fallbackSamples, fallbackSpeedSamples int64
+		var recentSpeed, recentP90, recentError, fallbackSpeed, fallbackP90, fallbackError float64
+		if rows.Scan(&id, &recentSamples, &recentSpeedSamples, &recentSpeed, &recentP90, &recentError, &fallbackSamples, &fallbackSpeedSamples, &fallbackSpeed, &fallbackP90, &fallbackError) != nil {
 			return nil
 		}
-		metric := service.SmartRoutingAccountMetric{Samples: recentSamples, SpeedMs: recentSpeed, ErrorRate: recentError}
+		metric := service.SmartRoutingAccountMetric{Samples: recentSamples, SpeedSamples: recentSpeedSamples, SpeedMs: recentSpeed, SpeedP90Ms: recentP90, ErrorRate: recentError}
 		if recentSamples < minSamples && fallbackSamples >= minSamples {
-			metric.Samples, metric.SpeedMs, metric.ErrorRate = fallbackSamples, fallbackSpeed, fallbackError
+			metric.Samples, metric.ErrorRate = fallbackSamples, fallbackError
+		}
+		if recentSpeedSamples < minSamples && fallbackSpeedSamples >= minSamples {
+			metric.SpeedSamples, metric.SpeedMs, metric.SpeedP90Ms = fallbackSpeedSamples, fallbackSpeed, fallbackP90
 		}
 		out[id] = metric
 	}
@@ -225,8 +232,8 @@ func (m *Module) flushFeedback(shard int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			_, err := m.repo.db.ExecContext(ctx, `INSERT INTO custom_route_attempts
-                (request_id,attempt,api_key_id,group_id,account_id,requested_model,endpoint_type,stream,success,speed_ms,created_at)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT DO NOTHING`, a.RequestID, a.Attempt, a.APIKeyID, a.GroupID, a.AccountID, a.Model, a.Endpoint, a.Stream, a.Success, a.SpeedMs, a.CreatedAt)
+                (request_id,attempt,api_key_id,group_id,account_id,requested_model,endpoint_type,stream,success,speed_ms,account_speed_ms,created_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT DO NOTHING`, a.RequestID, a.Attempt, a.APIKeyID, a.GroupID, a.AccountID, a.Model, a.Endpoint, a.Stream, a.Success, a.SpeedMs, a.AccountSpeedMs, a.CreatedAt)
 			if err != nil {
 				slog.Warn("smart_routing_attempt_write_failed", "error", err)
 			}

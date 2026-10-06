@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -38,7 +39,7 @@ type responsesFailedBody struct {
 // 后面不会再续流。
 type responsesFailedEvent struct {
 	Type           string              `json:"type"`
-	SequenceNumber int                 `json:"sequence_number"`
+	SequenceNumber int64               `json:"sequence_number"`
 	Response       responsesFailedBody `json:"response"`
 }
 
@@ -53,6 +54,8 @@ type responsesFailedEvent struct {
 //
 // 字段集对齐 apicompat.makeResponsesCompletedEvent：id/object/model/status/output/error。
 // sequence_number 始终写出（未知时为 0）：OpenAI spec 标可选，但 grok-build 当必填。
+// 如果服务层已经向客户端转发了 Responses 事件，则沿用请求级最大序号并递增，
+// 避免 clean EOF 兜底帧倒退到 0。
 //
 // 返回 true 表示已尝试 SSE 写出（不论 Write 是否成功，caller 都应直接 return）。
 // 返回 false 表示 writer 不支持 Flusher，无法以 SSE 形式回报错误；
@@ -65,7 +68,8 @@ func writeResponsesFailedSSE(c *gin.Context, errType, code, message string) bool
 	}
 
 	payload, err := json.Marshal(responsesFailedEvent{
-		Type: "response.failed",
+		Type:           "response.failed",
+		SequenceNumber: service.OpenAIResponsesNextVisibleSequenceNumber(c),
 		Response: responsesFailedBody{
 			ID:        synthesizeResponseID(c),
 			Object:    "response",

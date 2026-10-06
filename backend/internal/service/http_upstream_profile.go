@@ -16,6 +16,11 @@ const (
 type httpUpstreamProfileContextKey struct{}
 type httpUpstreamDisableRedirectsContextKey struct{}
 type httpUpstreamPublicHostsOnlyContextKey struct{}
+type httpUpstreamRedirectAttemptReserverContextKey struct{}
+
+// HTTPUpstreamRedirectAttemptReserver is called before an HTTP client follows
+// a redirect, while the redirected request is still preventable.
+type HTTPUpstreamRedirectAttemptReserver func(context.Context) error
 
 // WithHTTPUpstreamProfile injects an upstream transport profile into ctx.
 func WithHTTPUpstreamProfile(ctx context.Context, profile HTTPUpstreamProfile) context.Context {
@@ -56,6 +61,29 @@ func WithHTTPUpstreamRedirectsDisabled(ctx context.Context) context.Context {
 
 func HTTPUpstreamRedirectsDisabled(ctx context.Context) bool {
 	return ctx != nil && ctx.Value(httpUpstreamDisableRedirectsContextKey{}) == true
+}
+
+// WithHTTPUpstreamRedirectAttemptReserver registers a request-local budget
+// callback for every redirect hop sent by the shared HTTP upstream client.
+func WithHTTPUpstreamRedirectAttemptReserver(
+	ctx context.Context,
+	reserver HTTPUpstreamRedirectAttemptReserver,
+) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if reserver == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, httpUpstreamRedirectAttemptReserverContextKey{}, reserver)
+}
+
+func HTTPUpstreamRedirectAttemptReserverFromContext(ctx context.Context) HTTPUpstreamRedirectAttemptReserver {
+	if ctx == nil {
+		return nil
+	}
+	reserver, _ := ctx.Value(httpUpstreamRedirectAttemptReserverContextKey{}).(HTTPUpstreamRedirectAttemptReserver)
+	return reserver
 }
 
 // WithHTTPUpstreamPublicHostsOnly marks a request whose destination, and every

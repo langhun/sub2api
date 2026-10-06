@@ -89,20 +89,12 @@ func forwardWithSmartRouting[T any](c *gin.Context, account *service.Account, st
 		return zero, err
 	}
 	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil && state.SmartRoutingActive {
-		// Reserve the request budget only after final account admission. A
-		// rejected health/probe lease never starts an upstream request and must
-		// not consume one of the hard attempt slots.
-		if !service.SmartRoutingAttemptBudgetAvailable(c.Request.Context()) {
-			release()
-			state.FinalErrorStatus = http.StatusServiceUnavailable
-			return zero, &service.UpstreamFailoverError{
-				StatusCode:        http.StatusServiceUnavailable,
-				Reason:            service.SmartRoutingAttemptBudgetExceededReason,
-				Scope:             service.GatewayFailureScopeRequest,
-				NextAccountAction: service.NextAccountStop,
-				ClientMessage:     "smart routing attempt budget exhausted",
-			}
-		}
+		// Count only at the transport boundary. GatewayService and OpenAI
+		// transports reserve immediately before each real upstream send,
+		// including protocol-repair and redirect attempts. Admission itself
+		// must not consume a slot because a later capacity/profit veto may
+		// prevent any network request.
+		service.PrepareSmartRoutingOpenAIRequestBudget(c.Request.Context())
 	}
 	defer release()
 	originalRequest := c.Request

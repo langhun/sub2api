@@ -339,9 +339,19 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		stateStore,
 		groupID,
 	); err != nil {
+		// The prewarm helper marks the lease broken after any real write/read
+		// failure. A budget rejection happens before writing, so keep that
+		// connection reusable; both paths must avoid a second mark in defer.
+		cleanExit = true
 		return nil, err
 	}
 
+	// Count the business request independently from a possible generate=false
+	// prewarm. Reserve immediately before the real payload write.
+	if err := ReserveSmartRoutingOpenAIRequestAttempt(ctx, account.ID); err != nil {
+		cleanExit = true
+		return nil, err
+	}
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(
@@ -370,6 +380,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	responseID := ""
 	var finalResponse []byte
 	wroteDownstream := false
+	var lastSequenceNumber int64 = -1
 	needModelReplace := originalModel != mappedModel
 	var mappedModelBytes []byte
 	if needModelReplace && mappedModel != "" {
@@ -431,6 +442,8 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			Stream:                        reqStream,
 			OpenAIWSMode:                  true,
 			UpstreamTerminalEvent:         upstreamTerminalEvent,
+			ImageCount:                    imageCounter.Count(),
+			ImageOutputSizes:              imageCounter.Sizes(),
 			ResponseHeaders:               lease.HandshakeHeaders(),
 			Duration:                      time.Since(startTime),
 			FirstTokenMs:                  firstTokenMs,
@@ -572,7 +585,17 @@ readLoop:
 			if !wroteDownstream {
 				return nil, wrapOpenAIWSFallback("invalid_event_json", errors.New("upstream websocket returned malformed Responses event JSON"))
 			}
-			return nil, errors.New("upstream websocket returned malformed Responses event JSON after downstream output")
+			terminal := buildOpenAIWSSyntheticFailedEvent(
+				responseID,
+				originalModel,
+				lastSequenceNumber+1,
+				nil,
+				"OpenAI upstream returned malformed Responses event JSON after downstream output",
+			)
+			emitStreamMessage(terminal, true)
+			markOpenAIWSClientVisibleFailure(c, "response.failed", terminal)
+			upstreamTerminalEvent = "response.failed"
+			return resultWithUsage(), fmt.Errorf("upstream response failed: malformed Responses event JSON after downstream output")
 		}
 		if readErr != nil {
 			lease.MarkBroken()
@@ -602,8 +625,20 @@ readLoop:
 			if !wroteDownstream {
 				return nil, wrapOpenAIWSFallback(classifyOpenAIWSReadFallbackReason(readErr), readErr)
 			}
-			setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(readErr.Error()), "")
-			return nil, fmt.Errorf("openai ws read event: %w", readErr)
+			message := sanitizeUpstreamErrorMessage(readErr.Error())
+			setOpsUpstreamError(c, http.StatusBadGateway, message, "")
+			terminal := buildOpenAIWSSyntheticFailedEvent(
+				responseID,
+				originalModel,
+				lastSequenceNumber+1,
+				nil,
+				"OpenAI upstream stream disconnected before completion",
+			)
+			emitStreamMessage(terminal, true)
+			markOpenAIWSClientVisibleFailure(c, "response.failed", terminal)
+			upstreamTerminalEvent = "response.failed"
+			s.recordOpenAIProxyStreamDisconnect(account, readErr, "")
+			return resultWithUsage(), fmt.Errorf("upstream response failed: openai ws read event: %w", readErr)
 		}
 		if normalized, changed := normalizeCompletedImageGenerationStatus(message); changed {
 			message = normalized
@@ -612,6 +647,11 @@ readLoop:
 		eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(message)
 		if eventType == "" {
 			continue
+		}
+		if sequence := gjson.GetBytes(message, "sequence_number"); sequence.Exists() && sequence.Type == gjson.Number {
+			if value := sequence.Int(); value > lastSequenceNumber {
+				lastSequenceNumber = value
+			}
 		}
 		responseModelObserver.ObserveOpenAI(message, eventType)
 		eventCount++
@@ -725,8 +765,34 @@ readLoop:
 			statusCode := openAIWSErrorHTTPStatusFromRaw(errCodeRaw, errTypeRaw)
 			setOpsUpstreamError(c, statusCode, errMsg, "")
 			if reqStream && !clientDisconnected {
+				// A response.created (and similar pre-token events) may still be
+				// buffered here. Capture whether semantic output was already
+				// committed before flushing that buffer; otherwise flushing it
+				// would incorrectly turn a pre-output error into a post-output
+				// failure and prevent the normal failover contract.
+				hadDownstreamOutput := wroteDownstream
 				flushBufferedStreamEvents("error_event")
-				emitStreamMessage(message, true)
+				if hadDownstreamOutput || isOpenAIResponsesStreamPath(c) {
+					// Once semantic output has reached the client, replaying the
+					// request on another upstream can duplicate output or charge
+					// twice. Responses clients also require a terminal event even
+					// when only pre-output metadata (for example response.created)
+					// has been buffered, so do not forward a bare `error` event;
+					// close the current turn with exactly one protocol-valid
+					// terminal event.
+					terminal := buildOpenAIWSSyntheticFailedEvent(
+						responseID,
+						originalModel,
+						lastSequenceNumber+1,
+						message,
+						errMsg,
+					)
+					emitStreamMessage(terminal, true)
+					markOpenAIWSClientVisibleFailure(c, "response.failed", terminal)
+					upstreamTerminalEvent = "response.failed"
+				} else {
+					emitStreamMessage(message, true)
+				}
 			}
 			if !reqStream {
 				c.JSON(statusCode, gin.H{
@@ -737,6 +803,59 @@ readLoop:
 				})
 			}
 			return nil, fmt.Errorf("openai ws error event: %s", errMsg)
+		}
+
+		// A Responses `response.failed` frame is terminal for the current
+		// upstream turn, but it is still safe to reroute when no semantic
+		// output has reached the client and the failure is transient. Keep this
+		// restricted to smart routing: ordinary single-group requests retain
+		// the upstream terminal event and its existing client-facing behavior.
+		smartRoutingActive := false
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			smartRoutingActive = state.SmartRoutingActive
+		}
+		if eventType == "response.failed" &&
+			!wroteDownstream &&
+			smartRoutingActive {
+			statusCode := openAIWSResponseFailedFailoverStatus(message)
+			if statusCode == http.StatusTooManyRequests {
+				errMessage := extractOpenAISSEErrorMessage(message)
+				if errMessage == "" {
+					errMessage = "OpenAI upstream rate limit exceeded"
+				}
+				s.handleOpenAIWSFailureAccountSideEffects(
+					ctx,
+					account,
+					mappedModel,
+					lease.HandshakeHeaders(),
+					message,
+				)
+				lease.MarkBroken()
+				return nil, s.newOpenAIWSRateLimitFailoverError(
+					account,
+					lease.HandshakeHeaders(),
+					message,
+					errMessage,
+				)
+			}
+			if statusCode >= http.StatusInternalServerError {
+				errMessage := extractOpenAISSEErrorMessage(message)
+				if errMessage == "" {
+					errMessage = "OpenAI upstream returned a transient failed response"
+				}
+				s.handleOpenAIWSFailureAccountSideEffects(
+					ctx,
+					account,
+					mappedModel,
+					lease.HandshakeHeaders(),
+					message,
+				)
+				lease.MarkBroken()
+				return nil, wrapOpenAIWSFallback(
+					"upstream_5xx",
+					errors.New(errMessage),
+				)
+			}
 		}
 
 		if reqStream {

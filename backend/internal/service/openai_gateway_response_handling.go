@@ -143,6 +143,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		}
 		return int64(bufferedWriter.Buffered())
 	}
+	commitVisibleSequence := func() {}
 	flushBuffered := func() error {
 		if firstOutputStage != nil && !firstOutputStage.closed {
 			if err := firstOutputStage.CommitTo(w); err != nil {
@@ -154,6 +155,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			}
 		}
 		flusher.Flush()
+		commitVisibleSequence()
 		return nil
 	}
 
@@ -262,10 +264,34 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 	var bareErrorPayload []byte
 	bareErrorAccountSideEffectsPending := false
 	pendingSSEEventType := ""
+	lastVisibleSequenceNumber := int64(-1)
 	eventInProgress := false
 	eventStartsClientOutput := false
 	eventStartsTTFTOutput := false
 	eventShouldFlush := false
+	observeVisibleSequence := func(payload []byte) {
+		if !isOpenAIResponsesStreamPath(c) || len(payload) == 0 {
+			return
+		}
+		sequence := gjson.GetBytes(payload, "sequence_number")
+		if !sequence.Exists() || sequence.Type != gjson.Number {
+			return
+		}
+		if value := sequence.Int(); value > lastVisibleSequenceNumber {
+			lastVisibleSequenceNumber = value
+		}
+	}
+	commitVisibleSequence = func() {
+		if lastVisibleSequenceNumber >= 0 {
+			SetOpenAIResponsesLastVisibleSequenceNumber(c, lastVisibleSequenceNumber)
+		}
+	}
+	nextVisibleSequenceNumber := func() int64 {
+		if lastVisibleSequenceNumber < 0 {
+			return 0
+		}
+		return lastVisibleSequenceNumber + 1
+	}
 	handlePendingWriteError := func(err error) {
 		if firstOutputStage != nil && !firstOutputStage.closed {
 			message := "OpenAI first-output staging failed"
@@ -319,14 +345,36 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			return
 		}
 		errorEventSent = true
-		// Responses error events use top-level code/message/param fields. A nested
-		// Chat Completions error envelope loses the classification in strict clients.
-		payload := `{"type":"error","sequence_number":0,"code":` + strconv.Quote(code) + `,"message":` + strconv.Quote(message) + `,"param":null}`
 		if err := flushBuffered(); err != nil {
 			clientDisconnected = true
 			return
 		}
-		if _, err := writePendingString("event: error\ndata: " + payload + "\n\n"); err != nil {
+
+		var event string
+		if isOpenAIResponsesStreamPath(c) {
+			// A Responses stream must end with a Responses terminal event. A
+			// bare `event: error` frame leaves strict clients waiting for
+			// response.completed and produces "stream closed before
+			// response.completed". This path is only reached after output has
+			// already been committed (or after a non-retryable stream error), so
+			// emitting response.failed is safe and does not trigger failover.
+			source, marshalErr := json.Marshal(map[string]any{
+				"error": map[string]any{
+					"code":    code,
+					"message": message,
+				},
+			})
+			if marshalErr != nil {
+				source = nil
+			}
+			event = buildOpenAIResponseFailedSSEWithSequence(responseID, originalModel, nextVisibleSequenceNumber(), source, message)
+		} else {
+			// Chat Completions and other OpenAI-compatible streams retain their
+			// existing top-level error envelope.
+			payload := `{"type":"error","sequence_number":0,"code":` + strconv.Quote(code) + `,"message":` + strconv.Quote(message) + `,"param":null}`
+			event = "event: error\ndata: " + payload + "\n\n"
+		}
+		if _, err := writePendingString(event); err != nil {
 			clientDisconnected = true
 			return
 		}
@@ -336,6 +384,12 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		}
 		clientOutputStarted = true
 		lastDownstreamWriteAt = time.Now()
+		if isOpenAIResponsesStreamPath(c) {
+			sawTerminalEvent = true
+			sawFailedEvent = true
+			terminalEventType = "response.failed"
+			failureDelivered = true
+		}
 		// The handler must not append its generic failure after this error event.
 		MarkResponseCommitted(c)
 	}
@@ -382,7 +436,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		}
 		if codexFailureTerminal && sawBareError && !sawResponseFailed && !clientDisconnected {
 			applyAttemptResponseHeaders()
-			if _, err := writePendingString(buildOpenAIResponseFailedSSE(responseID, originalModel, bareErrorPayload, failedMessage)); err != nil {
+			if _, err := writePendingString(buildOpenAIResponseFailedSSEWithSequence(responseID, originalModel, nextVisibleSequenceNumber(), bareErrorPayload, failedMessage)); err != nil {
 				handlePendingWriteError(err)
 			} else {
 				failureDelivered = true
@@ -391,7 +445,10 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		if sawTerminalEvent && !sawFailedEvent {
 			s.clearOpenAIProxyStreamDisconnect(account)
 		}
-		if !sawTerminalEvent && !openAIStreamClientOutputStarted(c, clientOutputStarted) && !eventShouldFlush {
+		// eventShouldFlush only describes the current SSE frame's boundary; it
+		// does not prove that bytes reached the client. A frame can still be
+		// buffered in the attempt-local writer when the upstream closes.
+		if !sawTerminalEvent && !openAIStreamClientOutputStarted(c, clientOutputStarted) {
 			return resultWithUsage(), s.newOpenAIStreamFailoverError(
 				c,
 				account,
@@ -403,8 +460,12 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		}
 		flushPending("Client disconnected during final flush, returning collected usage")
 		if !sawTerminalEvent {
-			if openAIStreamClientOutputStarted(c, clientOutputStarted) && !clientDisconnected {
+			outputStarted := openAIStreamClientOutputStarted(c, clientOutputStarted)
+			if outputStarted && !clientDisconnected {
 				s.recordOpenAIProxyStreamDisconnect(account, errors.New("stream ended before terminal event"), upstreamRequestID)
+				if isOpenAIResponsesStreamPath(c) && ctx.Err() == nil {
+					return resultWithUsage(), normalizeOpenAIUpstreamStreamReadError(ErrOpenAIUpstreamStreamTruncated, ctx)
+				}
 			}
 			return resultWithUsage(), fmt.Errorf("stream usage incomplete: missing terminal event")
 		}
@@ -457,7 +518,9 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			sendErrorEvent("response_too_large", "Upstream response exceeded the size limit")
 			return resultWithUsage(), scanErr, true
 		}
-		if !openAIStreamClientOutputStarted(c, clientOutputStarted) && !eventShouldFlush {
+		// A pending frame is not committed output. Only actual downstream
+		// output is allowed to suppress pre-token failover.
+		if !openAIStreamClientOutputStarted(c, clientOutputStarted) {
 			msg := "OpenAI stream disconnected before completion"
 			if errText := strings.TrimSpace(scanErr.Error()); errText != "" {
 				msg += ": " + errText
@@ -471,7 +534,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		s.recordOpenAIProxyStreamDisconnect(account, scanErr, upstreamRequestID)
 		code, message := classifyOpenAIUpstreamStreamReadError(scanErr)
 		sendErrorEvent(code, message)
-		return resultWithUsage(), fmt.Errorf("stream read error: %w", scanErr), true
+		return resultWithUsage(), normalizeOpenAIUpstreamStreamReadError(scanErr, ctx), true
 	}
 	processSSELine := func(line string, queueDrained bool) {
 		if streamEarlyErr != nil {
@@ -699,6 +762,10 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 
 			// 写入客户端（客户端断开后继续 drain 上游）
 			if !clientDisconnected && !failureDelivered && !suppressCurrentEvent {
+				// Track the upstream sequence only for events that are actually
+				// relayed to the client. Suppressed Codex `error` frames must not
+				// advance the generated terminal event's sequence.
+				observeVisibleSequence(dataBytes)
 				shouldFlush := queueDrained && (clientOutputStarted || startsClientOutput)
 				if firstTokenMs == nil && startsVisibleOutput {
 					// 保证首个 token 事件尽快出站，避免影响 TTFT。
@@ -928,7 +995,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			// legacy stream_timeout path so partial SSE is not dual-written.
 			if account != nil && account.Platform == PlatformGrok {
 				s.tempUnscheduleGrok(ctx, account, grokStreamIdleCooldown, "grok stream idle timeout")
-				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && !eventShouldFlush {
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) {
 					_ = resp.Body.Close()
 					return resultWithUsage(), grokStreamIdleFailoverError(account, streamInterval)
 				}
@@ -1860,9 +1927,16 @@ func extractOpenAISSEErrorMessage(payload []byte) string {
 }
 
 func buildOpenAIResponseFailedSSE(responseID, model string, source []byte, fallbackMessage string) string {
+	return buildOpenAIResponseFailedSSEWithSequence(responseID, model, 0, source, fallbackMessage)
+}
+
+func buildOpenAIResponseFailedSSEWithSequence(responseID, model string, sequenceNumber int64, source []byte, fallbackMessage string) string {
 	responseID = strings.TrimSpace(responseID)
 	if responseID == "" {
 		responseID = "resp_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	}
+	if sequenceNumber < 0 {
+		sequenceNumber = 0
 	}
 	errorType := strings.TrimSpace(gjson.GetBytes(source, "error.type").String())
 	if errorType == "" {
@@ -1887,22 +1961,27 @@ func buildOpenAIResponseFailedSSE(responseID, model string, source []byte, fallb
 		errorBody["type"] = errorType
 	}
 	response := gin.H{
-		"id":     responseID,
-		"object": "response",
-		"status": "failed",
-		"output": []any{},
-		"error":  errorBody,
+		"id":         responseID,
+		"object":     "response",
+		"created_at": time.Now().Unix(),
+		"status":     "failed",
+		"output":     []any{},
+		"error":      errorBody,
 	}
 	if model = strings.TrimSpace(model); model != "" {
 		response["model"] = model
 	}
 	payload, err := marshalOpenAIUpstreamJSON(gin.H{
-		"type":     "response.failed",
-		"response": response,
+		"type":            "response.failed",
+		"sequence_number": sequenceNumber,
+		"response":        response,
 	})
 	if err != nil {
 		// All values above are JSON primitives, so this is only a defensive fallback.
-		payload = []byte(`{"type":"response.failed","response":{"status":"failed","output":[],"error":{"code":"upstream_error","message":"Upstream response failed"}}}`)
+		payload = []byte(`{"type":"response.failed","sequence_number":0,"response":{"status":"failed","output":[],"error":{"code":"upstream_error","message":"Upstream response failed"}}}`)
+		if sequenceNumber > 0 {
+			payload = []byte(fmt.Sprintf(`{"type":"response.failed","sequence_number":%d,"response":{"status":"failed","output":[],"error":{"code":"upstream_error","message":"Upstream response failed"}}}`, sequenceNumber))
+		}
 	}
 	return "event: response.failed\ndata: " + string(payload) + "\n\n"
 }

@@ -10,9 +10,187 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// newOpenAIWSRetryFailoverError converts a bounded, pre-output WS retry
+// failure into the common account failover contract. The WS fallback error is
+// intentionally private to the transport implementation; callers above it
+// must never need to understand that representation.
+func (s *OpenAIGatewayService) newOpenAIWSRetryFailoverError(account *Account, err error) *UpstreamFailoverError {
+	if account == nil || err == nil {
+		return nil
+	}
+	reason, retryable := classifyOpenAIWSReconnectReason(err)
+	// A malformed upstream frame must not be retried against the same website:
+	// the caller invokes this converter only for smart-routed requests, where
+	// the next safe action is to select a different account/group.
+	if reason == "invalid_event_json" {
+		retryable = true
+	}
+	if reason == "" || !retryable {
+		return nil
+	}
+	statusCode, _, _, upstreamMessage, ok := resolveOpenAIWSFallbackErrorResponse(err)
+	if statusCode <= 0 {
+		statusCode = http.StatusBadGateway
+	}
+	if !ok || strings.TrimSpace(upstreamMessage) == "" {
+		upstreamMessage = sanitizeUpstreamErrorMessage(strings.TrimSpace(err.Error()))
+	}
+	if strings.TrimSpace(upstreamMessage) == "" {
+		upstreamMessage = "OpenAI upstream websocket disconnected before completion"
+	}
+	var headers http.Header
+	var dialErr *openAIWSDialError
+	if errors.As(err, &dialErr) && dialErr != nil {
+		headers = dialErr.ResponseHeaders
+	}
+	body, _ := json.Marshal(map[string]any{
+		"error": map[string]any{
+			"type":    "upstream_error",
+			"code":    reason,
+			"message": upstreamMessage,
+		},
+	})
+	failoverErr := s.newOpenAIAccountFailoverError(
+		account,
+		statusCode,
+		headers,
+		body,
+		upstreamMessage,
+		false,
+		false,
+	)
+	failoverErr.Scope = GatewayFailureScopeAccount
+	failoverErr.Reason = GatewayFailureReason("openai_ws_" + reason)
+	failoverErr.NextAccountAction = NextAccountLegacyRetry
+	failoverErr.ClientStatusCode = http.StatusBadGateway
+	failoverErr.ClientMessage = "OpenAI upstream temporarily unavailable, please retry later"
+	return failoverErr
+}
+
+func (s *OpenAIGatewayService) newOpenAIWSDialFailoverError(account *Account, err error) *UpstreamFailoverError {
+	if account == nil || err == nil ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) {
+		return nil
+	}
+	var dialErr *openAIWSDialError
+	if !errors.As(err, &dialErr) || dialErr == nil || dialErr.StatusCode == http.StatusTooManyRequests {
+		return nil
+	}
+	status := dialErr.StatusCode
+	if status != 0 &&
+		status != http.StatusUnauthorized &&
+		status != http.StatusForbidden &&
+		status != http.StatusRequestTimeout &&
+		status != http.StatusTooEarly &&
+		status != http.StatusUpgradeRequired &&
+		(status < http.StatusInternalServerError || status > 599) {
+		return nil
+	}
+
+	statusCode := dialErr.StatusCode
+	if statusCode < http.StatusBadRequest || statusCode > 599 {
+		statusCode = http.StatusBadGateway
+	}
+	reason := classifyOpenAIWSAcquireError(err)
+	message := "OpenAI upstream websocket handshake failed"
+	if dialErr.Err != nil {
+		if sanitized := sanitizeUpstreamErrorMessage(strings.TrimSpace(dialErr.Err.Error())); sanitized != "" {
+			message = sanitized
+		}
+	}
+	responseBody := append([]byte(nil), dialErr.ResponseBody...)
+	if len(responseBody) == 0 {
+		responseBody, _ = json.Marshal(map[string]any{
+			"error": map[string]any{
+				"type":    "upstream_error",
+				"code":    reason,
+				"message": message,
+			},
+		})
+	}
+
+	failoverErr := s.newOpenAIAccountFailoverError(
+		account,
+		statusCode,
+		dialErr.ResponseHeaders,
+		responseBody,
+		message,
+		false,
+		false,
+	)
+	failoverErr.Scope = GatewayFailureScopeAccount
+	failoverErr.Reason = GatewayFailureReason("openai_ws_" + reason)
+	failoverErr.NextAccountAction = NextAccountLegacyRetry
+	failoverErr.ClientStatusCode = http.StatusBadGateway
+	failoverErr.ClientMessage = "OpenAI upstream temporarily unavailable, please retry later"
+	return failoverErr
+}
+
+// buildOpenAIWSSyntheticFailedEvent closes a Responses stream that already
+// exposed semantic output. Replaying the request would duplicate output and
+// potentially charge twice, so the only safe recovery is a protocol-valid
+// terminal event on the existing stream.
+func buildOpenAIWSSyntheticFailedEvent(responseID, model string, sequenceNumber int64, source []byte, fallbackMessage string) []byte {
+	responseID = strings.TrimSpace(responseID)
+	if responseID == "" {
+		responseID = "resp_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	}
+	if sequenceNumber < 0 {
+		sequenceNumber = 0
+	}
+	code := strings.TrimSpace(gjson.GetBytes(source, "error.code").String())
+	if code == "" {
+		code = strings.TrimSpace(gjson.GetBytes(source, "response.error.code").String())
+	}
+	if code == "" {
+		code = "upstream_stream_read_error"
+	}
+	errType := strings.TrimSpace(gjson.GetBytes(source, "error.type").String())
+	if errType == "" {
+		errType = strings.TrimSpace(gjson.GetBytes(source, "response.error.type").String())
+	}
+	if errType == "" {
+		errType = "server_error"
+	}
+	message := extractOpenAISSEErrorMessage(source)
+	if message == "" {
+		message = strings.TrimSpace(fallbackMessage)
+	}
+	if message == "" {
+		message = "OpenAI upstream stream disconnected before completion"
+	}
+	message = sanitizeUpstreamErrorMessage(message)
+	response := map[string]any{
+		"id":         responseID,
+		"object":     "response",
+		"created_at": time.Now().Unix(),
+		"status":     "failed",
+		"output":     []any{},
+		"error": map[string]any{
+			"type":    errType,
+			"code":    code,
+			"message": message,
+		},
+	}
+	if model = strings.TrimSpace(model); model != "" {
+		response["model"] = model
+	}
+	body, err := json.Marshal(map[string]any{
+		"type":            "response.failed",
+		"sequence_number": sequenceNumber,
+		"response":        response,
+	})
+	if err != nil {
+		return []byte(`{"type":"response.failed","sequence_number":0,"response":{"status":"failed","output":[],"error":{"type":"server_error","code":"upstream_stream_read_error","message":"OpenAI upstream stream disconnected before completion"}}}`)
+	}
+	return body
+}
 
 func (s *OpenAIGatewayService) isOpenAIWSGeneratePrewarmEnabled() bool {
 	return s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.PrewarmGenerateEnabled
@@ -67,6 +245,13 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 	if NeedsToolContinuation(reqBody) {
 		logOpenAIWSModeInfo("prewarm_skip account_id=%d conn_id=%s reason=tool_continuation", account.ID, connID)
 		return nil
+	}
+	// The prewarm is a real upstream request. Count it immediately before the
+	// write so smart routing cannot hide the extra send from its request/site
+	// budget. The caller reserves the business payload separately after this
+	// function returns successfully.
+	if err := ReserveSmartRoutingOpenAIRequestAttempt(ctx, account.ID); err != nil {
+		return err
 	}
 	prewarmStart := time.Now()
 	logOpenAIWSModeInfo("prewarm_start account_id=%d conn_id=%s", account.ID, connID)
@@ -306,6 +491,53 @@ func openAIWSPayloadTransientStatus(payload []byte) int {
 	default:
 		return 0
 	}
+}
+
+// openAIWSResponseFailedFailoverStatus is the routing-facing classifier for a
+// Responses `response.failed` event.  It deliberately differs from
+// openAIWSPayloadTransientStatus: the latter is used for account/model
+// cooldowns and intentionally excludes 429 (rate limits are not model
+// transients).  Before semantic output, however, both 429 and provider 5xx
+// failures are safe reasons to try another smart-routing candidate.
+func openAIWSResponseFailedFailoverStatus(payload []byte) int {
+	if len(payload) == 0 {
+		return 0
+	}
+
+	for _, path := range []string{
+		"response.error.status_code",
+		"response.error.status",
+		"error.status_code",
+		"error.status",
+	} {
+		status := int(gjson.GetBytes(payload, path).Int())
+		switch {
+		case status == http.StatusTooManyRequests:
+			return status
+		case status >= http.StatusInternalServerError && status <= 599:
+			return status
+		}
+	}
+
+	code := strings.TrimSpace(gjson.GetBytes(payload, "response.error.code").String())
+	errType := strings.TrimSpace(gjson.GetBytes(payload, "response.error.type").String())
+	message := strings.TrimSpace(gjson.GetBytes(payload, "response.error.message").String())
+	if code == "" {
+		code = strings.TrimSpace(gjson.GetBytes(payload, "error.code").String())
+	}
+	if errType == "" {
+		errType = strings.TrimSpace(gjson.GetBytes(payload, "error.type").String())
+	}
+	if message == "" {
+		message = strings.TrimSpace(gjson.GetBytes(payload, "error.message").String())
+	}
+	if isOpenAIWSRateLimitError(code, errType, message) {
+		return http.StatusTooManyRequests
+	}
+
+	// Preserve the existing overload/server-error code mapping (including
+	// server_is_overloaded and slow_down) when no explicit status is present.
+	return openAIWSPayloadTransientStatus(payload)
 }
 
 func (s *OpenAIGatewayService) handleOpenAIWSTerminalTransientFailure(ctx context.Context, account *Account, canonicalModel string, headers http.Header, payload []byte) string {

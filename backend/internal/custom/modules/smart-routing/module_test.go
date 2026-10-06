@@ -21,9 +21,13 @@ import (
 type routingGroupRepoStub struct {
 	service.GroupRepository
 	groups map[int64]*service.Group
+	err    error
 }
 
 func (s *routingGroupRepoStub) GetByIDLite(_ context.Context, id int64) (*service.Group, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	return s.groups[id], nil
 }
 
@@ -31,6 +35,7 @@ type routingAccountRepoStub struct {
 	service.AccountRepository
 	groups map[int64][]service.Account
 	err    error
+	calls  int
 }
 
 func TestRepositoryGetReturnsEmptyGroupsForLegacyProfile(t *testing.T) {
@@ -121,7 +126,7 @@ func TestRoutingProfileUsableRejectsMalformedPersistedValues(t *testing.T) {
 	}
 }
 
-func TestResolveClearsActiveMarkerWhenRoutingPreflightFails(t *testing.T) {
+func TestResolveKeepsActiveMarkerWhenRoutingPreflightFails(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
@@ -146,8 +151,11 @@ func TestResolveClearsActiveMarkerWhenRoutingPreflightFails(t *testing.T) {
 	if _, err := m.Resolve(ctx, key, "gpt-test", "", nil); err == nil {
 		t.Fatal("Resolve should report a routing preflight dependency error")
 	}
-	if state.SmartRoutingActive {
-		t.Fatal("routing must be inactive after preflight failure so handlers do not retry the primary as a smart route")
+	if !state.SmartRoutingActive {
+		t.Fatal("routing must remain active after preflight failure so the scheduler can fail closed")
+	}
+	if !state.ContractInvalid {
+		t.Fatal("routing preflight failure must invalidate the active contract")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet SQL expectations: %v", err)
@@ -292,6 +300,7 @@ func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
 }
 
 func (s *routingAccountRepoStub) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID int64, _ string) ([]service.Account, error) {
+	s.calls++
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -299,6 +308,7 @@ func (s *routingAccountRepoStub) ListSchedulableByGroupIDAndPlatform(_ context.C
 }
 
 func (s *routingAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, _ []string) ([]service.Account, error) {
+	s.calls++
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -428,7 +438,7 @@ func TestSmartRoutingTransportAllowsHTTPAnyAndHTTPSSE(t *testing.T) {
 		{name: "http any", transport: service.OpenAIUpstreamTransportAny, allowed: true},
 		{name: "http sse", transport: service.OpenAIUpstreamTransportHTTPSSE, allowed: true},
 		{name: "responses websocket", transport: service.OpenAIUpstreamTransportResponsesWebsocketV2, allowed: false},
-		{name: "responses websocket ingress", transport: service.OpenAIUpstreamTransportResponsesWebsocketV2Ingress, allowed: false},
+		{name: "responses websocket ingress", transport: service.OpenAIUpstreamTransportResponsesWebsocketV2Ingress, allowed: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1185,7 +1195,7 @@ func TestRankUsesPersistedOrderForEqualScores(t *testing.T) {
 	}
 }
 
-func TestResolveDisablesSmartRoutingAfterRankFailure(t *testing.T) {
+func TestResolveFailsClosedAfterRankFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
@@ -1231,8 +1241,117 @@ func TestResolveDisablesSmartRoutingAfterRankFailure(t *testing.T) {
 	if decision != nil {
 		t.Fatalf("decision = %#v, want nil on rank failure", decision)
 	}
-	if state.SmartRoutingActive {
-		t.Fatal("SmartRoutingActive must be cleared after rank failure")
+	if !state.SmartRoutingActive {
+		t.Fatal("SmartRoutingActive must remain set until scheduler observes the fail-closed contract marker")
+	}
+	if !state.ContractInvalid {
+		t.Fatal("rank failure after profile activation must invalidate the routing contract")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
+func TestResolvePrimaryHydrateFailureMarksActiveContractInvalid(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	const keyID int64 = 92
+	mock.ExpectQuery("SELECT api_key_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"api_key_id", "enabled", "mode", "strategy", "price_weight", "speed_weight", "success_weight", "sticky_ttl_seconds", "exploration_rate", "version",
+	}).AddRow(keyID, true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05, 1))
+	mock.ExpectQuery("SELECT rg.group_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"group_id", "sort_order", "enabled", "name", "platform",
+	}).AddRow(int64(3), 0, true, "backup", service.PlatformOpenAI))
+
+	primaryID := int64(1)
+	key := &service.APIKey{ID: keyID, UserID: 7, GroupID: &primaryID}
+	state := &service.SmartRoutingRequestState{
+		MainGroupID:    primaryID,
+		CurrentGroupID: primaryID,
+		EndpointType:   "chat_completions",
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	module := &Module{
+		repo:            NewRepository(db),
+		groups:          &routingGroupRepoStub{err: errors.New("primary lookup failed")},
+		availableGroups: allowRoutingGroups(primaryID, 3),
+	}
+
+	decision, err := module.Resolve(ctx, key, "gpt-5", "", nil)
+	if err == nil {
+		t.Fatal("expected primary group hydration error")
+	}
+	if decision != nil {
+		t.Fatalf("decision = %#v, want nil", decision)
+	}
+	if !state.SmartRoutingActive {
+		t.Fatal("profile activation must remain set after primary hydrate failure")
+	}
+	if !state.ContractInvalid {
+		t.Fatal("primary hydrate failure must invalidate the active routing contract")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
+func TestResolveMissingSharedGroupAdapterFailsBeforeRanking(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	const keyID int64 = 93
+	mock.ExpectQuery("SELECT api_key_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"api_key_id", "enabled", "mode", "strategy", "price_weight", "speed_weight", "success_weight", "sticky_ttl_seconds", "exploration_rate", "version",
+	}).AddRow(keyID, true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05, 1))
+	mock.ExpectQuery("SELECT rg.group_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"group_id", "sort_order", "enabled", "name", "platform",
+	}).AddRow(int64(4), 0, true, "backup", service.PlatformOpenAI))
+
+	primaryID := int64(1)
+	primary := &service.Group{
+		ID:               primaryID,
+		Platform:         service.PlatformOpenAI,
+		RateMultiplier:   1,
+		Status:           service.StatusActive,
+		SubscriptionType: "standard",
+	}
+	accounts := &routingAccountRepoStub{groups: map[int64][]service.Account{
+		primaryID: {{ID: 1, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}},
+	}}
+	module := &Module{
+		repo:            NewRepository(db),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary}},
+		accounts:        accounts,
+		availableGroups: allowRoutingGroups(primaryID, 4),
+	}
+	key := &service.APIKey{ID: keyID, UserID: 7, GroupID: &primaryID, Group: primary}
+	state := &service.SmartRoutingRequestState{
+		MainGroupID:                         primaryID,
+		CurrentGroupID:                      primaryID,
+		EndpointType:                        "chat_completions",
+		SmartRoutingGroupAdapterUnavailable: true,
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+
+	decision, err := module.Resolve(ctx, key, "gpt-5", "", nil)
+	if err == nil {
+		t.Fatal("expected unavailable group adapter error")
+	}
+	if decision != nil {
+		t.Fatalf("decision = %#v, want nil", decision)
+	}
+	if !state.SmartRoutingActive || !state.ContractInvalid {
+		t.Fatalf("routing state after missing adapter = active:%v invalid:%v, want both true", state.SmartRoutingActive, state.ContractInvalid)
+	}
+	if accounts.calls != 0 {
+		t.Fatalf("account repository calls = %d, want zero before ranking", accounts.calls)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet SQL expectations: %v", err)

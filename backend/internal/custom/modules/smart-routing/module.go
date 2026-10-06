@@ -54,6 +54,8 @@ type Group struct {
 	Price         float64 `json:"price"`
 	SuccessRate   float64 `json:"success_rate"`
 	SpeedMs       int64   `json:"speed_ms"`
+	SpeedP90Ms    float64 `json:"speed_p90_ms"`
+	SpeedSamples  int64   `json:"speed_samples"`
 	Samples       int64   `json:"samples"`
 	CapacityRatio float64 `json:"capacity_ratio"`
 	Score         float64 `json:"score"`
@@ -86,12 +88,16 @@ type PreviewRequest struct {
 }
 
 type stats struct {
-	Samples         int64
-	Success         int64
-	SpeedMs         sql.NullInt64
-	FallbackSamples int64
-	FallbackSuccess int64
-	FallbackSpeedMs sql.NullInt64
+	Samples              int64
+	Success              int64
+	SpeedSamples         int64
+	SpeedMs              sql.NullInt64
+	SpeedP90Ms           sql.NullInt64
+	FallbackSamples      int64
+	FallbackSuccess      int64
+	FallbackSpeedSamples int64
+	FallbackSpeedMs      sql.NullInt64
+	FallbackSpeedP90Ms   sql.NullInt64
 }
 
 func (m *Module) loadStats(ctx context.Context, groupID int64, model string) stats {
@@ -113,16 +119,24 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 	if err := m.repo.db.QueryRowContext(ctx, `SELECT
 		COUNT(*) FILTER (WHERE created_at>=NOW()-INTERVAL '15 minutes'),
 		COUNT(*) FILTER (WHERE success AND created_at>=NOW()-INTERVAL '15 minutes'),
+		COUNT(*) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
+		COALESCE(percentile_cont(0.9) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0 AND created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
 		COUNT(*), COUNT(*) FILTER (WHERE success),
+		COUNT(*) FILTER (WHERE success AND speed_ms>0),
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0),0)::bigint
+		,COALESCE(percentile_cont(0.9) WITHIN GROUP (ORDER BY speed_ms) FILTER (WHERE success AND speed_ms>0),0)::bigint
 		FROM (
 			SELECT DISTINCT ON (request_id, group_id) success, speed_ms, created_at
 			FROM custom_route_attempts
 			WHERE group_id=$1 AND requested_model=$2 AND endpoint_type=$3 AND stream=$4
 			  AND created_at>=NOW()-INTERVAL '1 hour'
 			ORDER BY request_id, group_id, attempt DESC
-		) final_attempts`, groupID, model, endpoint, stream).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
+		) final_attempts`, groupID, model, endpoint, stream).Scan(
+		&st.Samples, &st.Success, &st.SpeedSamples, &st.SpeedMs, &st.SpeedP90Ms,
+		&st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedSamples,
+		&st.FallbackSpeedMs, &st.FallbackSpeedP90Ms,
+	); err != nil {
 		slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err)
 	}
 	return st
@@ -563,6 +577,13 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	if state == nil {
 		return nil, nil
 	}
+	if state.EndpointType != "chat_completions" && state.EndpointType != "responses" && state.EndpointType != "messages" {
+		return nil, nil
+	}
+	if smartRoutingForcePlatform(ctx) || state.ImageGenerationIntent ||
+		!smartRoutingTransportAllowed(state.RequiredOpenAITransport) {
+		return nil, nil
+	}
 	// MVP routing is intentionally limited to OpenAI and Anthropic text
 	// contracts. Same-platform validation alone would otherwise let Gemini,
 	// Grok, or future platforms inherit a failover path whose billing and
@@ -570,39 +591,39 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	primary := key.Group
 	if state.MainGroupID > 0 && (primary == nil || primary.ID != state.MainGroupID) {
 		if m.groups == nil {
-			return nil, nil
+			state.SmartRoutingActive = true
+			service.MarkSmartRoutingContractInvalid(ctx)
+			return nil, errors.New("smart routing primary group repository unavailable")
 		}
 		resolvedPrimary, groupErr := m.groups.GetByIDLite(ctx, state.MainGroupID)
 		if groupErr != nil || resolvedPrimary == nil {
-			return nil, nil
+			state.SmartRoutingActive = true
+			service.MarkSmartRoutingContractInvalid(ctx)
+			if groupErr != nil {
+				return nil, fmt.Errorf("smart routing primary group %d unavailable: %w", state.MainGroupID, groupErr)
+			}
+			return nil, fmt.Errorf("smart routing primary group %d not found", state.MainGroupID)
+		}
+		primary = resolvedPrimary
+	}
+	if primary == nil && key.GroupID != nil {
+		if m.groups == nil {
+			state.SmartRoutingActive = true
+			service.MarkSmartRoutingContractInvalid(ctx)
+			return nil, errors.New("smart routing primary group repository unavailable")
+		}
+		resolvedPrimary, groupErr := m.groups.GetByIDLite(ctx, *key.GroupID)
+		if groupErr != nil || resolvedPrimary == nil {
+			state.SmartRoutingActive = true
+			service.MarkSmartRoutingContractInvalid(ctx)
+			if groupErr != nil {
+				return nil, fmt.Errorf("smart routing primary group %d unavailable: %w", *key.GroupID, groupErr)
+			}
+			return nil, fmt.Errorf("smart routing primary group %d not found", *key.GroupID)
 		}
 		primary = resolvedPrimary
 	}
 	if !smartRoutingPrimaryPlatformAllowed(primary, state.EndpointType) {
-		return nil, nil
-	}
-	if state.EndpointType != "chat_completions" && state.EndpointType != "responses" && state.EndpointType != "messages" {
-		return nil, nil
-	}
-	// Explicit platform routes (currently /antigravity/...) intentionally
-	// override the normal group scheduler. Their account pool and billing
-	// semantics are different from the text HTTP contract, so an Anthropic or
-	// OpenAI key must not be smart-routed into that forced transport.
-	if smartRoutingForcePlatform(ctx) {
-		return nil, nil
-	}
-	// Image generation has a different capability and billing contract. MVP
-	// smart routing is text-only; keep these requests on the authenticated
-	// primary group until media routing has its own price/capability model.
-	if state.ImageGenerationIntent {
-		return nil, nil
-	}
-	// WebSocket and other explicitly transport-specific routes have
-	// connection/session semantics that the text HTTP failover contract does
-	// not cover. `Any` is the normal HTTP scheduler input for Chat/Responses/
-	// Messages and must remain routable; only an explicit WebSocket transport
-	// is excluded here.
-	if !smartRoutingTransportAllowed(state.RequiredOpenAITransport) {
 		return nil, nil
 	}
 	state.SmartRoutingActive = true
@@ -612,6 +633,10 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	state.Observer = m
 	state.Strategy = p.Strategy
 	state.PriceWeight, state.SpeedWeight, state.SuccessWeight = routingWeights(p)
+	if state.SmartRoutingGroupAdapterUnavailable {
+		service.MarkSmartRoutingContractInvalid(ctx)
+		return nil, errors.New("smart routing group adapter unavailable")
+	}
 	if state.NoRoute {
 		return nil, nil
 	}
@@ -628,11 +653,11 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	}
 	ranked, err := m.rank(ctx, key, p, model, excluded)
 	if err != nil {
-		// A routing preflight failure is a fail-open degradation to the
-		// authenticated primary group, not an active smart-routing request.
-		// Clear the marker before returning so handlers do not re-enter their
-		// cross-group retry loop after a primary-group failure.
-		state.SmartRoutingActive = false
+		// The profile is already confirmed active. If current group state,
+		// permissions, or rates cannot be refreshed, the scheduler cannot prove
+		// that either the protocol/billing contract or candidate authorization
+		// is still valid. Preserve Active and fail closed before account listing.
+		service.MarkSmartRoutingContractInvalid(ctx)
 		return nil, err
 	}
 	// `rank` deliberately returns diagnostic rows for ineligible candidates so
@@ -787,7 +812,8 @@ func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID int6
 func smartRoutingTransportAllowed(transport service.OpenAIUpstreamTransport) bool {
 	return transport == "" ||
 		transport == service.OpenAIUpstreamTransportAny ||
-		transport == service.OpenAIUpstreamTransportHTTPSSE
+		transport == service.OpenAIUpstreamTransportHTTPSSE ||
+		transport == service.OpenAIUpstreamTransportResponsesWebsocketV2Ingress
 }
 
 // recordDecision enqueues a best-effort telemetry event. The bounded writer in
@@ -903,7 +929,7 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		}
 		if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
 			(account.Platform == service.PlatformOpenAI || account.Platform == service.PlatformGrok) &&
-			!service.SmartRoutingAccountModelCompatible(account, model) {
+			!service.SmartRoutingAccountModelCompatibleForRequest(account, model, state.RequireCompact) {
 			continue
 		}
 		if !account.IsSchedulable() {
@@ -1183,16 +1209,26 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		if !reliableSamples && st.FallbackSamples >= minSamples {
 			st.Samples = st.FallbackSamples
 			st.Success = st.FallbackSuccess
-			st.SpeedMs = st.FallbackSpeedMs
 			reliableSamples = true
 		}
+		reliableSpeedSamples := st.SpeedSamples >= minSamples
+		if !reliableSpeedSamples && st.FallbackSpeedSamples >= minSamples {
+			st.SpeedSamples = st.FallbackSpeedSamples
+			st.SpeedMs = st.FallbackSpeedMs
+			st.SpeedP90Ms = st.FallbackSpeedP90Ms
+			reliableSpeedSamples = true
+		}
 		g.Samples = st.Samples
+		g.SpeedSamples = st.SpeedSamples
 		g.SuccessRate = 0.5
 		if reliableSamples {
 			g.SuccessRate = float64(st.Success+1) / float64(st.Samples+2)
 		}
-		if reliableSamples && st.SpeedMs.Valid {
+		if reliableSpeedSamples && st.SpeedMs.Valid {
 			g.SpeedMs = st.SpeedMs.Int64
+		}
+		if reliableSpeedSamples && st.SpeedP90Ms.Valid {
+			g.SpeedP90Ms = float64(st.SpeedP90Ms.Int64)
 		}
 		out = append(out, g)
 	}
@@ -1211,7 +1247,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	minP, maxP := eligible[0].Price, eligible[0].Price
 	maxS, minS := eligible[0].SuccessRate, eligible[0].SuccessRate
-	minSpeed, maxSpeed := int64(0), int64(0)
+	minSpeed, maxSpeed := 0.0, 0.0
 	for _, g := range eligible {
 		if g.Price < minP {
 			minP = g.Price
@@ -1225,11 +1261,12 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		if g.SuccessRate < minS {
 			minS = g.SuccessRate
 		}
-		if g.SpeedMs > 0 && (minSpeed == 0 || g.SpeedMs < minSpeed) {
-			minSpeed = g.SpeedMs
+		speedMs := effectiveGroupSpeedMs(*g)
+		if speedMs > 0 && (minSpeed == 0 || speedMs < minSpeed) {
+			minSpeed = speedMs
 		}
-		if g.SpeedMs > maxSpeed {
-			maxSpeed = g.SpeedMs
+		if speedMs > maxSpeed {
+			maxSpeed = speedMs
 		}
 	}
 	for _, g := range eligible {
@@ -1241,17 +1278,21 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		if maxS > minS {
 			successScore = 100 * (g.SuccessRate - minS) / (maxS - minS)
 		}
-		speedScore := relativeSpeedScore(g.SpeedMs, minSpeed, maxSpeed)
+		speedScore := relativeSpeedScoreFloat(effectiveGroupSpeedMs(*g), minSpeed, maxSpeed)
 		wP, wS, wE := routingWeights(p)
 		g.PriceScore, g.SpeedScore, g.SuccessScore = priceScore, speedScore, successScore
 		g.Score = priceScore*wP/100 + speedScore*wS/100 + successScore*wE/100
-		g.Reason = fmt.Sprintf("score=%.2f price_score=%.2f speed_score=%.2f success_score=%.2f samples=%d", g.Score, priceScore, speedScore, successScore, g.Samples)
+		g.Reason = fmt.Sprintf("score=%.2f price_score=%.2f speed_score=%.2f success_score=%.2f samples=%d speed_samples=%d", g.Score, priceScore, speedScore, successScore, g.Samples, g.SpeedSamples)
 	}
 	sortRankedGroups(out)
 	return out, nil
 }
 
 func relativeSpeedScore(speedMs, minSpeed, maxSpeed int64) float64 {
+	return relativeSpeedScoreFloat(float64(speedMs), float64(minSpeed), float64(maxSpeed))
+}
+
+func relativeSpeedScoreFloat(speedMs, minSpeed, maxSpeed float64) float64 {
 	if speedMs <= 0 || maxSpeed <= 0 {
 		return 50
 	}
@@ -1264,7 +1305,17 @@ func relativeSpeedScore(speedMs, minSpeed, maxSpeed int64) float64 {
 	if speedMs > maxSpeed {
 		speedMs = maxSpeed
 	}
-	return 100 * float64(maxSpeed-speedMs) / float64(maxSpeed-minSpeed)
+	return 100 * (maxSpeed - speedMs) / (maxSpeed - minSpeed)
+}
+
+func effectiveGroupSpeedMs(group Group) float64 {
+	if group.SpeedMs <= 0 {
+		return 0
+	}
+	if group.SpeedP90Ms > 0 {
+		return float64(group.SpeedMs)*0.6 + group.SpeedP90Ms*0.4
+	}
+	return float64(group.SpeedMs)
 }
 
 // sortRankedGroups keeps the score as the primary decision signal and uses

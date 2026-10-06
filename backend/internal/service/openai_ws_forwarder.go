@@ -43,6 +43,7 @@ const (
 	openAIWSStoreDisabledConnModeAdaptive = "adaptive"
 	openAIWSStoreDisabledConnModeOff      = "off"
 
+	openAIWSIngressPreOutputMaxEvents            = 1024
 	openAIWSIngressStagePreviousResponseNotFound = "previous_response_not_found"
 	openAIWSMaxPrevResponseIDDeletePasses        = 8
 )
@@ -91,9 +92,10 @@ type OpenAIWSClientCloseError struct {
 }
 
 type openAIWSIngressTurnError struct {
-	stage           string
-	cause           error
-	wroteDownstream bool
+	stage              string
+	cause              error
+	wroteDownstream    bool
+	clientDisconnected bool
 }
 
 type openAIWSCurrentTurnFailoverError struct {
@@ -150,13 +152,18 @@ func (e *openAIWSIngressTurnError) Unwrap() error {
 }
 
 func wrapOpenAIWSIngressTurnError(stage string, cause error, wroteDownstream bool) error {
+	return wrapOpenAIWSIngressTurnErrorWithClientState(stage, cause, wroteDownstream, false)
+}
+
+func wrapOpenAIWSIngressTurnErrorWithClientState(stage string, cause error, wroteDownstream, clientDisconnected bool) error {
 	if cause == nil {
 		return nil
 	}
 	return &openAIWSIngressTurnError{
-		stage:           strings.TrimSpace(stage),
-		cause:           cause,
-		wroteDownstream: wroteDownstream,
+		stage:              strings.TrimSpace(stage),
+		cause:              cause,
+		wroteDownstream:    wroteDownstream,
+		clientDisconnected: clientDisconnected,
 	}
 }
 
@@ -165,7 +172,9 @@ func isOpenAIWSIngressTurnRetryable(err error) bool {
 	if !errors.As(err, &turnErr) || turnErr == nil {
 		return false
 	}
-	if errors.Is(turnErr.cause, context.Canceled) || errors.Is(turnErr.cause, context.DeadlineExceeded) {
+	if errors.Is(turnErr.cause, context.Canceled) ||
+		errors.Is(turnErr.cause, context.DeadlineExceeded) ||
+		turnErr.clientDisconnected {
 		return false
 	}
 	if turnErr.wroteDownstream {
@@ -176,6 +185,20 @@ func isOpenAIWSIngressTurnRetryable(err error) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func wrapOpenAIWSIngressTurnFailover(err error) error {
+	if !isOpenAIWSIngressTurnRetryable(err) {
+		return nil
+	}
+	switch openAIWSIngressTurnRetryReason(err) {
+	case "write_upstream":
+		return wrapOpenAIWSFallback("write_request", err)
+	case "read_upstream":
+		return wrapOpenAIWSFallback("read_event", err)
+	default:
+		return nil
 	}
 }
 

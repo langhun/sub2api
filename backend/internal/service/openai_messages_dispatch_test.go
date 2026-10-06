@@ -106,6 +106,46 @@ func TestSmartRoutingAccountModelCompatibleRejectsForeignMappingOnlyForRoutedAdm
 	}
 }
 
+func TestSmartRoutingModelCompatibilityMatchesPassthroughForwardSemantics(t *testing.T) {
+	t.Parallel()
+
+	passthrough := &Account{
+		Platform: PlatformOpenAI,
+		Extra:    map[string]any{"openai_passthrough": true},
+		Credentials: map[string]any{
+			"model_mapping":         map[string]any{"gpt-5": "gemini-3.1-pro"},
+			"compact_model_mapping": map[string]any{"gpt-5": "gemini-3.1-pro"},
+		},
+	}
+	if !SmartRoutingAccountModelCompatible(passthrough, "gpt-5") {
+		t.Fatal("passthrough ordinary model_mapping must not filter an account")
+	}
+	if !SmartRoutingAccountModelCompatibleForRequest(passthrough, "gpt-5", false) {
+		t.Fatal("ordinary passthrough requests must ignore compact_model_mapping")
+	}
+	if SmartRoutingAccountModelCompatibleForRequest(passthrough, "gpt-5", true) {
+		t.Fatal("compact passthrough request must reject a foreign compact target")
+	}
+
+	passthrough.Credentials["compact_model_mapping"] = map[string]any{"gpt-5": "gpt-5-compact"}
+	if !SmartRoutingAccountModelCompatibleForRequest(passthrough, "gpt-5", true) {
+		t.Fatal("OpenAI compact target should remain eligible")
+	}
+
+	state := &SmartRoutingRequestState{SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	if SmartRoutingForwardModelCompatible(ctx, "google/gemini-3.1-pro") {
+		t.Fatal("smart routing must reject the actual foreign forward model")
+	}
+	if !state.ContractInvalid {
+		t.Fatal("foreign final model must invalidate the route contract")
+	}
+
+	if !SmartRoutingForwardModelCompatible(context.Background(), "claude-sonnet-4-6") {
+		t.Fatal("ordinary single-group channel mapping behavior must remain unchanged")
+	}
+}
+
 func TestGroupResolveMessagesDispatchModelCannotDispatchToForeignPlatformModel(t *testing.T) {
 	t.Parallel()
 

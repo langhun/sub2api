@@ -53,6 +53,41 @@ func (s *GatewayService) shouldFailoverUpstreamError(statusCode int) bool {
 	}
 }
 
+func smartRoutingOpenAIForward(ctx context.Context, account *Account) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	return account != nil && account.Platform == PlatformOpenAI && state != nil && state.SmartRoutingActive
+}
+
+// smartRoutingActiveForward reports whether this gateway attempt belongs to an
+// active smart-routing request. GatewayService is shared by several
+// platforms, so this check must not be limited to OpenAI. The OpenAI-specific
+// helper above remains separate because the plugin transport only installs
+// redirect hooks for OpenAI requests.
+func smartRoutingActiveForward(ctx context.Context, account *Account) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	return account != nil && state != nil && state.SmartRoutingActive
+}
+
+func reserveSmartRoutingRequestAttempt(ctx context.Context, account *Account) error {
+	if !smartRoutingActiveForward(ctx, account) {
+		return nil
+	}
+	return ReserveSmartRoutingRequestAttempt(ctx, account.ID)
+}
+
+func withSmartRoutingRedirectBudget(req *http.Request, account *Account) *http.Request {
+	if req == nil || account == nil || !smartRoutingActiveForward(req.Context(), account) {
+		return req
+	}
+	accountID := account.ID
+	return req.WithContext(WithHTTPUpstreamRedirectAttemptReserver(
+		req.Context(),
+		func(redirectCtx context.Context) error {
+			return ReserveSmartRoutingRequestAttempt(redirectCtx, accountID)
+		},
+	))
+}
+
 func retryBackoffDelay(attempt int) time.Duration {
 	// attempt 从 1 开始，表示第 attempt 次请求刚失败，需要等待后进行第 attempt+1 次请求。
 	if attempt <= 0 {
@@ -387,6 +422,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	var resp *http.Response
 	lastWireBody := body
 	retryStart := time.Now()
+	smartRoutingActive := smartRoutingActiveForward(ctx, account)
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
 		// 构建上游请求（每次重试需要重新构建，因为请求体需要重新读取）
 		upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, reqStream)
@@ -398,11 +434,19 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		// 记录本次实际发送的 wire body；只有请求成功后才写回 ParsedRequest，避免 400 retry 基于已签名 CCH 再改写。
 		lastWireBody = wireBody
 
+		upstreamReq = withSmartRoutingRedirectBudget(upstreamReq, account)
+		if err := reserveSmartRoutingRequestAttempt(ctx, account); err != nil {
+			return nil, err
+		}
 		// 发送请求
 		resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 		if err != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
+			}
+			var failoverErr *UpstreamFailoverError
+			if errors.As(err, &failoverErr) {
+				return nil, failoverErr
 			}
 			return nil, s.handleUpstreamTransportError(ctx, c, account, err, OpsUpstreamErrorEvent{
 				UpstreamURL: safeUpstreamURL(upstreamReq.URL.String()),
@@ -462,6 +506,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					retryReq, retryWireBody, buildErr := s.buildUpstreamRequest(retryCtx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 					releaseRetryCtx()
 					if buildErr == nil {
+						retryReq = withSmartRoutingRedirectBudget(retryReq, account)
+						if err := reserveSmartRoutingRequestAttempt(ctx, account); err != nil {
+							return nil, err
+						}
 						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 						if retryErr == nil {
 							if retryResp.StatusCode < 400 {
@@ -505,6 +553,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									retryReq2, retryWireBody2, buildErr2 := s.buildUpstreamRequest(retryCtx2, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 									releaseRetryCtx2()
 									if buildErr2 == nil {
+										retryReq2 = withSmartRoutingRedirectBudget(retryReq2, account)
+										if err := reserveSmartRoutingRequestAttempt(ctx, account); err != nil {
+											return nil, err
+										}
 										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
 										if retryErr2 == nil {
 											if retryResp2.StatusCode < 400 {
@@ -588,6 +640,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 						budgetRetryReq, budgetWireBody, buildErr := s.buildUpstreamRequest(budgetRetryCtx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 						releaseBudgetRetryCtx()
 						if buildErr == nil {
+							budgetRetryReq = withSmartRoutingRedirectBudget(budgetRetryReq, account)
+							if err := reserveSmartRoutingRequestAttempt(ctx, account); err != nil {
+								return nil, err
+							}
 							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 							if retryErr == nil {
 								if budgetRetryResp.StatusCode < 400 {
@@ -616,7 +672,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		}
 
 		// 检查是否需要通用重试（排除400，因为400已经在上面特殊处理过了）
-		if resp.StatusCode >= 400 && resp.StatusCode != 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) {
+		smartRoutingFailoverStatus := smartRoutingActive && s.shouldFailoverUpstreamError(resp.StatusCode)
+		if resp.StatusCode >= 400 && resp.StatusCode != 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) && !smartRoutingFailoverStatus {
 			if attempt < maxRetryAttempts {
 				elapsed := time.Since(retryStart)
 				if elapsed >= maxRetryElapsed {
@@ -679,7 +736,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	defer func() { _ = resp.Body.Close() }()
 
 	// 处理重试耗尽的情况
-	if resp.StatusCode >= 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) {
+	if resp.StatusCode >= 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) &&
+		!(smartRoutingActive && s.shouldFailoverUpstreamError(resp.StatusCode)) {
 		if s.shouldFailoverUpstreamError(resp.StatusCode) {
 			respBody, _ := s.readUpstreamErrorBody(resp)
 			_ = resp.Body.Close()

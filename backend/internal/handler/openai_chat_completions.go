@@ -249,16 +249,19 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		// candidate. Re-publish that group and reinstall its profit gate while
 		// preserving the request-level pricing timestamp, then resolve channel
 		// mapping against the actual group used for this attempt.
+		forwardModel := reqModel
 		if apiKey.Group != nil {
 			selectedCtx := service.WithGroupContext(c.Request.Context(), apiKey.Group)
 			selectedCtx = h.gatewayService.WithOpenAIGroupPricingContext(selectedCtx, apiKey.GroupID, pricingAt)
 			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
-			forwardModel := reqModel
 			if channelMapping.Mapped {
 				forwardModel = channelMapping.MappedModel
 			}
 			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, forwardModel, false)
 			c.Request = c.Request.WithContext(selectedCtx)
+		}
+		if h.rejectSmartRoutingForeignForwardModel(c, selection, account, forwardModel, false, streamStarted) {
+			return
 		}
 		attemptChannelMapping := channelMapping
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
@@ -435,7 +438,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
-					if switchCount >= maxAccountSwitches {
+					accountSwitchLimit := effectiveAccountSwitchLimit(c.Request.Context(), maxAccountSwitches)
+					if switchCount >= accountSwitchLimit {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {
 							resetSmartRoutingAccountFailover()
 							continue
@@ -456,7 +460,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						zap.Int64("account_id", account.ID),
 						zap.Int("upstream_status", failoverErr.StatusCode),
 						zap.Int("switch_count", switchCount),
-						zap.Int("max_switches", maxAccountSwitches),
+						zap.Int("max_switches", accountSwitchLimit),
 					)
 					continue
 				}

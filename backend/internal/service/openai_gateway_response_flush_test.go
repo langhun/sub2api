@@ -265,7 +265,7 @@ func TestOpenAIResponseFlush_OutputWithoutTerminalFlushesResidualWithoutFailover
 
 	result, err := runOpenAIResponseFlushTest(recorder, io.NopCloser(strings.NewReader(body)), config.GatewayConfig{})
 
-	require.ErrorContains(t, err, "missing terminal event")
+	require.ErrorIs(t, err, ErrOpenAIUpstreamStreamTruncated)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
 	require.NotNil(t, result)

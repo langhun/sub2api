@@ -32,6 +32,7 @@ type stagedPassthroughConn struct {
 	writes    chan []byte
 	closed    chan struct{}
 	closeOnce sync.Once
+	writeErr  error
 }
 
 func newStagedPassthroughConn() *stagedPassthroughConn {
@@ -83,6 +84,9 @@ func (c *stagedPassthroughConn) WriteFrame(ctx context.Context, _ coderws.Messag
 	case <-c.closed:
 		return errOpenAIWSConnClosed
 	default:
+	}
+	if c.writeErr != nil {
+		return c.writeErr
 	}
 	var parsed any
 	if err := json.Unmarshal(payload, &parsed); err != nil {
@@ -828,6 +832,71 @@ func TestPassthroughLifecycle_FirstOutputTimeoutRemainsBounded(t *testing.T) {
 		require.Contains(t, string(failoverErr.ResponseBody), "first_output_timeout")
 	case <-time.After(2500 * time.Millisecond):
 		t.Fatal("passthrough first output was left unbounded")
+	}
+}
+
+func TestPassthroughLifecycle_SmartRoutingDisconnectBeforeOutputReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	baseCtx, cancelControl := context.WithCancelCause(context.Background())
+	defer cancelControl(context.Canceled)
+	smartCtx := WithSmartRoutingState(baseCtx, &SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		MainGroupID:             1,
+		CurrentGroupID:          1,
+		MaxGroupSwitches:        2,
+		SmartRoutingMaxAttempts: 8,
+		TriedGroups:             map[int64]struct{}{},
+	})
+	upstream := newStagedPassthroughConn()
+	server, serverErr := startPassthroughLifecycleServer(t, smartCtx, newPassthroughLifecycleService(passthroughLifecycleConfig(), upstream), passthroughLifecycleAccount())
+	defer server.Close()
+	clientConn := dialPassthroughLifecycleClient(t, server)
+	defer func() { _ = clientConn.CloseNow() }()
+
+	require.Equal(t, "response.create", gjson.GetBytes(requirePassthroughUpstreamWrite(t, upstream, 3*time.Second), "type").String())
+	upstream.Fail(errors.New("stream disconnected before response.completed"))
+
+	select {
+	case err := <-serverErr:
+		var failoverErr *UpstreamFailoverError
+		require.ErrorAs(t, err, &failoverErr, "pre-output passthrough disconnect must reach the outer failover loop")
+		require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+		require.Equal(t, GatewayFailureReason("openai_ws_read_event"), failoverErr.Reason)
+		var closeErr *OpenAIWSClientCloseError
+		require.False(t, errors.As(err, &closeErr), "the adapter must not close the client before failover conversion")
+	case <-time.After(3 * time.Second):
+		t.Fatal("passthrough disconnect did not return a typed failover")
+	}
+}
+
+func TestPassthroughLifecycle_SmartRoutingInitialWriteReturnsFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	baseCtx, cancelControl := context.WithCancelCause(context.Background())
+	defer cancelControl(context.Canceled)
+	smartCtx := WithSmartRoutingState(baseCtx, &SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		MainGroupID:             1,
+		CurrentGroupID:          1,
+		MaxGroupSwitches:        2,
+		SmartRoutingMaxAttempts: 8,
+		TriedGroups:             map[int64]struct{}{},
+	})
+	upstream := newStagedPassthroughConn()
+	upstream.writeErr = context.DeadlineExceeded
+	server, serverErr := startPassthroughLifecycleServer(t, smartCtx, newPassthroughLifecycleService(passthroughLifecycleConfig(), upstream), passthroughLifecycleAccount())
+	defer server.Close()
+	clientConn := dialPassthroughLifecycleClient(t, server)
+	defer func() { _ = clientConn.CloseNow() }()
+
+	select {
+	case err := <-serverErr:
+		var failoverErr *UpstreamFailoverError
+		require.ErrorAs(t, err, &failoverErr, "initial passthrough write must reach the outer failover loop")
+		require.Equal(t, GatewayFailureReason("openai_ws_write_request"), failoverErr.Reason)
+		var closeErr *OpenAIWSClientCloseError
+		require.False(t, errors.As(err, &closeErr), "a smart-routed initial write must not close before failover")
+	case <-time.After(3 * time.Second):
+		t.Fatal("initial passthrough write did not return a typed failover")
 	}
 }
 

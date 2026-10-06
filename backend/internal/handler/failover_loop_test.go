@@ -97,6 +97,56 @@ func TestSameAccountRetryAllowedHonorsErrorMaxBeforeDeadline(t *testing.T) {
 	require.False(t, sameAccountRetryAllowed(err, 0, 0), "an explicit zero retry budget remains disabled")
 }
 
+func TestSmartRoutingSameAccountRetryCapsOneRetryEvenWithOAuthDeadline(t *testing.T) {
+	state := &service.SmartRoutingRequestState{
+		SmartRoutingActive:      true,
+		SmartRoutingStartedAt:   time.Now(),
+		SmartRoutingMaxAttempts: 12,
+		SmartRoutingMaxDuration: time.Minute,
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	err := &service.UpstreamFailoverError{
+		RetryableOnSameAccount:   true,
+		SameAccountRetryDeadline: time.Now().Add(5 * time.Minute),
+	}
+
+	require.True(t, smartRoutingSameAccountRetryAllowed(ctx, err, 0, 0), "the first quick retry is allowed")
+	require.False(t, smartRoutingSameAccountRetryAllowed(ctx, err, 1, 0), "the second retry must switch websites")
+}
+
+func TestEffectiveAccountSwitchLimit(t *testing.T) {
+	require.Equal(t, 10, effectiveAccountSwitchLimit(context.Background(), 10), "ordinary requests keep their configured limit")
+	require.Equal(t, 0, effectiveAccountSwitchLimit(context.Background(), 0), "ordinary zero remains disabled")
+
+	inactiveCtx := service.WithSmartRoutingState(context.Background(), &service.SmartRoutingRequestState{})
+	require.Equal(t, 10, effectiveAccountSwitchLimit(inactiveCtx, 10), "inactive routing keeps the configured limit")
+
+	activeCtx := service.WithSmartRoutingState(context.Background(), &service.SmartRoutingRequestState{SmartRoutingActive: true})
+	require.Equal(t, 1, effectiveAccountSwitchLimit(activeCtx, 10), "smart routing permits one account switch per group")
+	require.Equal(t, 1, effectiveAccountSwitchLimit(activeCtx, 0), "smart-routing cap is independent of the ordinary limit")
+}
+
+func TestFailoverStateSmartRoutingAllowsOneAccountSwitchPerGroup(t *testing.T) {
+	state := &service.SmartRoutingRequestState{SmartRoutingActive: true}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	failure := &service.UpstreamFailoverError{NextAccountAction: service.NextAccountRetry}
+	unscheduler := &mockTempUnscheduler{}
+
+	firstGroup := NewFailoverState(10, false)
+	require.Equal(t, FailoverContinue, firstGroup.HandleFailoverError(ctx, unscheduler, 101, service.PlatformOpenAI, 0, failure))
+	require.Equal(t, 1, firstGroup.SwitchCount)
+	require.Equal(t, FailoverExhausted, firstGroup.HandleFailoverError(ctx, unscheduler, 102, service.PlatformOpenAI, 0, failure))
+	require.Equal(t, 1, firstGroup.SwitchCount, "the second failed website should exhaust this group's one-switch budget")
+
+	// Handlers construct fresh account failover state after a successful group
+	// transition. The next group gets its own independent one-switch budget.
+	secondGroup := NewFailoverState(10, false)
+	require.Equal(t, FailoverContinue, secondGroup.HandleFailoverError(ctx, unscheduler, 201, service.PlatformOpenAI, 0, failure))
+	require.Equal(t, 1, secondGroup.SwitchCount)
+	require.Equal(t, FailoverExhausted, secondGroup.HandleFailoverError(ctx, unscheduler, 202, service.PlatformOpenAI, 0, failure))
+	require.Equal(t, 1, secondGroup.SwitchCount)
+}
+
 func TestSameAccountRetryDeadlineAllows(t *testing.T) {
 	require.True(t, sameAccountRetryDeadlineAllows(&service.UpstreamFailoverError{}))
 	require.True(t, sameAccountRetryDeadlineAllows(&service.UpstreamFailoverError{
@@ -962,6 +1012,27 @@ func TestHandleSelectionExhausted(t *testing.T) {
 
 		require.Equal(t, FailoverExhausted, action)
 		require.Less(t, elapsed, 100*time.Millisecond, "不应等待")
+	})
+
+	t.Run("智能路由站点预算耗尽不退避重试已用尽上游", func(t *testing.T) {
+		fs := NewFailoverState(3, false)
+		fs.LastFailoverErr = &service.UpstreamFailoverError{
+			StatusCode:        http.StatusServiceUnavailable,
+			Scope:             service.GatewayFailureScopeAccount,
+			Reason:            service.SmartRoutingSiteAttemptBudgetExceededReason,
+			NextAccountAction: service.NextAccountLegacyRetry,
+		}
+		ctx := service.WithSmartRoutingState(context.Background(), &service.SmartRoutingRequestState{
+			SmartRoutingActive: true,
+			MainGroupID:        1,
+			CurrentGroupID:     1,
+		})
+
+		start := time.Now()
+		action := fs.HandleSelectionExhausted(ctx)
+
+		require.Equal(t, FailoverExhausted, action)
+		require.Less(t, time.Since(start), 100*time.Millisecond, "本地预算拒绝后应立即进入候选分组")
 	})
 
 	t.Run("503但context已取消_返回Canceled", func(t *testing.T) {

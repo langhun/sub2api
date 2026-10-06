@@ -719,11 +719,15 @@ func (e *UpstreamFailoverError) IsCredentialFailure() bool {
 	return e != nil && e.Stage == GatewayFailureStageAccountAuth
 }
 
-// ShouldReportAccountScheduleFailure prevents provider- and request-scoped
-// credential failures from being misattributed to the selected account. Legacy
-// and inference failures retain their existing scheduler-health behavior.
+// ShouldReportAccountScheduleFailure prevents routing-budget and provider- or
+// request-scoped failures from being misattributed to the selected account.
+// Legacy and inference failures retain their existing scheduler-health behavior.
 func (e *UpstreamFailoverError) ShouldReportAccountScheduleFailure() bool {
-	if e == nil || e.Reason == SmartRoutingAccountUnavailableReason {
+	if e == nil ||
+		e.Reason == SmartRoutingAccountUnavailableReason ||
+		e.Reason == SmartRoutingAttemptBudgetExceededReason ||
+		e.Reason == SmartRoutingTurnAttemptBudgetExceededReason ||
+		e.Reason == SmartRoutingSiteAttemptBudgetExceededReason {
 		return false
 	}
 	return !e.IsCredentialFailure() || e.Scope == GatewayFailureScopeAccount

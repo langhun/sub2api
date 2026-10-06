@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestOpenAIWSIngressTurnDoesNotRetryAfterClientDisconnect(t *testing.T) {
+	err := wrapOpenAIWSIngressTurnErrorWithClientState(
+		"read_upstream",
+		errors.New("upstream closed"),
+		false,
+		true,
+	)
+	require.False(t, isOpenAIWSIngressTurnRetryable(err),
+		"a failed downstream write must not cause a duplicate upstream attempt")
+}
 
 // TestIsOpenAIWSTokenEvent_TerminalEventsExcluded 覆盖 isOpenAIWSTokenEvent 的回归用例。
 // 重点验证终止事件（response.completed / response.done）不再被当作 token event，

@@ -580,6 +580,26 @@ func IsOpenAIResponsesCompactPath(c *gin.Context) bool {
 	return isOpenAIResponsesCompactPath(c)
 }
 
+// isOpenAIResponsesStreamPath reports whether the inbound request belongs to
+// the OpenAI Responses family. Unlike the compact helper above, the root
+// /responses endpoint has an empty path suffix, so callers that need to choose
+// the wire protocol must distinguish it from Chat Completions explicitly.
+func isOpenAIResponsesStreamPath(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	path := strings.TrimRight(strings.TrimSpace(c.Request.URL.Path), "/")
+	if path == "" {
+		return false
+	}
+	idx := strings.LastIndex(path, "/responses")
+	if idx < 0 {
+		return false
+	}
+	suffix := path[idx+len("/responses"):]
+	return suffix == "" || strings.HasPrefix(suffix, "/")
+}
+
 func OpenAICompactSessionSeedKeyForTest() string {
 	return openAICompactSessionSeedKey
 }
