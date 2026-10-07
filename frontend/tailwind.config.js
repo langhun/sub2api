@@ -46,6 +46,13 @@ export default {
           800: '#1e293b',
           900: '#0f172a',
           950: '#020617'
+        },
+        // 品牌色 (支付/第三方)
+        brand: {
+          alipay: '#02A9F1',
+          wxpay: '#09BB07',
+          stripe: '#676BE5',
+          airwallex: '#FF6B3D'
         }
       },
       fontFamily: {
