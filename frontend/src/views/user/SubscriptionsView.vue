@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto min-w-0 max-w-5xl space-y-6" data-glass-content>
+    <div class="min-w-0 space-y-6" data-glass-content>
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
         <div

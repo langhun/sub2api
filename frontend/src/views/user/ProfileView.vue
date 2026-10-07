@@ -2,7 +2,7 @@
   <AppLayout>
     <div
       data-testid="profile-shell"
-      class="mx-auto min-w-0 max-w-4xl space-y-6"
+      class="mx-auto min-w-0 max-w-[950px] space-y-6"
       data-glass-content
     >
       <ProfileInfoCard

@@ -12,16 +12,16 @@
         </button>
       </header>
 
-      <div v-if="loading" class="flex min-h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
+      <div v-if="loading" class="card flex min-h-64 items-center justify-center">
         <LoadingSpinner />
       </div>
-      <div v-else-if="loadError" class="rounded-lg border border-red-200 bg-white py-12 text-center dark:border-red-900/60 dark:bg-dark-900">
+      <div v-else-if="loadError" class="card border-red-200 py-12 text-center dark:border-red-900/60">
         <Icon name="exclamationCircle" size="xl" class="mx-auto text-red-500" />
         <p class="mt-3 text-sm text-gray-600 dark:text-dark-300">{{ loadError }}</p>
         <button class="btn btn-secondary mt-4" type="button" @click="loadCurrent">{{ t('common.retry') }}</button>
       </div>
 
-      <section v-else-if="ticket" class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <section v-else-if="ticket" class="card overflow-hidden p-0">
         <div class="flex items-center gap-3 px-4 py-2.5 sm:px-5">
           <div class="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-2">
             <span class="shrink-0 font-mono text-[11px] text-gray-400 dark:text-dark-500">{{ ticket.public_id }}</span>
@@ -86,7 +86,7 @@
         </div>
       </section>
 
-      <section v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <section v-else class="card overflow-hidden p-0">
         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-dark-700">
           <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-dark-200">
             <Icon name="inbox" size="sm" />

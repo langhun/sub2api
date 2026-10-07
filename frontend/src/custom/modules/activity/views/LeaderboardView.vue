@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-5xl space-y-5" data-glass-content>
+    <div class="w-full min-w-0 space-y-5" data-glass-content>
       <section
         v-if="tabs.length > 0"
         class="card flex min-h-[4.75rem] items-center px-4 py-3 sm:px-5"

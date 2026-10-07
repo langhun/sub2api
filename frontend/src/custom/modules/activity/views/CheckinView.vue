@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-5xl space-y-6" data-glass-content>
+    <div class="w-full min-w-0 space-y-6" data-glass-content>
       <div
         v-if="checkinStore.statusError"
         class="card flex flex-col gap-3 border border-red-200 p-4 dark:border-red-900/60 sm:flex-row sm:items-center sm:justify-between"

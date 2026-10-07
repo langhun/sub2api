@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto w-full min-w-0 max-w-4xl space-y-5" data-glass-content>
+    <div class="w-full min-w-0 space-y-5" data-glass-content>
       <section
         class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 px-6 py-7 text-white shadow-lg shadow-rose-500/15 sm:px-8"
       >
