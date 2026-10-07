@@ -497,7 +497,7 @@
     <BaseDialog
       :show="showCreateModal || showEditModal"
       :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
-      width="normal"
+      width="wide"
       @close="closeModals"
     >
       <form id="key-form" @submit.prevent="handleSubmit" class="key-editor-form space-y-5" :class="{ 'routing-smart-form': formData.routing_mode === 'smart' }">
