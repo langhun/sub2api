@@ -212,7 +212,6 @@ html[data-glass] .app-header {
 html[data-theme="apple"] .sidebar,
 html[data-glass] .sidebar {
   border: none !important;
-  border-right: none !important;
   background: var(--ui-surface) !important;
   box-shadow: 6px 0 24px -4px rgba(19, 45, 83, 0.04) !important;
   backdrop-filter: blur(20px) !important;
@@ -222,7 +221,6 @@ html[data-glass] .sidebar {
 html[data-theme="apple"].dark .sidebar,
 html[data-glass].dark .sidebar {
   border: none !important;
-  border-right: none !important;
   box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.40) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
@@ -479,6 +477,35 @@ html[data-glass] .select-trigger:focus {
 :is(html[data-theme="apple"], html[data-glass]) :is(.input-error, [aria-invalid="true"]):focus {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 3px rgb(239 68 68 / 24%) !important;
+}
+
+/* ==========================================================================
+   全站暗黑实色类名清洗
+   ========================================================================== */
+/* 增强焦点指示器 - WCAG 2.1 AA合规 */
+:is(html[data-theme="apple"], html[data-glass]) *:focus-visible {
+  outline: 2px solid var(--ui-primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(41, 151, 255, 0.25) !important;
+  border-radius: 4px;
+}
+
+:is(html[data-theme="apple"], html[data-glass]).dark *:focus-visible {
+  outline: 2px solid var(--ui-primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(41, 151, 255, 0.35) !important;
+}
+
+/* 按钮焦点状态特殊处理 */
+:is(html[data-theme="apple"], html[data-glass]) button:focus-visible,
+:is(html[data-theme="apple"], html[data-glass]) a:focus-visible {
+  outline: 2px solid var(--ui-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* 输入框焦点状态已在表单控件中定义，不覆盖 */
+:is(html[data-theme="apple"], html[data-glass]) :is(.input, select, textarea):focus-visible {
+  outline: none !important;
 }
 
 /* ==========================================================================

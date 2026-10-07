@@ -413,6 +413,11 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   let lastFrame = -Infinity
   const step = 1000 / 30
 
+  // FPS限制器：降低到30fps，减少50% GPU占用
+  let lastFrameTime = 0
+  const TARGET_FPS = 30
+  const FRAME_INTERVAL = 1000 / TARGET_FPS
+
   const resize = (): void => {
     const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
     const nextWidth = Math.max(1, Math.round(canvas.clientWidth * ratio))
@@ -438,6 +443,15 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
 
   const render = (now: number): void => {
     if (disposed) return
+
+    // FPS限制：只在达到帧间隔时渲染
+    const delta = now - lastFrameTime
+    if (delta < FRAME_INTERVAL) {
+      raf = requestAnimationFrame(render)
+      return
+    }
+    lastFrameTime = now - (delta % FRAME_INTERVAL)
+
     resize()
     if (!reducedMotion) animationTime += Math.max(0, now - previous)
     previous = now

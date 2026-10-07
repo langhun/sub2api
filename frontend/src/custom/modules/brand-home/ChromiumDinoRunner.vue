@@ -60,6 +60,12 @@ onBeforeUnmount(() => {
   overflow: hidden;
   position: absolute;
   top: 0;
+  /* 性能优化：图像渲染优化 */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* GPU加速 */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .arcade-mode .chromium-dino-runner,
