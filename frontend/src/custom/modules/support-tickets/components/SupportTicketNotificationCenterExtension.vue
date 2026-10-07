@@ -7,7 +7,7 @@
           class="group flex min-w-0 flex-1 items-center gap-3"
           @click="emit('close')"
         >
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
             <Icon name="chat" size="sm" />
           </span>
           <span class="min-w-0">

@@ -26,7 +26,7 @@
           <div class="card p-6">
             <div class="flex flex-col items-center space-y-4">
               <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.qr.scanWxpay') }}</p>
-              <div class="relative rounded-lg border-2 border-[#2BB741] bg-green-50 p-4 dark:border-[#2BB741]/70 dark:bg-green-950/20">
+              <div class="relative rounded-xl border-2 border-brand-wxpay bg-green-50 p-4 dark:border-brand-wxpay/70 dark:bg-green-950/20">
                 <img :src="wechatQrUrl" alt="WeChat Pay QR" class="h-56 w-56 rounded" />
                 <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <span class="rounded-full bg-[#2BB741] p-2 shadow ring-2 ring-white">
@@ -46,7 +46,7 @@
         <template v-else-if="redirecting">
           <div class="card p-6">
             <div class="flex flex-col items-center space-y-4 py-4">
-              <div class="h-10 w-10 animate-spin rounded-full border-4 border-[#00AEEF] border-t-transparent"></div>
+              <div class="h-10 w-10 animate-spin rounded-full border-4 border-brand-alipay border-t-transparent"></div>
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.payInNewWindowHint') }}</p>
             </div>
           </div>

@@ -55,7 +55,7 @@
           <div v-if="emailEntries.length > 0" class="space-y-2 mb-3">
             <div v-for="entry in emailEntries" :key="entry.email"
               data-testid="notify-saved-email"
-              class="flex min-w-0 flex-col gap-2 px-3 py-2 bg-gray-50 dark:bg-dark-700 rounded-lg sm:flex-row sm:items-center sm:justify-between">
+              class="flex min-w-0 flex-col gap-2 px-3 py-2 bg-gray-50 dark:bg-dark-700 rounded-xl sm:flex-row sm:items-center sm:justify-between">
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 <label class="relative inline-flex items-center cursor-pointer shrink-0">
                   <input type="checkbox" role="switch" :checked="!entry.disabled" :aria-checked="!entry.disabled" :aria-label="entry.email" :disabled="savingEmail !== null" @change="handleEmailToggle(entry)" class="sr-only peer" />
@@ -106,7 +106,7 @@
           <!-- Pending (unverified) emails in verification flow -->
           <div v-if="pendingEmails.length > 0" class="space-y-2 mb-3">
             <div v-for="(pe, idx) in pendingEmails" :key="pe.email"
-              class="flex min-w-0 flex-col gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800 sm:flex-row sm:items-center">
+              class="flex min-w-0 flex-col gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-200 dark:border-yellow-800 sm:flex-row sm:items-center">
               <span class="min-w-0 flex-1 break-all text-sm text-gray-700 dark:text-gray-300">{{ pe.email }}</span>
               <div v-if="!pe.codeSent" class="flex min-w-0 flex-wrap items-center gap-2">
                 <button @click="sendCodeFor(idx)" :disabled="pe.sending" class="text-xs text-primary-600 hover:text-primary-700">

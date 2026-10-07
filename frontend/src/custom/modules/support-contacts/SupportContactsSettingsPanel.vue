@@ -14,11 +14,11 @@
     <div class="space-y-4 p-6">
       <div v-if="loading" class="py-8 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
       <template v-else>
-        <p v-if="items.length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-dark-600">
+        <p v-if="items.length === 0" class="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-dark-600">
           {{ t('admin.supportContacts.empty') }}
         </p>
 
-        <article v-for="(item, index) in items" :key="item.id || index" class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <article v-for="(item, index) in items" :key="item.id || index" class="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-dark-600">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="rounded-md bg-primary-50 px-2 py-1 text-xs font-semibold uppercase text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">{{ channelLabel(item.channel) }}</span>
@@ -37,7 +37,7 @@
                 <option v-for="channel in channels" :key="channel" :value="channel">{{ channelLabel(channel) }}</option>
               </select>
             </label>
-            <label class="flex items-end justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-dark-600 dark:text-gray-200">
+            <label class="flex items-end justify-between gap-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-dark-600 dark:text-gray-200">
               <span>{{ t('admin.supportContacts.enabled') }}</span>
               <input v-model="item.enabled" type="checkbox" class="h-4 w-4 accent-primary-600" />
             </label>
@@ -71,7 +71,7 @@
               </label>
               <p class="text-xs text-gray-500">{{ t('admin.supportContacts.qrHint') }}</p>
             </div>
-            <div class="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800">
+            <div class="flex min-h-36 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800">
               <img v-if="previewURL(item)" :src="previewURL(item)" :alt="t('admin.supportContacts.qrCode')" class="max-h-40 max-w-full object-contain" />
               <span v-else class="text-xs text-gray-400">{{ t('admin.supportContacts.noQr') }}</span>
             </div>

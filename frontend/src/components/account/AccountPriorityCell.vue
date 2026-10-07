@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group/priority inline-flex h-7 items-center rounded-lg border transition-colors duration-150"
+    class="group/priority inline-flex h-7 items-center rounded-xl border transition-colors duration-150"
     :class="[
       editing || dirty
         ? 'border-primary-300 bg-primary-50/70 dark:border-primary-700 dark:bg-primary-900/20'

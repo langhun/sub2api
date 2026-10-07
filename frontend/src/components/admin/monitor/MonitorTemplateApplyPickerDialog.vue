@@ -41,7 +41,7 @@
         </span>
       </div>
 
-      <ul class="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 dark:divide-dark-700 dark:border-dark-700">
+      <ul class="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200 dark:divide-dark-700 dark:border-dark-700">
         <li
           v-for="m in monitors"
           :key="m.id"

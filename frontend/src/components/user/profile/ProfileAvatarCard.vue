@@ -12,7 +12,7 @@
       </p>
     </div>
 
-    <div :class="props.embedded ? 'space-y-3' : 'flex flex-col gap-5 px-6 py-6 sm:flex-row sm:items-start'">
+    <div :class="props.embedded ? 'space-y-3' : 'flex flex-col gap-6 px-6 py-6 sm:flex-row sm:items-start'">
       <div
         :class="props.embedded
           ? 'flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-xl font-bold text-white shadow-lg shadow-primary-500/20'

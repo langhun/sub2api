@@ -1,7 +1,7 @@
 <template>
   <BaseDialog :show="show" :title="t('admin.checkinUserAccess.title')" width="normal" @close="close">
     <div v-if="user" class="space-y-4">
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-700 dark:bg-dark-800">
+      <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-700 dark:bg-dark-800">
         <p class="text-gray-500 dark:text-dark-400">{{ t('admin.checkinUserAccess.user') }}</p>
         <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ displayName }}</p>
       </div>
@@ -12,7 +12,7 @@
 
       <template v-else>
         <div
-          class="rounded-lg border p-4"
+          class="rounded-xl border p-4"
           :class="access?.disabled
             ? 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-900/20'
             : 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-900/20'"
@@ -25,11 +25,11 @@
           </p>
         </div>
 
-        <p class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-dark-800 dark:text-dark-300">
+        <p class="rounded-xl bg-gray-50 p-3 text-xs text-gray-600 dark:bg-dark-800 dark:text-dark-300">
           {{ t('admin.checkinUserAccess.scopeHint') }}
         </p>
 
-        <p v-if="errorMessage" class="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+        <p v-if="errorMessage" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
           {{ errorMessage }}
         </p>
       </template>

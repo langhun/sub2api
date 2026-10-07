@@ -17,7 +17,7 @@
     />
     <div
       v-if="checkinStore.actionError"
-      class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300"
+      class="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300"
       role="alert"
     >
       {{ actionErrorMessage }}

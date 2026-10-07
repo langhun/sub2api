@@ -59,7 +59,7 @@
 
       <div
         v-if="selectedUser"
-        class="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-800"
+        class="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-800"
       >
         <div class="flex items-center justify-between text-sm">
           <span class="text-gray-500 dark:text-dark-400">{{ t('admin.affiliates.withdraw.availableQuota') }}</span>
@@ -103,13 +103,13 @@
 
       <div
         v-if="outcomeUncertain"
-        class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-700/50 dark:bg-blue-900/20 dark:text-blue-300"
+        class="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-700/50 dark:bg-blue-900/20 dark:text-blue-300"
         data-test="withdraw-uncertain-hint"
       >
         {{ t('admin.affiliates.withdraw.uncertainHint') }}
       </div>
 
-      <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300">
+      <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300">
         {{ t('admin.affiliates.withdraw.warning') }}
       </div>
     </form>

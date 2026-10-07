@@ -15,7 +15,7 @@
     </div>
     <template v-if="enabled">
       <div class="space-y-4 p-6">
-        <div v-if="operationError" class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ operationError }}</div>
+        <div v-if="operationError" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ operationError }}</div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -46,22 +46,22 @@
 
         <!-- Stats -->
         <div v-if="stats" class="grid grid-cols-3 gap-3">
-          <div class="rounded-lg bg-gray-50 p-3 text-center dark:bg-dark-800">
+          <div class="rounded-xl bg-gray-50 p-3 text-center dark:bg-dark-800">
             <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.total_items }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.totalItems') }}</p>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3 text-center dark:bg-dark-800">
+          <div class="rounded-xl bg-gray-50 p-3 text-center dark:bg-dark-800">
             <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ stats.enabled_items }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.enabledItems') }}</p>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3 text-center dark:bg-dark-800">
+          <div class="rounded-xl bg-gray-50 p-3 text-center dark:bg-dark-800">
             <p class="text-lg font-bold text-purple-600 dark:text-purple-400">{{ stats.total_draws }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.totalDraws') }}</p>
           </div>
         </div>
 
         <!-- Prize Items Table -->
-        <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-700">
+        <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-700">
           <div v-if="loading" class="flex items-center justify-center py-8">
             <div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
           </div>

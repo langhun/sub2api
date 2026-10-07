@@ -5286,7 +5286,7 @@
               </p>
             </div>
             <div class="space-y-5 p-6">
-              <div class="grid gap-5 border-b border-gray-100 pb-5 dark:border-dark-700 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <div class="grid gap-6 border-b border-gray-100 pb-5 dark:border-dark-700 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                 <div>
                   <label
                     for="grok-default-text-model"
@@ -5312,7 +5312,7 @@
                     {{ t("admin.settings.gatewayForwarding.grokDefaultTextModelHint") }}
                   </p>
                 </div>
-                <div class="flex items-center justify-between gap-5 md:min-w-72">
+                <div class="flex items-center justify-between gap-6 md:min-w-72">
                   <div>
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {{ t("admin.settings.gatewayForwarding.grokCrossClientMap") }}
@@ -6993,7 +6993,7 @@
 	            </div>
 
 	            <div class="space-y-6 p-6">
-	              <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_220px]">
+	              <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
 	                <div>
 	                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
 	                    {{ localText("展示形式", "Display mode") }}

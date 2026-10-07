@@ -23,7 +23,7 @@
         class="flex"
         :class="message.message_type === 'internal_note' ? 'justify-center' : isOwn(message) ? 'justify-end' : 'justify-start'"
       >
-        <div v-if="message.message_type === 'internal_note'" class="flex max-w-2xl items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/70 dark:bg-amber-900/20 dark:text-amber-100">
+        <div v-if="message.message_type === 'internal_note'" class="flex max-w-2xl items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/70 dark:bg-amber-900/20 dark:text-amber-100">
           <Icon name="infoCircle" size="sm" class="mt-0.5 shrink-0" />
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
@@ -48,7 +48,7 @@
             </div>
             <div
               data-testid="ticket-message-bubble"
-              class="rounded-lg px-4 py-3 text-sm leading-6 shadow-sm ring-1"
+              class="rounded-xl px-4 py-3 text-sm leading-6 shadow-sm ring-1"
               :class="isOwn(message) ? 'bg-primary-600 text-white ring-primary-600' : 'bg-white text-gray-800 ring-gray-200 dark:bg-dark-800 dark:text-dark-100 dark:ring-dark-700'"
             >
               <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>

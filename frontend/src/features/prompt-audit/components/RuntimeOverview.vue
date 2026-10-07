@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div v-if="error" role="alert" class="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
+    <div v-if="error" role="alert" class="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
       {{ error }}
     </div>
     <div v-else-if="loading && !runtime" class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-busy="true">
@@ -35,7 +35,7 @@
         <div class="rounded-xl border border-gray-100 px-4 py-3 dark:border-dark-700/60 dark:bg-dark-900/20">
           <h3 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.promptAudit.runtime.guardMetrics') }}</h3>
           <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div v-for="metric in guardMetricItems" :key="metric.label" class="rounded-lg bg-gray-50 px-2.5 py-2 dark:bg-dark-900/60">
+            <div v-for="metric in guardMetricItems" :key="metric.label" class="rounded-xl bg-gray-50 px-2.5 py-2 dark:bg-dark-900/60">
               <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ metric.label }}</p>
               <p class="mt-0.5 text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{{ metric.value }}</p>
             </div>

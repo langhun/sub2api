@@ -17,12 +17,12 @@
         {{ t('admin.accounts.syncFromCrsDesc') }}
       </div>
       <div
-        class="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-dark-700/60 dark:text-dark-400"
+        class="rounded-xl bg-gray-50 p-3 text-xs text-gray-500 dark:bg-dark-700/60 dark:text-dark-400"
       >
         {{ t('admin.accounts.crsUpdateBehaviorNote') }}
       </div>
       <div
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-600 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+        class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-600 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
       >
         {{ t('admin.accounts.crsVersionRequirement') }}
       </div>
@@ -74,7 +74,7 @@
       <!-- Existing accounts (read-only info) -->
       <div
         v-if="previewResult.existing_accounts.length"
-        class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700/60"
+        class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700/60"
       >
         <div class="mb-2 text-sm font-medium text-gray-700 dark:text-dark-300">
           {{ t('admin.accounts.crsExistingAccounts') }}
@@ -115,7 +115,7 @@
           </div>
         </div>
         <div
-          class="max-h-48 overflow-auto rounded-lg border border-gray-200 p-2 dark:border-dark-600"
+          class="max-h-48 overflow-auto rounded-xl border border-gray-200 p-2 dark:border-dark-600"
         >
           <label
             v-for="acc in previewResult.new_accounts"
@@ -150,7 +150,7 @@
       <!-- No new accounts -->
       <div
         v-if="!previewResult.new_accounts.length"
-        class="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500 dark:bg-dark-700/60 dark:text-dark-400"
+        class="rounded-xl bg-gray-50 p-4 text-center text-sm text-gray-500 dark:bg-dark-700/60 dark:text-dark-400"
       >
         {{ t('admin.accounts.crsNoNewAccounts') }}
         <span v-if="previewResult.existing_accounts.length">
@@ -176,7 +176,7 @@
             {{ t('admin.accounts.syncErrors') }}
           </div>
           <div
-            class="mt-2 max-h-48 overflow-auto rounded-lg bg-gray-50 p-3 font-mono text-xs dark:bg-dark-800"
+            class="mt-2 max-h-48 overflow-auto rounded-xl bg-gray-50 p-3 font-mono text-xs dark:bg-dark-800"
           >
             <div v-for="(item, idx) in errorItems" :key="idx" class="whitespace-pre-wrap">
               {{ item.kind }} {{ item.crs_account_id }} — {{ item.action

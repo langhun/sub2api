@@ -395,7 +395,7 @@
           </div>
 
           <div v-if="activeSettingsTab === 'basic'" class="space-y-5">
-            <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div class="flex items-center justify-between rounded-lg border border-gray-100 p-4 dark:border-dark-700">
                 <div>
                   <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.riskControl.enabled') }}</p>
@@ -820,7 +820,7 @@
             </div>
           </div>
 
-          <div v-else-if="activeSettingsTab === 'runtime'" class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div v-else-if="activeSettingsTab === 'runtime'" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
               <label class="input-label">{{ t('admin.riskControl.workerCount') }}</label>
               <input v-model.number="configForm.worker_count" type="number" min="1" max="32" class="input" />
@@ -884,7 +884,7 @@
           </div>
 
           <div v-else-if="activeSettingsTab === 'response'" class="space-y-5">
-            <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div>
                 <label class="input-label">{{ t('admin.riskControl.blockStatus') }}</label>
                 <input v-model.number="configForm.block_status" type="number" min="400" max="599" class="input" />
@@ -1048,7 +1048,7 @@
             </div>
           </div>
 
-          <div v-else class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div v-else class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
               <label class="input-label">{{ t('admin.riskControl.hitRetentionDays') }}</label>
               <input v-model.number="configForm.hit_retention_days" type="number" min="1" max="3650" class="input" />

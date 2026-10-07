@@ -346,7 +346,7 @@
         top: tokenTooltipPosition.y + 'px'
       }"
     >
-      <div class="usage-detail-tooltip-panel whitespace-nowrap rounded-lg border px-3 py-2.5 text-xs shadow-xl">
+      <div class="usage-detail-tooltip-panel whitespace-nowrap rounded-xl border px-3 py-2.5 text-xs shadow-xl">
         <div class="space-y-1.5">
           <div>
             <div class="text-xs font-semibold text-gray-300 mb-1">{{ t('usage.tokenDetails') }}</div>
@@ -431,7 +431,7 @@
         top: tooltipPosition.y + 'px'
       }"
     >
-      <div class="usage-detail-tooltip-panel whitespace-nowrap rounded-lg border px-3 py-2.5 text-xs shadow-xl">
+      <div class="usage-detail-tooltip-panel whitespace-nowrap rounded-xl border px-3 py-2.5 text-xs shadow-xl">
         <div class="space-y-1.5">
           <!-- Cost Breakdown -->
           <div class="mb-2 border-b border-gray-700 pb-1.5">

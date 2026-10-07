@@ -3900,7 +3900,7 @@
       width="wide"
       @close="closeCompositeRoutesModal"
     >
-      <div class="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <section class="min-w-0">
           <div class="mb-3 flex items-center justify-between gap-3">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">

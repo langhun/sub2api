@@ -275,7 +275,7 @@
         </div>
 
         <!-- Features Grid -->
-        <div class="mb-12 grid gap-5 md:grid-cols-3">
+        <div class="mb-12 grid gap-6 md:grid-cols-3">
           <!-- Feature 1: Unified Gateway -->
           <div
             class="group card p-5 transition-all duration-300 hover:-translate-y-0.5"

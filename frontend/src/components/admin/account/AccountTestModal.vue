@@ -13,7 +13,7 @@
       >
         <div class="flex items-center gap-3">
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600"
+            class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600"
           >
             <Icon name="play" size="md" class="text-white" :stroke-width="2" />
           </div>
@@ -129,7 +129,7 @@
           />
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ imageUploadHint }}</p>
-        <div v-if="uploadImagePreview" class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-500">
+        <div v-if="uploadImagePreview" class="overflow-hidden rounded-xl border border-gray-200 dark:border-dark-500">
           <img
             :src="uploadImagePreview"
             :alt="t('admin.accounts.grok.uploadPreviewAlt')"
@@ -217,7 +217,7 @@
         <button
           v-if="outputLines.length > 0"
           @click="copyOutput"
-          class="absolute right-2 top-2 rounded-lg bg-gray-800/80 p-1.5 text-gray-400 opacity-0 transition-all hover:bg-gray-700 hover:text-white group-hover:opacity-100"
+          class="absolute right-2 top-2 rounded-xl bg-gray-800/80 p-1.5 text-gray-400 opacity-0 transition-all hover:bg-gray-700 hover:text-white group-hover:opacity-100"
           :title="t('admin.accounts.copyOutput')"
         >
           <Icon name="link" size="sm" :stroke-width="2" />
@@ -297,7 +297,7 @@
             <img
               :src="previewImageUrl"
               :alt="t('admin.accounts.imageLightboxAlt')"
-              class="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+              class="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
             />
           </div>
         </Transition>
@@ -322,7 +322,7 @@
       <div class="flex justify-end gap-3">
         <button
           @click="handleClose"
-          class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
+          class="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
         >
           {{ t('common.close') }}
         </button>
@@ -330,7 +330,7 @@
           @click="startTest"
           :disabled="!canStartTest"
           :class="[
-            'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all',
             !canStartTest
               ? 'cursor-not-allowed bg-primary-400 text-white'
               : status === 'success'

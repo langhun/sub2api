@@ -5,7 +5,7 @@
       <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.codeFormat.description') }}</p>
     </div>
     <div class="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
-      <fieldset v-for="kind in kinds" :key="kind.key" class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+      <fieldset v-for="kind in kinds" :key="kind.key" class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
         <legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">{{ kind.label }}</legend>
         <div class="space-y-3">
           <div class="rounded-md bg-gray-50 px-3 py-2 dark:bg-dark-800">

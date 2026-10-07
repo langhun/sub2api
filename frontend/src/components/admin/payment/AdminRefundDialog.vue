@@ -9,7 +9,7 @@
       <!-- Refund Request Info -->
       <div
         v-if="order?.refund_requested_at || order?.refund_request_reason"
-        class="rounded-lg border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-900/20"
+        class="rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-900/20"
       >
         <div class="flex items-center gap-2 text-sm font-medium text-violet-700 dark:text-violet-300">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -28,7 +28,7 @@
       </div>
 
       <!-- Order Info -->
-      <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+      <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-700">
         <div class="flex justify-between text-sm">
           <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
           <span class="font-mono text-gray-900 dark:text-white">#{{ order?.id }}</span>
@@ -64,11 +64,11 @@
 
         <!-- User Balance Info (when deduct_balance is checked) -->
         <div v-if="form.deduct_balance && userBalance != null" class="mt-3 grid grid-cols-2 gap-3">
-          <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-700">
+          <div class="rounded-xl bg-gray-50 p-3 text-sm dark:bg-dark-700">
             <div class="text-gray-500 dark:text-gray-400">{{ t('payment.admin.userBalance') }}</div>
             <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ creditedAmountSymbol }}{{ userBalance.toFixed(2) }}</div>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-700">
+          <div class="rounded-xl bg-gray-50 p-3 text-sm dark:bg-dark-700">
             <div class="text-gray-500 dark:text-gray-400">{{ t('payment.admin.orderAmount') }}</div>
             <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ creditedAmountSymbol }}{{ order?.amount?.toFixed(2) }}</div>
           </div>
@@ -77,7 +77,7 @@
         <!-- Insufficient balance warning -->
         <div
           v-if="form.deduct_balance && balanceInsufficient"
-          class="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+          class="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
         >
           {{ t('payment.admin.insufficientBalance') }}
         </div>
@@ -85,7 +85,7 @@
         <!-- No deduction info -->
         <div
           v-if="!form.deduct_balance"
-          class="mt-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+          class="mt-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
         >
           {{ t('payment.admin.noDeduction') }}
         </div>
@@ -126,7 +126,7 @@
       <!-- Warning -->
       <div
         v-if="warning"
-        class="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+        class="rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
       >
         {{ warning }}
       </div>

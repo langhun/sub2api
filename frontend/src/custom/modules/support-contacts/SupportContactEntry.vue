@@ -39,7 +39,7 @@
   <BaseDialog :show="visible" :title="t('common.contactSupport')" width="wide" @close="visible = false">
     <div class="space-y-3">
       <p class="text-sm text-gray-500 dark:text-gray-400">{{ contacts.length ? t('supportContacts.dialogHint') : t('supportContacts.notConfigured') }}</p>
-      <article v-for="contact in contacts" :key="contact.id" class="grid gap-4 rounded-lg border border-gray-200 p-4 dark:border-dark-600 sm:grid-cols-[1fr_148px]">
+      <article v-for="contact in contacts" :key="contact.id" class="grid gap-4 rounded-xl border border-gray-200 p-4 dark:border-dark-600 sm:grid-cols-[1fr_148px]">
         <div class="min-w-0 space-y-3">
           <div>
             <div class="flex flex-wrap items-center gap-2">

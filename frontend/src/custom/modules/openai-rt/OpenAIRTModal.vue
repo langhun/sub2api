@@ -1,7 +1,7 @@
 <template>
   <BaseDialog :show="show" :title="t('admin.openaiRt.title')" width="normal" @close="handleClose">
     <div v-if="account" class="space-y-4">
-      <p class="rounded-lg bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+      <p class="rounded-xl bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
         {{ t('admin.openaiRt.securityHint') }}
       </p>
 
@@ -39,7 +39,7 @@
         />
       </div>
 
-      <p v-if="errorMessage" class="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">
+      <p v-if="errorMessage" class="rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">
         {{ errorMessage }}
       </p>
     </div>

@@ -31,7 +31,7 @@
           {{ t('admin.settings.payment.rechargeBonus.modeLabel') }}
         </span>
         <div
-          class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-dark-600 dark:bg-dark-800"
+          class="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 dark:border-dark-600 dark:bg-dark-800"
           role="group"
         >
           <button
@@ -113,7 +113,7 @@
             </div>
             <button
               type="button"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-dark-700 dark:hover:text-red-400"
+              class="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-dark-700 dark:hover:text-red-400"
               :title="t('admin.settings.payment.rechargeBonus.removeTier')"
               data-testid="recharge-bonus-tier-remove"
               @click="removeTier(index)"

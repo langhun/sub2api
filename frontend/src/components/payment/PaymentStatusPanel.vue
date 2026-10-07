@@ -81,13 +81,13 @@
           <div class="flex flex-col items-center space-y-4 py-4 text-center">
             <div
               v-if="deepLinkState === 'launching'"
-              class="h-10 w-10 animate-spin rounded-full border-4 border-[#00AEEF] border-t-transparent"
+              class="h-10 w-10 animate-spin rounded-full border-4 border-brand-alipay border-t-transparent"
             ></div>
             <div
               v-else
               class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/30"
             >
-              <Icon name="checkCircle" size="lg" class="text-[#00AEEF]" />
+              <Icon name="checkCircle" size="lg" class="text-brand-alipay" />
             </div>
             <p class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ deepLinkState === 'backgrounded' ? t('payment.qr.alipayContinueInApp') : t('payment.qr.alipayOpening') }}
@@ -133,7 +133,7 @@
                 <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</span>
               </div>
             </div>
-            <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
+            <div :class="['relative rounded-xl border-2 p-4', qrBorderClass]">
               <canvas ref="qrCanvas" class="mx-auto"></canvas>
               <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <span :class="['rounded-full p-2 shadow ring-2 ring-white', qrLogoBgClass]">
@@ -175,7 +175,7 @@
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4">
           <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ scanTitle }}</p>
-          <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
+          <div :class="['relative rounded-xl border-2 p-4', qrBorderClass]">
             <canvas ref="qrCanvas" class="mx-auto"></canvas>
             <!-- Brand logo overlay -->
             <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -302,8 +302,8 @@ const isMobileAlipayDeepLink = computed(() => props.mobileAlipayDeepLink === tru
 const showQRCode = computed(() => !!qrUrl.value && (!isMobileAlipayDeepLink.value || deepLinkFallbackVisible.value))
 
 const qrBorderClass = computed(() => {
-  if (isAlipay.value) return 'border-[#00AEEF] bg-blue-50 dark:border-[#00AEEF]/70 dark:bg-blue-950/20'
-  if (isWxpay.value) return 'border-[#2BB741] bg-green-50 dark:border-[#2BB741]/70 dark:bg-green-950/20'
+  if (isAlipay.value) return 'border-brand-alipay bg-blue-50 dark:border-brand-alipay/70 dark:bg-blue-950/20'
+  if (isWxpay.value) return 'border-brand-wxpay bg-green-50 dark:border-brand-wxpay/70 dark:bg-green-950/20'
   return 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800'
 })
 

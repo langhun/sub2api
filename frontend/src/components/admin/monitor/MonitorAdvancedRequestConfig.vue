@@ -61,7 +61,7 @@
           v-for="opt in bodyModeOptions"
           :key="opt.value"
           type="button"
-          class="rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors"
+          class="rounded-xl border-2 px-3 py-2 text-sm font-medium transition-colors"
           :class="bodyModeButtonClass(opt.value)"
           @click="updateBodyMode(opt.value)"
         >

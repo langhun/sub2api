@@ -188,7 +188,7 @@
           </div>
         </div>
 
-        <div class="mt-3 flex items-center justify-center gap-5 text-xs text-gray-400 dark:text-dark-500">
+        <div class="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400 dark:text-dark-500">
           <div v-if="checkinStore.normalEnabled" class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">+$0.00</span>{{ t('checkin.normalCheckin') }}</div>
           <div v-if="checkinStore.luckEnabled" class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-purple-600 dark:text-purple-400">+$0.00</span>{{ t('checkin.luckCheckin') }}</div>
         </div>

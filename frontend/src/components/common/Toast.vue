@@ -18,7 +18,7 @@
           :key="toast.id"
           data-glass-popover
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-lg shadow-lg',
+            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-xl shadow-lg',
             'bg-white dark:bg-dark-800',
             'border-l-4',
             getBorderColor(toast.type)

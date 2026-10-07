@@ -14,7 +14,7 @@
       {{ t('admin.promptAudit.pool.empty') }}
     </div>
     <div v-else class="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-700/60 dark:bg-dark-900/20">
-      <div class="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,1.15fr)_auto] gap-5 border-b border-l-[3px] border-b-gray-200 border-l-transparent bg-gray-50/80 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500 dark:border-b-dark-700/60 dark:bg-dark-900/70 dark:text-dark-400 xl:grid">
+      <div class="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,1.15fr)_auto] gap-6 border-b border-l-[3px] border-b-gray-200 border-l-transparent bg-gray-50/80 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500 dark:border-b-dark-700/60 dark:bg-dark-900/70 dark:text-dark-400 xl:grid">
         <span>{{ t('admin.promptAudit.pool.node') }}</span>
         <span>{{ t('admin.promptAudit.pool.model') }}</span>
         <span>{{ t('admin.promptAudit.pool.limits') }}</span>
@@ -27,7 +27,7 @@
           v-for="endpoint in endpoints"
           :key="endpoint.id"
           :data-test="`endpoint-${endpoint.id}`"
-          class="group grid gap-4 border-l-[3px] border-l-transparent px-4 py-4 transition-[background-color,border-color] duration-200 hover:border-l-primary-500 hover:bg-gray-50/80 dark:hover:bg-dark-800/55 sm:px-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,1.15fr)_auto] xl:items-center xl:gap-5"
+          class="group grid gap-4 border-l-[3px] border-l-transparent px-4 py-4 transition-[background-color,border-color] duration-200 hover:border-l-primary-500 hover:bg-gray-50/80 dark:hover:bg-dark-800/55 sm:px-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,1.15fr)_auto] xl:items-center xl:gap-6"
         >
           <div class="flex min-w-0 items-center gap-3">
             <button

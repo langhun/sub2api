@@ -7,13 +7,13 @@
     :close-on-escape="!checkinStore.loading"
     @close="closeDialog"
   >
-    <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
+    <div class="mb-3 rounded-xl bg-purple-50 p-3 dark:bg-purple-900/20">
       <p class="text-xs text-purple-700 dark:text-purple-300">
         {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
       </p>
     </div>
 
-    <div data-testid="luck-risk-notice" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-900/20">
+    <div data-testid="luck-risk-notice" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-900/20">
       <p class="text-xs leading-5 text-amber-800 dark:text-amber-200">
         {{ t('checkin.luckRiskNotice') }}
       </p>
@@ -51,7 +51,7 @@
       @ready-change="captchaReady = $event"
     />
 
-    <div v-if="checkinStore.actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
+    <div v-if="checkinStore.actionError" class="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
       {{ actionErrorMessage }}
     </div>
 

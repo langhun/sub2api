@@ -2,7 +2,7 @@
   <BaseDialog :show="show" :title="t('admin.groups.rpmOverridesTitle')" width="wide" @close="handleClose">
     <div v-if="group" class="space-y-4">
       <!-- 分组信息 -->
-      <div class="flex flex-wrap items-center gap-3 rounded-lg bg-gray-50 px-4 py-2.5 text-sm dark:bg-dark-700">
+      <div class="flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 px-4 py-2.5 text-sm dark:bg-dark-700">
         <span class="inline-flex items-center gap-1.5" :class="platformColorClass">
           <PlatformIcon :platform="group.platform" size="sm" />
           {{ t('admin.groups.platforms.' + group.platform) }}
@@ -16,7 +16,7 @@
       </div>
 
       <!-- 操作区：添加用户 -->
-      <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+      <div class="rounded-xl border border-gray-200 p-3 dark:border-dark-600">
         <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.groups.addUserRpm') }}
         </h4>
@@ -33,7 +33,7 @@
             />
             <div
               v-if="showDropdown && searchResults.length > 0"
-              class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-500 dark:bg-dark-700"
+              class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-dark-500 dark:bg-dark-700"
             >
               <button
                 v-for="user in searchResults"
@@ -73,7 +73,7 @@
           <button
             type="button"
             :disabled="clearing"
-            class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+            class="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
             @click="clearAllLocal"
           >
             <Icon v-if="clearing" name="refresh" size="sm" class="mr-1 inline animate-spin" />
@@ -101,7 +101,7 @@
         </div>
 
         <div v-else>
-          <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-600">
+          <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600">
             <div class="max-h-[420px] overflow-auto">
               <table class="w-full min-w-max text-sm">
                 <thead class="sticky top-0 z-[1]">

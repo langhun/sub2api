@@ -245,7 +245,7 @@ onMounted(() => {
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.description') }}</p>
       </div>
       <button
-        class="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600"
+        class="flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600"
         :disabled="loading"
         @click="loadSettings"
       >
@@ -284,7 +284,7 @@ onMounted(() => {
             <summary class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
               {{ t('admin.ops.runtime.showAdvancedDeveloperSettings') }}
             </summary>
-            <div class="mt-2 grid grid-cols-1 gap-3 rounded-lg bg-gray-100 p-3 dark:bg-dark-800 md:grid-cols-2">
+            <div class="mt-2 grid grid-cols-1 gap-3 rounded-xl bg-gray-100 p-3 dark:bg-dark-800 md:grid-cols-2">
               <div class="text-xs text-gray-500 dark:text-gray-400">
                 {{ t('admin.ops.runtime.lockEnabled') }}:
                 <span class="ml-1 font-mono text-gray-700 dark:text-gray-300">{{ alertSettings.distributed_lock.enabled }}</span>
@@ -308,7 +308,7 @@ onMounted(() => {
     <div v-if="draftAlert" class="space-y-4">
       <div
         v-if="!alertValidation.valid"
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
+        class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
       >
         <div class="font-bold">{{ t('admin.ops.runtime.validation.title') }}</div>
         <ul class="mt-1 list-disc space-y-1 pl-4">
@@ -434,7 +434,7 @@ onMounted(() => {
               </button>
             </div>
 
-            <div v-if="!draftAlert.silencing.entries?.length" class="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-dark-900 dark:text-gray-400">
+            <div v-if="!draftAlert.silencing.entries?.length" class="mt-3 rounded-xl bg-gray-50 p-3 text-xs text-gray-500 dark:bg-dark-900 dark:text-gray-400">
               {{ t('admin.ops.runtime.silencing.entries.empty') }}
             </div>
 
@@ -442,7 +442,7 @@ onMounted(() => {
               <div
                 v-for="(entry, idx) in draftAlert.silencing.entries"
                 :key="idx"
-                class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900"
+                class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900"
               >
                 <div class="mb-3 flex items-center justify-between">
                   <div class="text-xs font-bold text-gray-900 dark:text-white">
@@ -500,7 +500,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <details class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800">
+      <details class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800">
         <summary class="cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('admin.ops.runtime.advancedSettingsSummary') }}</summary>
         <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>

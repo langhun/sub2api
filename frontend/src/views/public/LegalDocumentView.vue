@@ -18,7 +18,7 @@
         </RouterLink>
         <RouterLink
           to="/login"
-          class="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-600/20 transition hover:bg-primary-700"
+          class="inline-flex flex-shrink-0 items-center justify-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-600/20 transition hover:bg-primary-700"
         >
           {{ t('home.login') }}
         </RouterLink>
@@ -32,7 +32,7 @@
 
       <section
         v-else-if="loadError"
-        class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+        class="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
       >
         <h1 class="text-lg font-semibold">{{ t('legal.loadFailed') }}</h1>
         <p class="mt-2 text-sm">{{ t('legal.retryLater') }}</p>
@@ -40,7 +40,7 @@
 
       <section
         v-else-if="!currentDocument"
-        class="rounded-lg border border-gray-200 bg-white p-6 dark:border-dark-700 dark:bg-dark-900"
+        class="rounded-xl border border-gray-200 bg-white p-6 dark:border-dark-700 dark:bg-dark-900"
       >
         <div class="flex items-start gap-3">
           <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300">
@@ -80,7 +80,7 @@
         ></div>
         <div
           v-else
-          class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
+          class="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
         >
           {{ t('legal.empty') }}
         </div>
@@ -234,7 +234,7 @@ onMounted(async () => {
 }
 
 .legal-document-content :deep(pre) {
-  @apply my-5 overflow-x-auto rounded-lg bg-gray-950 p-4 text-gray-100;
+  @apply my-5 overflow-x-auto rounded-xl bg-gray-950 p-4 text-gray-100;
 }
 
 .legal-document-content :deep(pre code) {
@@ -254,7 +254,7 @@ onMounted(async () => {
 }
 
 .legal-document-content :deep(img) {
-  @apply my-5 h-auto max-w-full rounded-lg;
+  @apply my-5 h-auto max-w-full rounded-xl;
 }
 
 .legal-document-content :deep(hr) {

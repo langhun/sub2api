@@ -30,7 +30,7 @@
       <div>
         <form
           v-if="enabled && supported && showAddForm"
-          class="mb-5 flex flex-col gap-3 rounded-lg bg-gray-50/45 p-4 dark:bg-dark-900/30"
+          class="mb-5 flex flex-col gap-3 rounded-xl bg-gray-50/45 p-4 dark:bg-dark-900/30"
           @submit.prevent="addPasskey"
         >
           <div class="grid gap-3 sm:grid-cols-2">
@@ -75,7 +75,7 @@
 
         <div
           v-else-if="credentials.length === 0"
-          class="rounded-lg bg-gray-50/45 px-4 py-8 text-center text-sm text-gray-500 dark:bg-dark-900/30 dark:text-gray-400"
+          class="rounded-xl bg-gray-50/45 px-4 py-8 text-center text-sm text-gray-500 dark:bg-dark-900/30 dark:text-gray-400"
         >
           {{ t('profile.passkey.empty') }}
         </div>

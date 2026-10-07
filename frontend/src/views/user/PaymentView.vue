@@ -634,8 +634,8 @@ const quickRechargeAmounts = computed(() => filterQuickRechargeAmounts(quickRech
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
   const n = checkout.value.plans.length
-  if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
-  return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+  if (n <= 2) return 'grid grid-cols-1 gap-6 sm:grid-cols-2'
+  return 'grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3'
 })
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.
