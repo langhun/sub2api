@@ -4,7 +4,7 @@
     <div ref="choices" class="routing-candidate-choices" role="group" :aria-label="t('keys.selectRoutingCandidates')">
       <slot />
       <label v-for="option in options" :key="option.value" class="routing-candidate-choice" :class="{ disabled }">
-        <input type="checkbox" :checked="false" :disabled="disabled" :aria-label="option.label" @change="selectOption(option.value)" />
+        <input type="checkbox" :checked="isSelected(option.value)" :disabled="disabled" :aria-label="option.label" @change="selectOption(option.value)" />
         <RoutingGroupLabel :label="option.label" :platform="option.platform" :rate="option.rate" />
       </label>
       <p v-if="!options.length && !selectedLabels?.length" class="routing-candidate-no-match">{{ t('keys.routingCandidatesNoMatch') }}</p>
@@ -22,11 +22,16 @@ const props = defineProps<{
   options: Array<{ value: number; label: string; description: string; platform?: GroupPlatform; rate?: number }>
   platform?: string
   selectedLabels?: string[]
+  selectedValues?: number[]
   disabled: boolean
 }>()
 const emit = defineEmits<{ (event: 'select', value: number): void }>()
 const { t } = useI18n()
 const choices = ref<HTMLElement | null>(null)
+
+function isSelected(value: number): boolean {
+  return props.selectedValues?.includes(value) ?? false
+}
 
 async function selectOption(value: number) {
   if (props.disabled) return

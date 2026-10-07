@@ -1,0 +1,113 @@
+fix(smart-routing): 修复checkbox状态、版本冲突处理及代码质量改进
+
+## 问题描述
+
+根据代码审查发现7个需要修复的问题：
+- P1: 前端checkbox永远显示未选中
+- P1: 版本冲突无友好错误提示
+- P1: 数据库慢查询无监控
+- P2: Magic numbers散落代码中
+- P2: 审计队列丢弃无计数
+- P2: 探索率常量重复
+- P2: 前端常量未导出
+
+## 修复内容
+
+### 用户体验改进
+
+1. **修复Checkbox状态Bug**
+   - 添加 selectedValues prop
+   - 实现 isSelected() 函数
+   - 正确绑定checkbox状态
+   - 影响: 用户可以看到正确的选中状态
+
+2. **版本冲突友好提示**
+   - 新增 VersionConflictError 自定义异常
+   - updateSmartRouting 捕获400版本冲突
+   - 返回用户友好的错误消息
+   - 影响: 提示用户刷新并重试，而非神秘的400错误
+
+3. **数据库慢查询监控**
+   - loadStats() 添加执行时间追踪
+   - 区分超时错误和普通错误
+   - 超过100ms输出slow日志
+   - 影响: 运维可监控数据库性能
+
+### 代码质量提升
+
+4. **提取Magic Numbers为常量**
+   ```go
+   const (
+       statsQueryTimeout      = 250 * time.Millisecond
+       statsSlowThreshold     = 100 * time.Millisecond
+       defaultExplorationRateMax = 0.01
+       // ... 8个常量
+   )
+   ```
+
+5. **审计队列丢弃计数**
+   - 添加 atomic.Int64 计数器
+   - 队列满载时输出累计丢弃数
+   - 影响: 可监控丢弃率趋势
+
+6. **统一探索率常量**
+   - 后端: defaultExplorationRateMax
+   - 前端: MAX_EXPLORATION_RATE
+   - 所有引用统一使用常量
+
+## 测试结果
+
+```bash
+✅ go test ./internal/custom/modules/smart-routing
+   PASS (0.341s) - 所有测试通过
+
+✅ npm run typecheck
+   PASS - TypeScript类型检查通过
+
+✅ 现有测试无回归
+✅ 向后兼容，无破坏性变更
+```
+
+## 文件变更
+
+**后端** (3个文件, +55, -13):
+- internal/custom/modules/smart-routing/module.go
+- internal/custom/modules/smart-routing/feedback.go
+- internal/custom/modules/smart-routing/audit.go
+
+**前端** (2个文件, +32, -6):
+- custom/modules/smart-routing/api.ts
+- custom/modules/smart-routing/RoutingCandidateOptions.vue
+
+## 部署计划
+
+- Week 1: 测试环境验证
+- Week 2: 灰度10%流量
+- Week 3: 全量上线
+
+## 新增监控
+
+- `smart_routing_stats_slow` - 慢查询次数
+- `smart_routing_stats_timeout` - 超时次数
+- `total_dropped` - 累计丢弃审计事件数
+
+## 关联文档
+
+- 审查报告: SMART_ROUTING_CODE_REVIEW.md
+- 前端审查: SMART_ROUTING_FRONTEND_REVIEW.md
+- 修复总结: SMART_ROUTING_FIXES_SUMMARY.md
+- 快速参考: QUICK_REFERENCE.md
+
+## Breaking Changes
+
+无破坏性变更
+
+## 后续计划
+
+P2任务（下一个sprint）：
+- 添加Prometheus指标
+- 完整路由编辑器UI
+- 补充测试用例
+- 编写运维手册
+
+Co-Authored-By: Claude <noreply@anthropic.com>

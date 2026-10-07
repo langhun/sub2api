@@ -32,7 +32,8 @@ func (m *Module) enqueueAudit(event routeAuditEvent) {
 	f.mu.Lock()
 	if len(f.auditQueues[shard]) >= routeAuditQueueCapacity {
 		f.mu.Unlock()
-		slog.Warn("smart_routing_audit_queue_full", "request_id", event.requestID, "kind", event.kind)
+		dropped := f.auditDroppedCount.Add(1)
+		slog.Warn("smart_routing_audit_queue_full", "request_id", event.requestID, "kind", event.kind, "total_dropped", dropped)
 		return
 	}
 	// Copy the snapshot bytes so callers can safely reuse their JSON buffer.

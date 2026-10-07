@@ -1,5 +1,14 @@
 import { apiClient } from '@/api/client'
 
+export const MAX_EXPLORATION_RATE = 0.01
+
+export class VersionConflictError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'VersionConflictError'
+  }
+}
+
 export interface SmartRoutingGroup {
   group_id: number
   sort_order: number
@@ -55,10 +64,20 @@ export async function getSmartRouting(keyId: number): Promise<SmartRoutingProfil
 export async function updateSmartRouting(keyId: number, payload: SmartRoutingUpdate): Promise<SmartRoutingProfile> {
   const normalizedPayload = {
     ...payload,
-    exploration_rate: Math.min(payload.exploration_rate, 0.01)
+    exploration_rate: Math.min(payload.exploration_rate, MAX_EXPLORATION_RATE)
   }
-  const { data } = await apiClient.put<SmartRoutingProfile>(`/keys/${keyId}/routing`, normalizedPayload)
-  return data
+  try {
+    const { data } = await apiClient.put<SmartRoutingProfile>(`/keys/${keyId}/routing`, normalizedPayload)
+    return data
+  } catch (err: any) {
+    if (err.response?.status === 400) {
+      const detail = err.response?.data?.detail || ''
+      if (typeof detail === 'string' && detail.toLowerCase().includes('version conflict')) {
+        throw new VersionConflictError('Configuration has been modified by another user. Please refresh and try again.')
+      }
+    }
+    throw err
+  }
 }
 
 export async function previewSmartRouting(keyId: number, model: string, endpoint = 'chat_completions') {

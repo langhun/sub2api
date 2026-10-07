@@ -25,8 +25,14 @@ import (
 )
 
 const (
-	defaultMaxCandidates = 8
-	minSamples           = 20
+	defaultMaxCandidates          = 8
+	minSamples                    = 20
+	statsQueryTimeout             = 250 * time.Millisecond
+	statsSlowThreshold            = 100 * time.Millisecond
+	auditWriteTimeout             = 2 * time.Second
+	defaultExplorationRateMax     = 0.01
+	explorationBucketBits         = 24
+	coldStartSamplesThreshold     = minSamples
 )
 
 type Profile struct {
@@ -105,7 +111,7 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 		return stats{}
 	}
 	var st stats
-	ctx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, statsQueryTimeout)
 	defer cancel()
 	endpoint, stream := "", false
 	if state := service.SmartRoutingStateFromContext(ctx); state != nil {
@@ -116,6 +122,7 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 	// request, multiplying latency exactly when the pool is warming up.
 	// A failed scan degrades every candidate to the cold-start baseline; log it
 	// so stats outages don't silently turn routing into pure price ordering.
+	startTime := time.Now()
 	if err := m.repo.db.QueryRowContext(ctx, `SELECT
 		COUNT(*) FILTER (WHERE created_at>=NOW()-INTERVAL '15 minutes'),
 		COUNT(*) FILTER (WHERE success AND created_at>=NOW()-INTERVAL '15 minutes'),
@@ -137,7 +144,20 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 		&st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedSamples,
 		&st.FallbackSpeedMs, &st.FallbackSpeedP90Ms,
 	); err != nil {
-		slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err)
+		elapsed := time.Since(startTime)
+		if errors.Is(err, context.DeadlineExceeded) {
+			slog.Warn("smart_routing_stats_timeout", "group_id", groupID, "model", model, "duration_ms", elapsed.Milliseconds())
+			if m.metrics != nil {
+				m.metrics.recordStatsTimeout()
+			}
+		} else {
+			slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err, "duration_ms", elapsed.Milliseconds())
+		}
+	} else if elapsed := time.Since(startTime); elapsed > statsSlowThreshold {
+		slog.Warn("smart_routing_stats_slow", "group_id", groupID, "model", model, "duration_ms", elapsed.Milliseconds())
+		if m.metrics != nil {
+			m.metrics.recordStatsSlowQuery()
+		}
 	}
 	return st
 }
@@ -161,7 +181,7 @@ func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 		// Version 0 is the optimistic-lock sentinel for a profile that does
 		// not exist yet. Returning 1 here lets two clients both submit their
 		// first edit with the same version and silently overwrite each other.
-		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 0, ExplorationRate: 0.01, Version: 0, Groups: []Group{}}, nil
+		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 0, ExplorationRate: defaultExplorationRateMax, Version: 0, Groups: []Group{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -255,7 +275,7 @@ func validateUpdate(req UpdateRequest) error {
 	if req.StickyTTL < 0 || req.StickyTTL > 86400 {
 		return fmt.Errorf("sticky_ttl_seconds out of range")
 	}
-	if !finiteNonNegative(req.ExplorationRate) || req.ExplorationRate > 0.01 {
+	if !finiteNonNegative(req.ExplorationRate) || req.ExplorationRate > defaultExplorationRateMax {
 		return fmt.Errorf("exploration_rate must be between 0 and 0.01")
 	}
 	if req.Mode == "smart" && len(req.GroupIDs) == 0 {
@@ -345,10 +365,23 @@ type Module struct {
 	openAI          *service.OpenAIGatewayService
 	redis           *redis.Client
 	decisionCleanup sync.Once
+	metrics         *routingMetrics
 }
 
 func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, openAI *service.OpenAIGatewayService, redisClient *redis.Client) *Module {
-	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, openAI: openAI, redis: redisClient}
+	m := &Module{
+		repo:     NewRepository(db),
+		apiKeys:  apiKeys,
+		groups:   groups,
+		accounts: accounts,
+		gateway:  gateway,
+		openAI:   openAI,
+		redis:    redisClient,
+	}
+	// 初始化指标（必须在m创建后，因为需要引用m.feedback）
+	m.metrics = &routingMetrics{
+		auditDroppedCount: &m.feedback.auditDroppedCount,
+	}
 	m.startDecisionRetention()
 	if apiKeys != nil {
 		m.availableGroups = apiKeys.GetAvailableGroups
@@ -370,6 +403,9 @@ func (m *Module) RegisterRoutes(authenticated *gin.RouterGroup) {
 	keys.GET("", m.get)
 	keys.PUT("", m.update)
 	keys.POST("/preview", m.preview)
+
+	// 指标端点（管理员可见）
+	authenticated.GET("/routing/metrics", m.getMetrics)
 }
 
 func (m *Module) ownedKey(c *gin.Context) (*service.APIKey, bool) {
@@ -537,6 +573,15 @@ func (m *Module) preview(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"profile": p, "groups": ranked})
+}
+
+func (m *Module) getMetrics(c *gin.Context) {
+	if m == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"detail": "smart routing unavailable"})
+		return
+	}
+	snapshot := m.SnapshotMetrics()
+	c.JSON(200, snapshot)
 }
 
 func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessionHash string, excluded map[int64]struct{}) (*service.SmartRouteDecision, error) {
@@ -748,6 +793,11 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 			}
 			decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: len(state.TriedGroups), Reason: g.Reason}
 			m.recordDecision(ctx, key, p, model, *g, decision)
+			// 记录指标
+			if m.metrics != nil {
+				m.metrics.recordDecisionByStrategy(p.Strategy)
+				m.metrics.recordFallbackDepth(decision.FallbackDepth)
+			}
 			return decision, nil
 		}
 		if _, tried := state.TriedGroups[g.GroupID]; tried {
@@ -757,6 +807,11 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		depth := len(state.TriedGroups)
 		decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}
 		m.recordDecision(ctx, key, p, model, *g, decision)
+		// 记录指标
+		if m.metrics != nil {
+			m.metrics.recordDecisionByStrategy(p.Strategy)
+			m.metrics.recordFallbackDepth(depth)
+		}
 		return decision, nil
 	}
 	// Every eligible row may already be tried, rejected by continuity, or
@@ -764,6 +819,10 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	// fail closed instead of reusing an exhausted primary group.
 	state.NoRoute = true
 	m.recordNoRoute(ctx, key, p, model, ranked)
+	// 记录无路由指标
+	if m.metrics != nil {
+		m.metrics.recordDecisionOutcome(false, true)
+	}
 	return nil, nil
 }
 
@@ -1026,6 +1085,14 @@ func (m *Module) resolveCandidateModel(ctx context.Context, groupID int64, model
 }
 
 func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, model string, excluded map[int64]struct{}) ([]Group, error) {
+	startTime := time.Now()
+	defer func() {
+		if m.metrics != nil {
+			durationUs := time.Since(startTime).Microseconds()
+			m.metrics.recordRankDuration(durationUs)
+		}
+	}()
+
 	if m == nil || m.groups == nil {
 		return nil, errors.New("smart routing group repository unavailable")
 	}
@@ -1382,7 +1449,7 @@ func (m *Module) explorationIndex(key *service.APIKey, p *Profile, ranked []Grou
 	// Profiles created before the 1% cap may still carry the historical 5%
 	// value until the normalization migration runs. Clamp them instead of
 	// silently disabling exploration or preserving excessive traffic.
-	explorationRate := min(p.ExplorationRate, 0.01)
+	explorationRate := min(p.ExplorationRate, defaultExplorationRateMax)
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s:%s", key.ID, p.Version, requestID, model)))
 	bucket := uint32(digest[0])<<16 | uint32(digest[1])<<8 | uint32(digest[2])
 	if bucket >= uint32(explorationRate*(1<<24)) {

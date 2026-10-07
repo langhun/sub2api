@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -21,6 +22,7 @@ type routeFeedback struct {
 	outcomeLastCleanup time.Time
 	auditQueues        [8][]routeAuditEvent
 	auditWorkers       [8]bool
+	auditDroppedCount  atomic.Int64
 }
 
 const routeAuditQueueCapacity = 1024
