@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="w-full min-w-0 space-y-6" data-glass-content>
+    <div class="mx-auto w-full min-w-0 max-w-4xl space-y-6" data-glass-content>
       <!-- Current Balance Card -->
       <div class="card overflow-hidden">
         <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">

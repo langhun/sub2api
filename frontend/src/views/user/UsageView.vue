@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="min-w-0 space-y-6" data-glass-content>
+    <div class="mx-auto min-w-0 max-w-7xl space-y-6" data-glass-content>
       <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
 
       <div class="space-y-4">
