@@ -211,7 +211,7 @@ func TestExtendModelsUsesAnyHealthyLatestTargetWithoutTokenUsage(t *testing.T) {
 	list := &service.ChannelMonitorV2List[service.ChannelMonitorV2ModelRow]{}
 	module := NewModule(db, enabledSettings(), nil, nil)
 	module.now = func() time.Time { return now }
-	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, false)
+	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, true)
 	require.NoError(t, err)
 	require.Len(t, list.Items, 1)
 	row := list.Items[0]
@@ -230,6 +230,28 @@ func TestExtendModelsUsesAnyHealthyLatestTargetWithoutTokenUsage(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, source.ActiveProbe)
 	require.Equal(t, service.MonitorStatusOperational, source.ActiveProbeStatus)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestExtendModelsOmitsActiveProbeSourceForOrdinaryUsers(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		require.NoError(t, db.Close())
+	})
+	now := time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)
+	filter := activeProbeFilter(now)
+	rows := sqlmock.NewRows([]string{"monitor_id", "platform", "model", "status", "latency_ms", "interval_seconds", "checked_at"}).
+		AddRow(int64(1), "openai", "gpt-5", service.MonitorStatusOperational, int64(300), 600, now.Add(-time.Minute))
+	expectFactsQuery(mock, filter, rows)
+
+	list := &service.ChannelMonitorV2List[service.ChannelMonitorV2ModelRow]{}
+	module := NewModule(db, enabledSettings(), nil, nil)
+	module.now = func() time.Time { return now }
+	require.NoError(t, module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, false))
+	require.Len(t, list.Items, 1)
+	require.NotContains(t, list.Items[0].Extensions, extensionKey)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -328,6 +350,18 @@ func TestHealthForSourcePreservesMeasuredCacheFailures(t *testing.T) {
 	require.Equal(t, float64(0), *health.CacheScore)
 }
 
+func TestHealthForExpiredProbeOnlySamplesIsNeutral(t *testing.T) {
+	thresholds := service.DefaultChannelMonitorV2HealthThresholds()
+	health := healthForSource(probeSource{}, service.ChannelMonitorV2Metric{
+		RequestCount: thresholds.MinimumSample,
+		ErrorRate:    1,
+	}, false, thresholds)
+
+	require.Equal(t, "unknown", health.Overall)
+	require.Nil(t, health.Score)
+	require.Equal(t, "unknown", health.Cache)
+}
+
 func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -344,7 +378,7 @@ func TestExtendModelsKeepsFreshStatusOutsideSelectedWindow(t *testing.T) {
 	list := &service.ChannelMonitorV2List[service.ChannelMonitorV2ModelRow]{}
 	module := NewModule(db, enabledSettings(), nil, nil)
 	module.now = func() time.Time { return now }
-	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, false)
+	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, true)
 	require.NoError(t, err)
 	require.Len(t, list.Items, 1)
 	require.Zero(t, list.Items[0].Metrics.RequestCount, "out-of-window freshness must not inflate selected-window volume")
@@ -368,7 +402,7 @@ func TestExtendModelsExpiresStatusAfterThreeProbeIntervals(t *testing.T) {
 	module := NewModule(db, enabledSettings(), nil, nil)
 	module.now = func() time.Time { return now }
 	list := &service.ChannelMonitorV2List[service.ChannelMonitorV2ModelRow]{}
-	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, false)
+	err = module.ExtendChannelMonitorV2Models(context.Background(), filter, activeProbeConfig(), list, true)
 	require.NoError(t, err)
 	require.Len(t, list.Items, 1)
 	require.Equal(t, int64(1), list.Items[0].Metrics.RequestCount, "historical probe volume remains in the selected window")
