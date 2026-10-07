@@ -70,7 +70,7 @@
         </div>
       </div>
       <RoutingCandidateOptions
-        :options="availableCandidates"
+        :options="availableCandidatesWithDescription"
         :selected-values="localConfig.group_ids"
         :disabled="!localConfig.enabled"
         @select="addGroup"
@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/common/Icon.vue'
 import WeightSliders from './WeightSliders.vue'
@@ -101,13 +101,14 @@ import {
   updateSmartRouting,
   VersionConflictError,
   MAX_EXPLORATION_RATE,
-  type SmartRoutingProfile,
   type SmartRoutingUpdate
 } from './api'
 
+import type { GroupPlatform } from '@/types'
+
 const props = defineProps<{
   keyId: number
-  availableGroups: Array<{ value: number; label: string; platform?: string }>
+  availableGroups: Array<{ value: number; label: string; description?: string; platform?: GroupPlatform; rate?: number }>
 }>()
 
 const emit = defineEmits<{
@@ -163,8 +164,13 @@ const isValid = computed(() => {
   return true
 })
 
-const availableCandidates = computed(() => {
-  return props.availableGroups.filter(g => !localConfig.value.group_ids.includes(g.value))
+const availableCandidatesWithDescription = computed(() => {
+  return props.availableGroups
+    .filter(g => !localConfig.value.group_ids.includes(g.value))
+    .map(g => ({
+      ...g,
+      description: g.description || g.label
+    }))
 })
 
 function getGroupName(groupId: number): string {

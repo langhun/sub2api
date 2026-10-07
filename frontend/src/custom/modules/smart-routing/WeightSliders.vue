@@ -12,7 +12,7 @@
         max="100"
         step="1"
         class="weight-slider"
-        @input="onPriceChange($event.target.value)"
+        @input="onPriceChange(($event.target as HTMLInputElement).value)"
       />
     </div>
 
@@ -28,7 +28,7 @@
         max="100"
         step="1"
         class="weight-slider"
-        @input="onSpeedChange($event.target.value)"
+        @input="onSpeedChange(($event.target as HTMLInputElement).value)"
       />
     </div>
 
@@ -44,7 +44,7 @@
         max="100"
         step="1"
         class="weight-slider"
-        @input="onSuccessChange($event.target.value)"
+        @input="onSuccessChange(($event.target as HTMLInputElement).value)"
       />
     </div>
 
