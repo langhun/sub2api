@@ -1,3 +1,5 @@
+import routing from './routing'
+
 export default {
   dashboard: {
     title: '仪表盘',
@@ -144,6 +146,7 @@ export default {
     failedToSave: '保存 API 密钥失败',
     failedToDelete: '删除 API 密钥失败',
     failedToUpdateStatus: '更新 API 密钥状态失败',
+    routing,
     clickToChangeGroup: '点击更换分组',
     groupChangedSuccess: '分组更换成功',
     failedToChangeGroup: '更换分组失败',

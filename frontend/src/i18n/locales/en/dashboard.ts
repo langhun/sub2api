@@ -1,3 +1,5 @@
+import routing from './routing'
+
 export default {
   dashboard: {
     title: 'Dashboard',
@@ -144,6 +146,7 @@ export default {
     failedToSave: 'Failed to save API key',
     failedToDelete: 'Failed to delete API key',
     failedToUpdateStatus: 'Failed to update API key status',
+    routing,
     clickToChangeGroup: 'Click to change group',
     groupChangedSuccess: 'Group changed successfully',
     failedToChangeGroup: 'Failed to change group',

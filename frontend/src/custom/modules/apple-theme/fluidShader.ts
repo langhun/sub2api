@@ -441,13 +441,12 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     }
   }
 
-  const render = (now: number): void => {
+  const render = (now: number, force = false): void => {
     if (disposed) return
 
     // FPS限制：只在达到帧间隔时渲染
     const delta = now - lastFrameTime
-    if (delta < FRAME_INTERVAL) {
-      raf = requestAnimationFrame(render)
+    if (!force && delta < FRAME_INTERVAL) {
       return
     }
     lastFrameTime = now - (delta % FRAME_INTERVAL)
@@ -535,13 +534,13 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     if (raf !== undefined) cancelAnimationFrame(raf)
     raf = undefined
     previous = performance.now()
-    render(previous)
+    render(previous, true)
     if (!reducedMotion) raf = requestAnimationFrame(frame)
   }
   if (typeof motionQuery.addEventListener === 'function') motionQuery.addEventListener('change', onMotionChange)
   else motionQuery.addListener?.(onMotionChange)
 
-  const onResize = (): void => render(performance.now())
+  const onResize = (): void => render(performance.now(), true)
   window.addEventListener('resize', onResize)
   const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
   resizeObserver?.observe(canvas)
@@ -550,7 +549,7 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     setParams: (next: FluidParams) => {
       if (disposed) return
       current = { ...next }
-      render(performance.now())
+      render(performance.now(), true)
     },
     stir: (x: number, y: number, vx: number, vy: number) => {
       if (disposed || reducedMotion) return
@@ -579,7 +578,7 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     },
   }
 
-  render(performance.now())
+  render(performance.now(), true)
   if (!reducedMotion) raf = requestAnimationFrame(frame)
   return handle
 }
