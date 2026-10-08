@@ -1,0 +1,77 @@
+{
+  "Mode": "IncrementalOverlay",
+  "BaseCommit": "13f988109d6827087a46e1f4a3df7860c261f9d6",
+  "TargetCommit": "5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+  "CommittedRows": [
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-backend",
+      "Path": "backend/internal/custom/modules/channel-monitor-v2-active-probes/module.go"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "verification-test",
+      "Path": "backend/internal/custom/modules/channel-monitor-v2-active-probes/module_test.go"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/activity/views/LeaderboardView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/activity/views/RedPacketView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/game-hall/GameHallView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/smart-routing/editor.css"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/support-tickets/SupportTicketsView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "custom-frontend",
+      "Path": "frontend/src/custom/modules/support-tickets/admin/AdminSupportTicketsView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "fixed-mount",
+      "Path": "frontend/src/views/admin/ChannelMonitorView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "fixed-mount",
+      "Path": "frontend/src/views/user/AffiliateView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "shared",
+      "Path": "frontend/src/views/user/KeysView.vue"
+    },
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "fixed-mount",
+      "Path": "frontend/src/views/user/RedeemView.vue"
+    }
+  ],
+  "WorktreeRows": [
+    null
+  ],
+  "Violations": [
+    {
+      "Scope": "committed 13f988109d6827087a46e1f4a3df7860c261f9d6..5c5b7103e38154aca3805af0dcdafb98f7169b5b",
+      "Bucket": "shared",
+      "Path": "frontend/src/views/user/KeysView.vue"
+    }
+  ]
+}
