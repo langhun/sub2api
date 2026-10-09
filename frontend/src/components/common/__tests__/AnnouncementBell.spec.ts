@@ -7,7 +7,10 @@ import { useAnnouncementStore } from '@/stores/announcements'
 const { markRead, showError, showSuccess } = vi.hoisted(() => ({ markRead: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }))
 vi.mock('@/api', () => ({ announcementsAPI: { markRead } }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showError, showSuccess }) }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return { ...actual, useI18n: () => ({ t: (key: string) => key }) }
+})
 vi.mock('@/utils/format', () => ({ formatRelativeTime: () => 'now', formatRelativeWithDateTime: () => 'now' }))
 enableAutoUnmount(afterEach)
 beforeEach(() => {
@@ -21,7 +24,7 @@ afterEach(() => { vi.restoreAllMocks(); document.body.style.overflow = '' })
 describe('announcement read confirmation', () => {
   it('keeps a failed read confirmation open and only reports success after retry', async () => {
     markRead.mockRejectedValue(new Error('offline'))
-    const wrapper = mount(AnnouncementBell, { global: { stubs: { Teleport: true, Transition: true, Icon: true } } })
+    const wrapper = mount(AnnouncementBell, { global: { stubs: { Teleport: true, Transition: true, Icon: true, RouterLink: true } } })
     await wrapper.get('button').trigger('click')
     await wrapper.get('.group.relative').trigger('click')
     await flushPromises()

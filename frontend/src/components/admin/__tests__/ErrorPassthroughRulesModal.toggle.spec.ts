@@ -58,14 +58,18 @@ describe('error passthrough enabled state', () => {
     expect(mocks.toggleEnabled.mock.calls).toEqual([[7, false], [7, true]])
   })
 
-  it('keeps the original state when saving fails', async () => {
+  it.each([
+    { error: new Error('offline'), message: 'offline' },
+    { error: { response: { data: { detail: 'Rule is locked' } } }, message: 'Rule is locked' },
+    { error: {}, message: 'admin.errorPassthrough.failedToToggle' }
+  ])('keeps the original state when saving fails ($message)', async ({ error, message }) => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    mocks.toggleEnabled.mockRejectedValue(new Error('offline'))
+    mocks.toggleEnabled.mockRejectedValue(error)
     const wrapper = await openRules()
     const toggle = wrapper.get('tbody button.relative')
     await toggle.trigger('click')
     await flushPromises()
     expect(toggle.classes()).toContain('bg-primary-600')
-    expect(mocks.showError).toHaveBeenCalledWith('admin.errorPassthrough.failedToToggle')
+    expect(mocks.showError).toHaveBeenCalledWith(message)
   })
 })
