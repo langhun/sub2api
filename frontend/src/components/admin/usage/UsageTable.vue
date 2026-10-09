@@ -124,8 +124,8 @@
                 v-if="row.smart_routing"
                 data-testid="smart-routing-badge"
                 role="img"
-                :title="t('usage.smartRouting')"
-                :aria-label="t('usage.smartRouting')"
+                :title="smartRoutingBadgeTitle(row)"
+                :aria-label="smartRoutingBadgeTitle(row)"
                 class="absolute -right-[13px] top-1 z-10 inline-flex h-3 w-[46px] rotate-45 items-center justify-center bg-gradient-to-br from-sky-600 to-blue-600 text-[9px] font-semibold leading-none text-white shadow-sm ring-1 ring-white dark:from-sky-500 dark:to-blue-500 dark:ring-dark-900"
               >
                 <span>{{ t('usage.smartRoutingShort') }}</span>
@@ -139,8 +139,8 @@
               v-else-if="row.smart_routing"
               data-testid="smart-routing-badge"
               role="img"
-              :title="t('usage.smartRouting')"
-              :aria-label="t('usage.smartRouting')"
+              :title="smartRoutingBadgeTitle(row)"
+              :aria-label="smartRoutingBadgeTitle(row)"
               class="inline-flex h-3 w-[46px] rotate-45 items-center justify-center bg-gradient-to-br from-sky-600 to-blue-600 text-[9px] font-semibold leading-none text-white shadow-sm ring-1 ring-inset ring-blue-400 dark:from-sky-500 dark:to-blue-500 dark:ring-blue-300"
             >
               <span>{{ t('usage.smartRoutingShort') }}</span>
@@ -628,6 +628,8 @@ interface Props {
   defaultSortOrder?: 'asc' | 'desc'
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
+  /** Include the current API-key routing mode in smart-routing badge tooltips. */
+  showRoutingStrategyTooltip?: boolean
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
 }
@@ -639,6 +641,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
+  showRoutingStrategyTooltip: false,
   flat: false
 })
 const emit = defineEmits<{
@@ -654,6 +657,27 @@ const showUpstreamEndpoint = props.showUpstreamEndpoint
 const ipGeoBatchLoading = ref(false)
 
 const showIpGeoToolbar = computed(() => props.columns.some((col) => col.key === 'ip_address'))
+
+const smartRoutingBadgeTitle = (row: AdminUsageLog): string => {
+  if (!props.showRoutingStrategyTooltip) return t('usage.smartRouting')
+  if (row.current_smart_routing_mode === 'single') {
+    return t('usage.smartRoutingCurrentMode', { mode: t('usage.smartRoutingModeSingle') })
+  }
+  if (row.current_smart_routing_mode !== 'smart') return t('usage.smartRouting')
+
+  const strategyKeys: Record<NonNullable<AdminUsageLog['current_smart_routing_strategy']>, string> = {
+    auto: 'usage.smartRoutingStrategyAuto',
+    price: 'usage.smartRoutingStrategyPrice',
+    speed: 'usage.smartRoutingStrategySpeed',
+    success: 'usage.smartRoutingStrategySuccess',
+    custom: 'usage.smartRoutingStrategyCustom'
+  }
+  const strategy = row.current_smart_routing_strategy
+  const strategyLabel = strategy ? t(strategyKeys[strategy]) : t('usage.smartRoutingModeSmart')
+  return t('usage.smartRoutingCurrentMode', {
+    mode: `${t('usage.smartRoutingModeSmart')} · ${strategyLabel}`
+  })
+}
 
 const hasReasoningEffortMapping = (row: AdminUsageLog): boolean => {
   const requested = row.reasoning_effort?.trim() || ''

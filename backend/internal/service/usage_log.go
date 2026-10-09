@@ -111,7 +111,10 @@ type UsageLog struct {
 	// resolver. It is hydrated from the Overlay's request marker table when
 	// usage records are read; ordinary and historical rows remain false.
 	SmartRouting bool
-	Model        string
+	// Current smart-routing config is hydrated for admin-only usage responses.
+	CurrentSmartRoutingMode     *string
+	CurrentSmartRoutingStrategy *string
+	Model                       string
 	// RequestedModel is the client-requested model name recorded for stable user/admin display.
 	// Empty should be treated as Model for backward compatibility with historical rows.
 	RequestedModel string

@@ -373,7 +373,7 @@ func (r *usageLogRepository) hydrateSmartRoutingFlags(ctx context.Context, logs 
 		placeholders = append(placeholders, fmt.Sprintf("($%d,$%d)", requestPos, apiKeyPos))
 		args = append(args, key.requestID, key.apiKeyID)
 	}
-	query := "SELECT request_id, api_key_id FROM custom_usage_log_routing_marks WHERE (request_id, api_key_id) IN (" + strings.Join(placeholders, ",") + ")"
+	query := "SELECT marks.request_id, marks.api_key_id, profiles.mode, profiles.strategy FROM custom_usage_log_routing_marks AS marks LEFT JOIN custom_api_key_route_profiles AS profiles ON profiles.api_key_id = marks.api_key_id WHERE (marks.request_id, marks.api_key_id) IN (" + strings.Join(placeholders, ",") + ")"
 	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return
@@ -381,22 +381,43 @@ func (r *usageLogRepository) hydrateSmartRoutingFlags(ctx context.Context, logs 
 	defer func() { _ = rows.Close() }()
 
 	marked := make(map[markerKey]struct{}, len(keys))
+	type currentProfile struct {
+		mode     string
+		strategy string
+	}
+	currentProfiles := make(map[int64]currentProfile, len(keys))
 	for rows.Next() {
 		var requestID string
 		var apiKeyID int64
-		if err := rows.Scan(&requestID, &apiKeyID); err != nil {
+		var mode, strategy sql.NullString
+		if err := rows.Scan(&requestID, &apiKeyID, &mode, &strategy); err != nil {
 			return
 		}
 		marked[markerKey{requestID: requestID, apiKeyID: apiKeyID}] = struct{}{}
+		currentProfiles[apiKeyID] = currentProfile{mode: mode.String, strategy: strategy.String}
 	}
 	if rows.Err() != nil {
 		return
 	}
 	for i := range logs {
-		_, logs[i].SmartRouting = marked[markerKey{
+		key := markerKey{
 			requestID: strings.TrimSpace(logs[i].RequestID),
 			apiKeyID:  logs[i].APIKeyID,
-		}]
+		}
+		_, logs[i].SmartRouting = marked[key]
+		if !logs[i].SmartRouting {
+			continue
+		}
+		if profile, ok := currentProfiles[key.apiKeyID]; ok {
+			if profile.mode != "" {
+				mode := profile.mode
+				logs[i].CurrentSmartRoutingMode = &mode
+			}
+			if profile.strategy != "" {
+				strategy := profile.strategy
+				logs[i].CurrentSmartRoutingStrategy = &strategy
+			}
+		}
 	}
 }
 

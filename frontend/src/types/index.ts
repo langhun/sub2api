@@ -1825,6 +1825,8 @@ export interface UsageLogAccountSummary {
 }
 
 export interface AdminUsageLog extends UsageLog {
+  current_smart_routing_mode?: 'single' | 'smart' | null
+  current_smart_routing_strategy?: 'auto' | 'price' | 'speed' | 'success' | 'custom' | null
   upstream_model?: string | null
   upstream_reasoning_effort?: string | null
   upstream_response_model?: string | null

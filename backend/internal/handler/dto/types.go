@@ -704,6 +704,10 @@ type AdminUsageLog struct {
 
 	// Account 最小账号信息（避免泄露敏感字段）
 	Account *AccountSummary `json:"account,omitempty"`
+
+	// Current routing configuration is returned only by the admin usage API.
+	CurrentSmartRoutingMode     *string `json:"current_smart_routing_mode,omitempty"`
+	CurrentSmartRoutingStrategy *string `json:"current_smart_routing_strategy,omitempty"`
 }
 
 type UsageCleanupFilters struct {

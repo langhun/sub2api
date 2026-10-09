@@ -88,6 +88,14 @@ const messages: Record<string, string> = {
   'usage.modelMismatch': 'Different model',
   'usage.smartRouting': 'Smart routing',
   'usage.smartRoutingShort': 'Smart',
+  'usage.smartRoutingCurrentMode': 'Current key configuration: {mode}',
+  'usage.smartRoutingModeSingle': 'Single group',
+  'usage.smartRoutingModeSmart': 'Smart routing',
+  'usage.smartRoutingStrategyAuto': 'Smart automatic',
+  'usage.smartRoutingStrategyPrice': 'Price priority',
+  'usage.smartRoutingStrategySpeed': 'Speed priority',
+  'usage.smartRoutingStrategySuccess': 'Success-rate priority',
+  'usage.smartRoutingStrategyCustom': 'Custom weights',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -95,7 +103,13 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => localizedMessages[locale][key] ?? messages[key] ?? key,
+      t: (key: string, params?: Record<string, string>) => {
+        let value = localizedMessages[locale][key] ?? messages[key] ?? key
+        for (const [name, replacement] of Object.entries(params ?? {})) {
+          value = value.replace(`{${name}}`, replacement)
+        }
+        return value
+      },
     }),
   }
 })
@@ -688,11 +702,12 @@ describe('admin UsageTable smart-routing marker', () => {
     const wrapper = mount(UsageTable, {
       props: {
         data: [
-          { request_id: 'smart', smart_routing: true, group: { name: 'GPT-Plus' } },
+          { request_id: 'smart', smart_routing: true, current_smart_routing_mode: 'smart', current_smart_routing_strategy: 'speed', group: { name: 'GPT-Plus' } },
           { request_id: 'ordinary', smart_routing: false, group: { name: 'GPT-Plus' } },
         ],
         loading: false,
         columns: [],
+        showRoutingStrategyTooltip: true,
       },
       global: {
         stubs: {
@@ -708,8 +723,8 @@ describe('admin UsageTable smart-routing marker', () => {
     expect(cells).toHaveLength(1)
     expect(cells[0].text()).toContain('Smart')
     expect(cells[0].text()).toContain('Smart routing')
-    expect(cells[0].attributes('title')).toBe('Smart routing')
-    expect(cells[0].attributes('aria-label')).toBe('Smart routing')
+    expect(cells[0].attributes('title')).toBe('Current key configuration: Smart routing · Speed priority')
+    expect(cells[0].attributes('aria-label')).toBe('Current key configuration: Smart routing · Speed priority')
     expect(cells[0].element.parentElement?.className).toContain('relative')
     expect(cells[0].element.parentElement?.className).toContain('overflow-hidden')
     expect(cells[0].classes()).toContain('rotate-45')
@@ -720,6 +735,25 @@ describe('admin UsageTable smart-routing marker', () => {
     expect(cells[0].element.parentElement?.querySelector('.bg-indigo-100')).not.toBeNull()
     expect(wrapper.findAll('[data-testid="smart-routing-badge"]')[0].exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="smart-routing-badge"] .sr-only')).toHaveLength(1)
+  })
+
+  it('keeps the generic tooltip when routing-strategy detail is disabled', () => {
+    const DataTableGroupStub = {
+      props: ['data'],
+      template: `<div><div v-for="row in data" :key="row.request_id"><slot name="cell-group" :row="row" /></div></div>`,
+    }
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{ request_id: 'smart-user', smart_routing: true, current_smart_routing_mode: 'smart', current_smart_routing_strategy: 'price', group: { name: 'GPT-Plus' } }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: { DataTable: DataTableGroupStub, EmptyState: true, Icon: true, Teleport: true },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="smart-routing-badge"]').attributes('title')).toBe('Smart routing')
   })
 })
 

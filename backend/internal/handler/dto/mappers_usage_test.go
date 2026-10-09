@@ -161,6 +161,32 @@ func TestUsageLogFromService_UsesRequestedModelAndKeepsUpstreamAdminOnly(t *test
 	require.Contains(t, string(adminJSON), `"upstream_model_mismatch":true`)
 }
 
+func TestUsageLogFromService_ExposesCurrentSmartRoutingConfigOnlyToAdmins(t *testing.T) {
+	t.Parallel()
+
+	mode := "smart"
+	strategy := "speed"
+	log := &service.UsageLog{
+		RequestID:                   "req_smart_route_config",
+		SmartRouting:                true,
+		CurrentSmartRoutingMode:     &mode,
+		CurrentSmartRoutingStrategy: &strategy,
+	}
+
+	userDTO := UsageLogFromService(log)
+	adminDTO := UsageLogFromServiceAdmin(log)
+
+	userJSON, err := json.Marshal(userDTO)
+	require.NoError(t, err)
+	require.NotContains(t, string(userJSON), "current_smart_routing_mode")
+	require.NotContains(t, string(userJSON), "current_smart_routing_strategy")
+
+	adminJSON, err := json.Marshal(adminDTO)
+	require.NoError(t, err)
+	require.Contains(t, string(adminJSON), `"current_smart_routing_mode":"smart"`)
+	require.Contains(t, string(adminJSON), `"current_smart_routing_strategy":"speed"`)
+}
+
 func TestUsageLogFromService_KeepsUserBillingAndIPWithoutAdminCostFields(t *testing.T) {
 	t.Parallel()
 
