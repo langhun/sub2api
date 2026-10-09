@@ -101,7 +101,6 @@ import type { BatchUpdateUserLimitsRequest } from '@/api/admin/users'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
-import { extractApiErrorMessage } from '@/utils/apiError'
 
 const props = defineProps<{
   show: boolean
