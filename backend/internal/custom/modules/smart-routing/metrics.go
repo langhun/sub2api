@@ -19,9 +19,9 @@ type MetricsSnapshot struct {
 	DecisionsNoRoute   int64 `json:"decisions_no_route"`
 
 	// 故障转移深度分布
-	FallbackDepth0 int64 `json:"fallback_depth_0"` // 主组直接成功
-	FallbackDepth1 int64 `json:"fallback_depth_1"` // 切换1次
-	FallbackDepth2 int64 `json:"fallback_depth_2"` // 切换2次
+	FallbackDepth0     int64 `json:"fallback_depth_0"`      // 主组直接成功
+	FallbackDepth1     int64 `json:"fallback_depth_1"`      // 切换1次
+	FallbackDepth2     int64 `json:"fallback_depth_2"`      // 切换2次
 	FallbackDepth3Plus int64 `json:"fallback_depth_3_plus"` // 切换3次及以上
 
 	// 排序性能（微秒）
@@ -58,9 +58,9 @@ type routingMetrics struct {
 	fallbackDepth3Plus atomic.Int64
 
 	// 排序性能追踪
-	rankDurationSum   atomic.Int64 // 微秒累计
-	rankDurationMax   atomic.Int64 // 微秒最大值
-	rankSampleCount   atomic.Int64
+	rankDurationSum atomic.Int64 // 微秒累计
+	rankDurationMax atomic.Int64 // 微秒最大值
+	rankSampleCount atomic.Int64
 
 	// 审计丢弃（从feedback引用）
 	auditDroppedCount *atomic.Int64
@@ -101,12 +101,12 @@ func (m *routingMetrics) recordDecisionOutcome(succeeded bool, noRoute bool) {
 
 // recordFallbackDepth 记录故障转移深度
 func (m *routingMetrics) recordFallbackDepth(depth int) {
-	switch {
-	case depth == 0:
+	switch depth {
+	case 0:
 		m.fallbackDepth0.Add(1)
-	case depth == 1:
+	case 1:
 		m.fallbackDepth1.Add(1)
-	case depth == 2:
+	case 2:
 		m.fallbackDepth2.Add(1)
 	default:
 		m.fallbackDepth3Plus.Add(1)

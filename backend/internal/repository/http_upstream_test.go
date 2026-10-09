@@ -136,7 +136,8 @@ func TestHTTPUpstreamSmartRoutingCountsRedirectReplaysForRequestAndWSTurn(t *tes
 }
 
 func TestHTTPUpstreamSmartRoutingRedirectBudgetPreservesRedirectPolicies(t *testing.T) {
-	upstream := NewHTTPUpstream(nil).(*httpUpstreamService)
+	upstream, ok := NewHTTPUpstream(nil).(*httpUpstreamService)
+	require.True(t, ok)
 	var events []string
 	ctx := service.WithHTTPUpstreamRedirectAttemptReserver(context.Background(), func(context.Context) error {
 		events = append(events, "reserve")

@@ -25,14 +25,14 @@ import (
 )
 
 const (
-	defaultMaxCandidates          = 8
-	minSamples                    = 20
-	statsQueryTimeout             = 250 * time.Millisecond
-	statsSlowThreshold            = 100 * time.Millisecond
-	auditWriteTimeout             = 2 * time.Second
-	defaultExplorationRateMax     = 0.01
-	explorationBucketBits         = 24
-	coldStartSamplesThreshold     = minSamples
+	defaultMaxCandidates      = 8
+	minSamples                = 20
+	statsQueryTimeout         = 250 * time.Millisecond
+	statsSlowThreshold        = 100 * time.Millisecond
+	auditWriteTimeout         = 2 * time.Second
+	defaultExplorationRateMax = 0.01
+	explorationBucketBits     = 24
+	coldStartSamplesThreshold = minSamples
 )
 
 type Profile struct {

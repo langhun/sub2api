@@ -239,8 +239,6 @@ func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {
 
 type routeHandlerStub struct{}
 
-type rechargePromotionSettingsStub struct{}
-
 func (routeHandlerStub) ListPrizeItems(*gin.Context)           {}
 func (routeHandlerStub) CreatePrizeItem(*gin.Context)          {}
 func (routeHandlerStub) UpdatePrizeItem(*gin.Context)          {}

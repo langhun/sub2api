@@ -87,7 +87,6 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 		},
 		88,
 		88,
-		88,
 		0,
 		88,
 		0,
@@ -114,7 +113,7 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 	require.NotContains(t, order.ProviderSnapshot, "instance_name")
 }
 
-func TestCreateOrderInTx_RollsBackWhenBalanceExtensionSnapshotFails(t *testing.T) {
+func TestCreateOrderInTx_UsesUpstreamBonusWithoutLegacyBalanceExtension(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	user, err := client.User.Create().
@@ -131,11 +130,14 @@ func TestCreateOrderInTx_RollsBackWhenBalanceExtensionSnapshotFails(t *testing.T
 			persistErr: errors.New("snapshot write failed"),
 		},
 	}
-	_, err = svc.createOrderInTx(ctx, CreateOrderRequest{UserID: user.ID, PaymentType: payment.TypeAlipay, OrderType: payment.OrderTypeBalance}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, nil, &PaymentConfig{MaxPendingOrders: 3, OrderTimeoutMin: 30}, 12, 12, 12, 0, 12, nil)
-	require.ErrorContains(t, err, "snapshot write failed")
+	order, err := svc.createOrderInTx(ctx, CreateOrderRequest{UserID: user.ID, PaymentType: payment.TypeAlipay, OrderType: payment.OrderTypeBalance}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, nil, &PaymentConfig{MaxPendingOrders: 3, OrderTimeoutMin: 30}, 15, 12, 0, 12, 3, nil)
+	require.NoError(t, err)
+	require.Equal(t, float64(15), order.Amount)
+	require.Equal(t, float64(12), order.PayAmount)
+	require.Equal(t, float64(3), order.BonusAmount)
 	count, err := client.PaymentOrder.Query().Count(ctx)
 	require.NoError(t, err)
-	require.Zero(t, count)
+	require.Equal(t, 1, count)
 }
 
 func TestBuildPaymentOrderProviderSnapshot_UsesWxpayJSAPIAppIDForOpenIDOrders(t *testing.T) {

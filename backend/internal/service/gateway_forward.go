@@ -737,7 +737,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 	// 处理重试耗尽的情况
 	if resp.StatusCode >= 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) &&
-		!(smartRoutingActive && s.shouldFailoverUpstreamError(resp.StatusCode)) {
+		(!smartRoutingActive || !s.shouldFailoverUpstreamError(resp.StatusCode)) {
 		if s.shouldFailoverUpstreamError(resp.StatusCode) {
 			respBody, _ := s.readUpstreamErrorBody(resp)
 			_ = resp.Body.Close()
