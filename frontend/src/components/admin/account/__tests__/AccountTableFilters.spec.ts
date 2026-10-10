@@ -40,20 +40,23 @@ afterEach(() => {
 })
 
 describe('AccountTableFilters', () => {
-  it('toggles an accessible secondary panel without emitting changes or clearing filters', async () => {
+  it('shows secondary filters directly on desktop while keeping the mobile panel collapsed', async () => {
     const filters = { ...defaultFilters(), type: 'bedrock', privacy_mode: '__unset__', group: 'ungrouped' }
     const wrapper = mountFilters(filters)
-    const toggle = wrapper.get('button[aria-controls]')
-    const panel = wrapper.get(`[id="${toggle.attributes('aria-controls')}"]`)
+    const toggle = wrapper.get('[data-testid="account-more-filters-toggle"]')
+    const panel = wrapper.get('[data-testid="mobile-secondary-filters"]')
+    const desktopFilters = wrapper.get('[data-testid="desktop-secondary-filters"]')
 
     expect(toggle.attributes('type')).toBe('button')
     expect(toggle.attributes('aria-expanded')).toBe('false')
     expect(panel.isVisible()).toBe(false)
-    expect(wrapper.findAllComponents(Select).filter(select => select.isVisible())).toHaveLength(2)
+    expect(desktopFilters.classes()).toEqual(expect.arrayContaining(['hidden', 'lg:contents']))
+    expect(desktopFilters.findAllComponents(Select)).toHaveLength(3)
+    expect(wrapper.findAllComponents(Select)).toHaveLength(8)
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('true')
     expect(panel.isVisible()).toBe(true)
-    expect(wrapper.findAllComponents(Select).every(select => select.isVisible())).toBe(true)
+    expect(panel.findAllComponents(Select)).toHaveLength(3)
     await toggle.trigger('click')
     expect(panel.isVisible()).toBe(false)
     await toggle.trigger('click')
@@ -65,7 +68,7 @@ describe('AccountTableFilters', () => {
 
   it('indicates active secondary filters while collapsed and reacts to external resets', async () => {
     const wrapper = mountFilters({ ...defaultFilters(), platform: 'openai', status: 'active' })
-    const toggle = wrapper.get('button[aria-controls]')
+    const toggle = wrapper.get('[data-testid="account-more-filters-toggle"]')
     expect(toggle.find('span').exists()).toBe(false)
     for (const [filters, count] of [
       [{ type: 'oauth', privacy_mode: '', group: '' }, 1],
@@ -86,7 +89,7 @@ describe('AccountTableFilters', () => {
   it('preserves every option and emits a merged filter snapshot plus change for every selection', async () => {
     const filters = { ...defaultFilters(), platform: 'openai', type: 'oauth', status: 'active', privacy_mode: '__unset__', group: '42' }
     const wrapper = mountFilters(filters)
-    await wrapper.get('button[aria-controls]').trigger('click')
+    await wrapper.get('[data-testid="account-more-filters-toggle"]').trigger('click')
     const expectedOptions = [
       ['platform', ['', ...CONCRETE_PLATFORM_OPTIONS.map(option => option.value)]],
       ['status', ['', 'active', 'inactive', 'error', 'rate_limited', 'temp_unschedulable', 'unschedulable']],
@@ -96,7 +99,9 @@ describe('AccountTableFilters', () => {
     ] as const
     let changes = 0
     for (const [index, [key, values]] of expectedOptions.entries()) {
-      const select = wrapper.findAllComponents(Select)[index]
+      const select = index < 2
+        ? wrapper.findAllComponents(Select)[index]
+        : wrapper.get('[data-testid="desktop-secondary-filters"]').findAllComponents(Select)[index - 2]
       expect(select.props('options').map(option => option.value)).toEqual(values)
       expect(select.props('modelValue')).toBe(filters[key])
       expect(select.get('button').attributes('aria-label')).not.toBe('Select option')
@@ -109,7 +114,7 @@ describe('AccountTableFilters', () => {
         expect(wrapper.props('filters')).toEqual(filters)
       }
     }
-    expect(wrapper.findAllComponents(Select)[4].props('options')[2].label).toBe('A very long group name')
+    expect(wrapper.get('[data-testid="desktop-secondary-filters"]').findAllComponents(Select)[2].props('options')[2].label).toBe('A very long group name')
     wrapper.unmount()
   })
 
@@ -141,7 +146,7 @@ describe('AccountTableFilters', () => {
       setup: () => ({ filters: defaultFilters() }),
       template: '<div><AccountTableFilters search-query="" :filters="filters" /><AccountTableFilters search-query="" :filters="filters" /></div>'
     }))
-    const toggles = pair.findAll('button[aria-controls]')
+    const toggles = pair.findAll('[data-testid="account-more-filters-toggle"]')
     expect(toggles[0].attributes('aria-controls')).not.toBe(toggles[1].attributes('aria-controls'))
     wrapper.unmount()
     pair.unmount()
