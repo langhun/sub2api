@@ -206,6 +206,30 @@ describe('PaymentResultView', () => {
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
   })
 
+  it('uses dedicated readable surfaces for the payment confirmation page', async () => {
+    routeState.query = {
+      resume_token: 'resume-readable',
+    }
+    resolveOrderPublicByResumeToken.mockResolvedValue({
+      data: orderFactory('COMPLETED'),
+    })
+
+    const wrapper = mount(PaymentResultView, {
+      global: {
+        stubs: {
+          OrderStatusBadge: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('.payment-result-page').exists()).toBe(true)
+    expect(wrapper.find('.payment-result-shell').exists()).toBe(true)
+    expect(wrapper.find('.payment-result-details').exists()).toBe(true)
+    expect(wrapper.find('.payment-result-page .btn-primary').exists()).toBe(true)
+  })
+
   it('waits for completed fulfillment before refreshing the user balance', async () => {
     vi.useFakeTimers()
     routeState.query = {

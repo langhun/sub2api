@@ -1,6 +1,6 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-dark-900" data-glass-content>
-    <div class="w-full max-w-md space-y-6">
+  <div class="payment-result-page flex min-h-screen items-center justify-center px-4" data-glass-content>
+    <div class="payment-result-shell w-full max-w-md space-y-6">
       <!-- Loading -->
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
@@ -33,7 +33,7 @@
           </p>
         </div>
         <!-- Order Info -->
-        <div v-if="order" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+        <div v-if="order" class="payment-result-details rounded-xl p-5">
           <div class="space-y-3 text-sm">
             <div v-if="hasOrderId(order)" class="flex min-w-0 justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -74,7 +74,7 @@
           </div>
         </div>
         <!-- EasyPay return info (when no order loaded) -->
-        <div v-else-if="returnInfo" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+        <div v-else-if="returnInfo" class="payment-result-details rounded-xl p-5">
           <div class="space-y-3 text-sm">
             <div v-if="returnInfo.outTradeNo" class="flex min-w-0 justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -471,3 +471,31 @@ onBeforeUnmount(() => {
   clearStatusRefreshTimer()
 })
 </script>
+
+<style scoped>
+.payment-result-page {
+  position: relative;
+  z-index: 1;
+  background: #f9fafb;
+  color: var(--ui-text, #1d1d1f);
+}
+
+.dark .payment-result-page {
+  background: #111827;
+}
+
+.payment-result-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.payment-result-details {
+  background: #fff;
+  color: var(--ui-text, #1d1d1f);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+}
+
+.dark .payment-result-details {
+  background: #1f2937;
+}
+</style>
