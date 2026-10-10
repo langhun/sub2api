@@ -538,6 +538,38 @@ func TestRankAllowsHigherPricedCompatibleFallback(t *testing.T) {
 	t.Fatal("higher-priced compatible fallback must remain eligible")
 }
 
+func TestRobustFastLaneSpeedIgnoresSlowTail(t *testing.T) {
+	got := robustFastLaneSpeed([]float64{100, 120, 140, 900})
+	if got != 110 {
+		t.Fatalf("robust fast-lane speed = %v, want 110", got)
+	}
+}
+
+func TestAccountAwareGroupSpeedUsesOnlyReliableEligibleAccounts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	m := &Module{repo: NewRepository(db)}
+	state := &service.SmartRoutingRequestState{EndpointType: "responses", Stream: true}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	mock.ExpectQuery("SELECT account_id").WithArgs(int64(2), "gpt-5", "responses", true).WillReturnRows(
+		sqlmock.NewRows([]string{"account_id", "recent_samples", "recent_speed_samples", "recent_speed", "recent_speed_p90", "recent_error", "fallback_samples", "fallback_speed_samples", "fallback_speed", "fallback_speed_p90", "fallback_error"}).
+			AddRow(int64(11), int64(minSamples), int64(minSamples), 100.0, 120.0, 0.0, int64(minSamples), int64(minSamples), 100.0, 120.0, 0.0).
+			AddRow(int64(12), int64(minSamples), int64(minSamples), 200.0, 220.0, 0.0, int64(minSamples), int64(minSamples), 200.0, 220.0, 0.0).
+			AddRow(int64(13), int64(1), int64(1), 20.0, 20.0, 0.0, int64(1), int64(1), 20.0, 20.0, 0.0),
+	)
+	accounts := []service.Account{{ID: 11}, {ID: 12}, {ID: 13}}
+	got, samples := m.accountAwareGroupSpeed(ctx, 2, "gpt-5", accounts)
+	if got != 108 || samples != minSamples {
+		t.Fatalf("account-aware speed = %v samples=%d, want 108 and %d", got, samples, minSamples)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
 func TestRankScopesLegacyExclusionsToCurrentGroup(t *testing.T) {
 	primaryID, candidateID := int64(2101), int64(2102)
 	primary := &service.Group{ID: primaryID, Name: "特惠", Platform: service.PlatformOpenAI, RateMultiplier: 0.25, Status: service.StatusActive, SubscriptionType: "standard"}

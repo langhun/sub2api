@@ -52,24 +52,30 @@ type Profile struct {
 }
 
 type Group struct {
-	GroupID       int64   `json:"group_id"`
-	SortOrder     int     `json:"sort_order"`
-	Enabled       bool    `json:"enabled"`
-	Name          string  `json:"name,omitempty"`
-	Platform      string  `json:"platform,omitempty"`
-	Price         float64 `json:"price"`
-	SuccessRate   float64 `json:"success_rate"`
-	SpeedMs       int64   `json:"speed_ms"`
-	SpeedP90Ms    float64 `json:"speed_p90_ms"`
-	SpeedSamples  int64   `json:"speed_samples"`
-	Samples       int64   `json:"samples"`
-	CapacityRatio float64 `json:"capacity_ratio"`
-	Score         float64 `json:"score"`
-	PriceScore    float64 `json:"price_score"`
-	SpeedScore    float64 `json:"speed_score"`
-	SuccessScore  float64 `json:"success_score"`
-	Eligible      bool    `json:"eligible"`
-	Reason        string  `json:"reason,omitempty"`
+	GroupID      int64   `json:"group_id"`
+	SortOrder    int     `json:"sort_order"`
+	Enabled      bool    `json:"enabled"`
+	Name         string  `json:"name,omitempty"`
+	Platform     string  `json:"platform,omitempty"`
+	Price        float64 `json:"price"`
+	SuccessRate  float64 `json:"success_rate"`
+	SpeedMs      int64   `json:"speed_ms"`
+	SpeedP90Ms   float64 `json:"speed_p90_ms"`
+	SpeedSamples int64   `json:"speed_samples"`
+	// UpstreamSpeedMs is the effective speed of the currently schedulable
+	// upstream pool. It is kept separate from the historical group aggregate:
+	// a group can look slow overall while still having a healthy fast lane.
+	// A zero value means that no reliable account-level sample was available.
+	UpstreamSpeedMs      float64 `json:"upstream_speed_ms"`
+	UpstreamSpeedSamples int64   `json:"upstream_speed_samples"`
+	Samples              int64   `json:"samples"`
+	CapacityRatio        float64 `json:"capacity_ratio"`
+	Score                float64 `json:"score"`
+	PriceScore           float64 `json:"price_score"`
+	SpeedScore           float64 `json:"speed_score"`
+	SuccessScore         float64 `json:"success_score"`
+	Eligible             bool    `json:"eligible"`
+	Reason               string  `json:"reason,omitempty"`
 }
 
 type UpdateRequest struct {
@@ -920,8 +926,24 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 }
 
 func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) (int, bool, float64) {
-	if m == nil || m.accounts == nil {
+	accounts, known, capacity, capacityKnown := m.listEligibleModelAccounts(ctx, groupID, platform, model, excluded)
+	if !known {
 		return 0, false, 0
+	}
+	if len(accounts) == 0 || (capacityKnown && capacity <= 0) {
+		return 0, true, 0
+	}
+	return len(accounts), true, capacity
+}
+
+// listEligibleModelAccounts is the authoritative preflight used by routing
+// ranking. Keeping the complete scheduler admission filter in one place is
+// important: account-level speed samples must never make an account eligible
+// when the real scheduler would reject it for cooldown, model mapping,
+// endpoint capability, privacy, quota, or request-local failure state.
+func (m *Module) listEligibleModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) ([]service.Account, bool, float64, bool) {
+	if m == nil || m.accounts == nil {
+		return nil, false, 0, false
 	}
 	useMixedScheduling := platform == service.PlatformAnthropic || platform == service.PlatformGemini
 	var accounts []service.Account
@@ -936,14 +958,14 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		accounts, err = m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
 	}
 	if err != nil {
-		return 0, false, 0
+		return nil, false, 0, false
 	}
 	if m.groups == nil {
-		return 0, false, 0
+		return nil, false, 0, false
 	}
 	group, groupErr := m.groups.GetByIDLite(ctx, groupID)
 	if groupErr != nil || group == nil {
-		return 0, false, 0
+		return nil, false, 0, false
 	}
 	// Channel model aliases are only meaningful for the OpenAI-compatible
 	// Messages dispatcher. Applying them to native Anthropic groups could
@@ -955,9 +977,8 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		model = m.resolveCandidateModel(ctx, groupID, model)
 	}
 	if !candidateEndpointAllowed(ctx, group) {
-		return 0, true, 0
+		return nil, true, 0, false
 	}
-	remaining := 0
 	eligibleAccounts := make([]service.Account, 0, len(accounts))
 	healthModel := model
 	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.RequestedModel != "" {
@@ -1012,7 +1033,6 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 				continue
 			}
 		}
-		remaining++
 		eligibleAccounts = append(eligibleAccounts, *account)
 	}
 	capacity, known := 0.0, false
@@ -1022,9 +1042,69 @@ func (m *Module) inspectModelAccounts(ctx context.Context, groupID int64, platfo
 		capacity, known = m.gateway.SmartRoutingCapacity(ctx, eligibleAccounts)
 	}
 	if known && capacity <= 0 {
-		return 0, true, 0
+		return nil, true, 0, true
 	}
-	return remaining, true, capacity
+	return eligibleAccounts, true, capacity, known
+}
+
+// accountAwareGroupSpeed returns the speed of the sustainable fast lane in a
+// group's current eligible upstream pool. It intentionally does not use the
+// single fastest account: the fastest sample may be sparse or an outlier, and
+// the scheduler uses weighted selection across the pool. The mean of the
+// fastest half is a robust approximation of the lane the speed policy can
+// actually prefer, while still requiring the same minimum sample gate used by
+// account scheduling. model is the request-level model key used by telemetry,
+// not a group-specific mapped upstream model.
+func (m *Module) accountAwareGroupSpeed(ctx context.Context, groupID int64, model string, accounts []service.Account) (float64, int64) {
+	if m == nil || len(accounts) == 0 || m.repo == nil || m.repo.db == nil {
+		return 0, 0
+	}
+	state := service.SmartRoutingStateFromContext(ctx)
+	if state == nil || strings.TrimSpace(state.EndpointType) == "" {
+		return 0, 0
+	}
+	endpoint, stream := "", false
+	endpoint, stream = state.EndpointType, state.Stream
+	metrics := m.RoutingAccountMetrics(ctx, groupID, model, endpoint, stream)
+	if len(metrics) == 0 {
+		return 0, 0
+	}
+	values := make([]float64, 0, len(accounts))
+	var samples int64
+	for _, account := range accounts {
+		metric, ok := metrics[account.ID]
+		if !ok || metric.SpeedSamples < minSamples || metric.SpeedMs <= 0 {
+			continue
+		}
+		speed := metric.SpeedMs
+		if metric.SpeedP90Ms > 0 {
+			speed = metric.SpeedMs*0.6 + metric.SpeedP90Ms*0.4
+		}
+		if !finiteNonNegative(speed) || speed <= 0 {
+			continue
+		}
+		values = append(values, speed)
+		if metric.SpeedSamples > samples {
+			samples = metric.SpeedSamples
+		}
+	}
+	if len(values) == 0 {
+		return 0, 0
+	}
+	return robustFastLaneSpeed(values), samples
+}
+
+func robustFastLaneSpeed(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sort.Float64s(values)
+	fastLaneCount := (len(values) + 1) / 2
+	var total float64
+	for _, value := range values[:fastLaneCount] {
+		total += value
+	}
+	return total / float64(fastLaneCount)
 }
 
 // rankExcludedAccounts scopes the legacy scheduler exclusion map to the group
@@ -1171,6 +1251,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	mainModel := m.dispatchModelForGroup(ctx, main, model)
 	mainEffectivePrice, mainPriceValid := effectivePrice(main)
+	eligibleByGroup := make(map[int64][]service.Account)
 	// The primary group is implicit and does not have a persisted route-group
 	// sort order. Keep it ahead of the first configured candidate on score ties;
 	// configured candidates still follow their drag order starting at zero.
@@ -1185,7 +1266,11 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "endpoint not supported by group"
 	} else if m.accounts != nil {
-		remaining, known, capacity := m.inspectModelAccounts(ctx, main.ID, main.Platform, mainModel, rankExcludedAccounts(ctx, main.ID, excluded))
+		mainAccounts, known, capacity, _ := m.listEligibleModelAccounts(ctx, main.ID, main.Platform, mainModel, rankExcludedAccounts(ctx, main.ID, excluded))
+		remaining := len(mainAccounts)
+		if known {
+			eligibleByGroup[main.ID] = mainAccounts
+		}
 		mainCandidate.CapacityRatio = capacity
 		if known && remaining == 0 {
 			mainCandidate.Eligible = false
@@ -1255,7 +1340,11 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			remaining, known, capacity := m.inspectModelAccounts(ctx, g.GroupID, main.Platform, candidateModel, rankExcludedAccounts(ctx, g.GroupID, excluded))
+			candidateAccounts, known, capacity, _ := m.listEligibleModelAccounts(ctx, g.GroupID, main.Platform, candidateModel, rankExcludedAccounts(ctx, g.GroupID, excluded))
+			remaining := len(candidateAccounts)
+			if known {
+				eligibleByGroup[g.GroupID] = candidateAccounts
+			}
 			g.CapacityRatio = capacity
 			if !known {
 				g.Reason = "account availability unavailable"
@@ -1296,6 +1385,20 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		}
 		if reliableSpeedSamples && st.SpeedP90Ms.Valid {
 			g.SpeedP90Ms = float64(st.SpeedP90Ms.Int64)
+		}
+		// For OpenAI speed routing, prefer the current healthy upstream lane
+		// when it has enough account-level evidence. The group aggregate remains
+		// the fallback for cold accounts or unavailable telemetry.
+		if main.Platform == service.PlatformOpenAI && accountAwareSpeedEnabled(p) {
+			if upstreamSpeed, upstreamSamples := m.accountAwareGroupSpeed(ctx, g.GroupID, model, eligibleByGroup[g.GroupID]); upstreamSpeed > 0 {
+				g.UpstreamSpeedMs = upstreamSpeed
+				g.UpstreamSpeedSamples = upstreamSamples
+				g.SpeedMs = int64(math.Round(upstreamSpeed))
+				// UpstreamSpeedMs is already the robust lane metric. Do not
+				// fabricate a P90 value in the preview payload.
+				g.SpeedP90Ms = 0
+				g.SpeedSamples = upstreamSamples
+			}
 		}
 		out = append(out, g)
 	}
@@ -1349,10 +1452,18 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		wP, wS, wE := routingWeights(p)
 		g.PriceScore, g.SpeedScore, g.SuccessScore = priceScore, speedScore, successScore
 		g.Score = priceScore*wP/100 + speedScore*wS/100 + successScore*wE/100
-		g.Reason = fmt.Sprintf("score=%.2f price_score=%.2f speed_score=%.2f success_score=%.2f samples=%d speed_samples=%d", g.Score, priceScore, speedScore, successScore, g.Samples, g.SpeedSamples)
+		g.Reason = fmt.Sprintf("score=%.2f price_score=%.2f speed_score=%.2f success_score=%.2f samples=%d speed_samples=%d upstream_speed_ms=%.0f upstream_speed_samples=%d", g.Score, priceScore, speedScore, successScore, g.Samples, g.SpeedSamples, g.UpstreamSpeedMs, g.UpstreamSpeedSamples)
 	}
 	sortRankedGroups(out)
 	return out, nil
+}
+
+func accountAwareSpeedEnabled(p *Profile) bool {
+	if p == nil {
+		return false
+	}
+	_, speedWeight, _ := routingWeights(p)
+	return speedWeight > 0
 }
 
 func relativeSpeedScore(speedMs, minSpeed, maxSpeed int64) float64 {
@@ -1376,6 +1487,9 @@ func relativeSpeedScoreFloat(speedMs, minSpeed, maxSpeed float64) float64 {
 }
 
 func effectiveGroupSpeedMs(group Group) float64 {
+	if group.UpstreamSpeedMs > 0 {
+		return group.UpstreamSpeedMs
+	}
 	if group.SpeedMs <= 0 {
 		return 0
 	}
