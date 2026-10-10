@@ -6,6 +6,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -36,6 +37,7 @@ func ProvideRuntime(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	settingService *service.SettingService,
 	redisClient *redis.Client,
+	cfg *config.Config,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
 		client,
@@ -59,6 +61,7 @@ func ProvideRuntime(
 		channelMonitorRunner,
 		settingService,
 		redisClient,
+		cfg,
 	)
 	if err != nil {
 		return nil, err

@@ -191,6 +191,29 @@ func TestSmartRoutingAttemptTimingMigrationAddsAccountSpeedColumn(t *testing.T) 
 	}
 }
 
+func TestXZNOAuthInvoiceMigrationStaysInCustomSchema(t *testing.T) {
+	content, err := files.ReadFile("025_xznoauth_invoices.sql")
+	if err != nil {
+		t.Fatalf("read invoice migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"CREATE TABLE IF NOT EXISTS custom_invoice_applications",
+		"local_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE",
+		"remote_application_id BIGINT NOT NULL",
+		"custom_invoice_applications_user_idx",
+		"CREATE TABLE IF NOT EXISTS custom_invoice_tax_orders",
+		"UNIQUE (local_user_id, remote_application_id, tax_order_no)",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("invoice migration missing %q", expected)
+		}
+	}
+	if strings.Contains(sql, "ALTER TABLE users") || strings.Contains(sql, "DROP TABLE") {
+		t.Fatal("invoice migration must not modify upstream tables")
+	}
+}
+
 func TestLegacyRechargeBonusMigrationStaysInOverlay(t *testing.T) {
 	content, err := files.ReadFile("023_migrate_legacy_recharge_bonus.sql")
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	custommigrations "github.com/Wei-Shaw/sub2api/internal/custom/migrations"
 	activitycheckin "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/checkin"
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
@@ -24,6 +25,7 @@ import (
 	smartrouting "github.com/Wei-Shaw/sub2api/internal/custom/modules/smart-routing"
 	supportcontacts "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-contacts"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
+	xznoauthinvoice "github.com/Wei-Shaw/sub2api/internal/custom/modules/xznoauth-invoice"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -56,6 +58,7 @@ type Runtime struct {
 	CheckinUserAccess            *checkinuseraccess.Module
 	SmartRouting                 *smartrouting.Module
 	ChannelMonitorV2ActiveProbes *channelmonitorv2activeprobes.Module
+	XZNOAuthInvoice              *xznoauthinvoice.Module
 	UsageQuerySettings           UsageQuerySettings
 }
 
@@ -82,6 +85,7 @@ func NewRuntime(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	settingService *service.SettingService,
 	redisClient *redis.Client,
+	cfg *config.Config,
 ) (*Runtime, error) {
 	_ = paymentService // retained in the composition contract for Overlay compatibility
 	bepusdt.Register()
@@ -209,6 +213,14 @@ func NewRuntime(
 		CheckinUserAccess:            checkinUserAccess,
 		SmartRouting:                 smartRouting,
 		ChannelMonitorV2ActiveProbes: channelMonitorV2ActiveProbes,
+		XZNOAuthInvoice:              xznoauthinvoice.NewModule(db, invoiceConfig(cfg)),
 		UsageQuerySettings:           customSettingsRegistry,
 	}, nil
+}
+
+func invoiceConfig(cfg *config.Config) config.XZNOAuthInvoiceConfig {
+	if cfg == nil {
+		return config.XZNOAuthInvoiceConfig{}
+	}
+	return cfg.XZNOAuthInvoice
 }

@@ -343,7 +343,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	generator := codeformat.NewGenerator(settingsRegistry)
 	channelMonitorQuotaFetcher := service.NewChannelMonitorQuotaFetcher(accountUsageService, cnProviderQuotaService, cnProviderBalanceService, accountRepository, configConfig)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, openAIGatewayService, channelMonitorService, channelMonitorV2Service, channelMonitorRunner, settingService, redisClient)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, openAIGatewayService, channelMonitorService, channelMonitorV2Service, channelMonitorRunner, settingService, redisClient, configConfig)
 	if err != nil {
 		return nil, err
 	}

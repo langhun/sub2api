@@ -99,6 +99,17 @@ func RegisterRoutes(
 		authenticated.Use(gin.HandlerFunc(auditLog))
 		runtime.SmartRouting.RegisterRoutes(authenticated)
 	}
+	if runtime.XZNOAuthInvoice != nil {
+		v1 := r.Group("/api/v1")
+		authenticated := v1.Group("")
+		authenticated.Use(gin.HandlerFunc(jwtAuth))
+		authenticated.Use(middleware.BackendModeUserGuard(settingService))
+		if panelRateLimiter != nil {
+			authenticated.Use(panelRateLimiter.Global())
+		}
+		authenticated.Use(gin.HandlerFunc(auditLog))
+		runtime.XZNOAuthInvoice.RegisterRoutes(authenticated)
+	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")
 		authenticated := v1.Group("")

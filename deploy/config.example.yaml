@@ -1297,3 +1297,12 @@ image_storage:
   presign_expiry_hours: 24
   # 当上游返回的是图片 url 时，下载该图片再转存的字节上限（默认 32MB）
   max_download_bytes: 33554432
+
+# XZNOAuth self-service invoice integration. Keep credentials server-side.
+# XZNOAuth 自助开票集成，凭证只保存在服务端。
+xznoauth_invoice:
+  enabled: false
+  base_url: "https://oauth.xzncraft.cn"
+  client_id: ""
+  client_secret: ""
+  timeout_seconds: 20

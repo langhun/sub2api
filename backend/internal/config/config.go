@@ -106,9 +106,20 @@ type Config struct {
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 	Plugins                 PluginConfig                  `mapstructure:"plugins"`
+	XZNOAuthInvoice         XZNOAuthInvoiceConfig         `mapstructure:"xznoauth_invoice"`
 
 	// Enforce only API-key spending windows in simple mode.
 	SimpleModeKeyRateLimitEnabled bool `mapstructure:"simple_mode_key_rate_limit_enabled" yaml:"simple_mode_key_rate_limit_enabled"`
+}
+
+// XZNOAuthInvoiceConfig configures the server-side XZNOAuth invoice client.
+// Credentials are intentionally kept out of the browser and never serialized.
+type XZNOAuthInvoiceConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	BaseURL        string `mapstructure:"base_url"`
+	ClientID       string `mapstructure:"client_id"`
+	ClientSecret   string `mapstructure:"client_secret"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
 // SimpleModeConfig controls startup behavior in simple mode.
@@ -1886,6 +1897,15 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Server.Mode = "debug"
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
+	cfg.XZNOAuthInvoice.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.XZNOAuthInvoice.BaseURL), "/")
+	cfg.XZNOAuthInvoice.ClientID = strings.TrimSpace(cfg.XZNOAuthInvoice.ClientID)
+	cfg.XZNOAuthInvoice.ClientSecret = strings.TrimSpace(cfg.XZNOAuthInvoice.ClientSecret)
+	if cfg.XZNOAuthInvoice.BaseURL == "" {
+		cfg.XZNOAuthInvoice.BaseURL = "https://oauth.xzncraft.cn"
+	}
+	if cfg.XZNOAuthInvoice.TimeoutSeconds <= 0 {
+		cfg.XZNOAuthInvoice.TimeoutSeconds = 20
+	}
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
@@ -2641,6 +2661,11 @@ func setDefaults() {
 // environment. Any subsystem that wants a richer default still applies it after
 // unmarshal, exactly as before.
 func setEnvReachableDefaults() {
+	viper.SetDefault("xznoauth_invoice.enabled", false)
+	viper.SetDefault("xznoauth_invoice.base_url", "https://oauth.xzncraft.cn")
+	viper.SetDefault("xznoauth_invoice.client_id", "")
+	viper.SetDefault("xznoauth_invoice.client_secret", "")
+	viper.SetDefault("xznoauth_invoice.timeout_seconds", 20)
 	viper.SetDefault("gateway.forced_codex_instructions_template_file", "")
 	viper.SetDefault("gateway.session_idle_timeout_minutes", 0)
 	viper.SetDefault("gateway.user_message_queue.mode", "")
