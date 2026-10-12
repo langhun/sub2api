@@ -20,7 +20,7 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  api.getMyOrders.mockResolvedValue({ data: { items: [], total: 100 } })
+  api.getMyOrders.mockResolvedValue({ data: { items: [], total: 100, pages: 5 } })
   api.getRefundEligibleProviders.mockResolvedValue({ data: { provider_instance_ids: [] } })
   invoice.listEligibleOrderNos.mockResolvedValue({ data: { orderNos: [] } })
 })
@@ -47,7 +47,7 @@ describe('order status filtering', () => {
     await invoiceButton!.trigger('click')
     await flushPromises()
 
-    expect(api.getMyOrders).toHaveBeenLastCalledWith({ page: 1, page_size: 20, status: 'COMPLETED' })
+    expect(api.getMyOrders).toHaveBeenLastCalledWith({ page: 1, page_size: 1000, status: 'COMPLETED' })
     expect(wrapper.getComponent(Select).props('modelValue')).toBe('COMPLETED')
     expect(invoiceButton!.attributes('aria-pressed')).toBe('true')
   })
@@ -57,7 +57,7 @@ describe('order status filtering', () => {
       { id: 1, out_trade_no: 'OLD-ORDER', status: 'COMPLETED' },
       { id: 2, out_trade_no: 'NEW-ORDER', status: 'COMPLETED' },
     ] as PaymentOrder[]
-    api.getMyOrders.mockResolvedValue({ data: { items: orders, total: orders.length } })
+    api.getMyOrders.mockResolvedValue({ data: { items: orders, total: orders.length, pages: 1 } })
     invoice.listEligibleOrderNos.mockResolvedValue({ data: { orderNos: ['NEW-ORDER'] } })
 
     const wrapper = await openOrders()

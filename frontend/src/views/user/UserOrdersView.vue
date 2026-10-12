@@ -157,6 +157,7 @@ const refundEligibleProviders = ref<Set<string>>(new Set())
 const currentFilter = ref('')
 const showInvoiceableOnly = ref(false)
 const invoiceableOrderNos = ref(new Set<string>())
+const invoiceableOrders = ref<PaymentOrder[]>([])
 const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
@@ -180,6 +181,10 @@ const statusFilters = computed(() => [
 async function fetchOrders() {
   loading.value = true
   try {
+    if (showInvoiceableOnly.value) {
+      await fetchInvoiceableOrders()
+      return
+    }
     const res = await paymentAPI.getMyOrders({
       page: pagination.page,
       page_size: pagination.page_size,
@@ -189,19 +194,42 @@ async function fetchOrders() {
     orders.value = fetchedOrders
     pagination.total = res.data.total || 0
     invoiceableOrderNos.value = new Set()
-    if (showInvoiceableOnly.value && fetchedOrders.length) {
-      const orderNos = fetchedOrders.map(order => order.out_trade_no).filter(Boolean)
-      const eligibility = await invoiceAPI.listEligibleOrderNos(orderNos)
-      invoiceableOrderNos.value = new Set(eligibility.data.orderNos || [])
-      orders.value = fetchedOrders.filter(order => invoiceableOrderNos.value.has(order.out_trade_no))
-    }
+    invoiceableOrders.value = []
   } catch (err: unknown) {
     orders.value = []
     invoiceableOrderNos.value = new Set()
+    invoiceableOrders.value = []
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally {
     loading.value = false
   }
+}
+
+async function fetchInvoiceableOrders() {
+  const fetchedOrders: PaymentOrder[] = []
+  const scanPageSize = 1000
+  let page = 1
+
+  while (true) {
+    const res = await paymentAPI.getMyOrders({ page, page_size: scanPageSize, status: 'COMPLETED' })
+    const pageItems = res.data.items || []
+    fetchedOrders.push(...pageItems)
+    const pages = res.data.pages || Math.ceil((res.data.total || 0) / scanPageSize)
+    if (!pageItems.length || page >= pages || pageItems.length < scanPageSize) break
+    page += 1
+  }
+
+  const orderNos = fetchedOrders.map(order => order.out_trade_no).filter(Boolean)
+  const eligible = orderNos.length ? await invoiceAPI.listEligibleOrderNos(orderNos) : { data: { orderNos: [] } }
+  invoiceableOrderNos.value = new Set(eligible.data.orderNos || [])
+  invoiceableOrders.value = fetchedOrders.filter(order => invoiceableOrderNos.value.has(order.out_trade_no))
+  pagination.total = invoiceableOrders.value.length
+  applyInvoiceablePage()
+}
+
+function applyInvoiceablePage() {
+  const start = (pagination.page - 1) * pagination.page_size
+  orders.value = invoiceableOrders.value.slice(start, start + pagination.page_size)
 }
 
 function canSelectInvoiceOrder(order: PaymentOrder) {
@@ -253,6 +281,7 @@ function handleInvoiceAction() {
   pagination.page = 1
   clearInvoiceSelection()
   if (!showInvoiceableOnly.value) invoiceableOrderNos.value = new Set()
+  if (!showInvoiceableOnly.value) invoiceableOrders.value = []
   void fetchOrders()
 }
 
@@ -264,7 +293,14 @@ function handleInvoiceSaved() {
   void fetchOrders()
 }
 
-function handlePageChange(page: number) { pagination.page = page; fetchOrders() }
+function handlePageChange(page: number) {
+  pagination.page = page
+  if (showInvoiceableOnly.value) {
+    applyInvoiceablePage()
+    return
+  }
+  void fetchOrders()
+}
 function handlePageSizeChange(size: number) { pagination.page_size = size; pagination.page = 1; fetchOrders() }
 function handleStatusFilterChange() {
   showInvoiceableOnly.value = false
