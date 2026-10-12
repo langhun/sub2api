@@ -4,13 +4,19 @@
       <!-- Filters -->
       <div class="card p-4">
         <div class="flex flex-wrap items-center gap-3">
-          <Select v-model="currentFilter" :options="statusFilters" class="w-36" @change="handlePageChange(1)" />
+          <Select v-model="currentFilter" :options="statusFilters" class="w-36" @change="handleStatusFilterChange" />
           <div class="flex flex-1 items-center justify-end gap-2">
             <button class="btn btn-secondary" type="button" @click="invoiceRecordsOpen = true">
               <Icon name="document" size="sm" />
               <span>{{ t('invoices.recordsTitle') }}</span>
             </button>
-            <button class="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50" type="button" :disabled="!selectedInvoiceOrderIds.length" @click="openInvoiceApply">
+            <button
+              class="btn btn-primary"
+              :class="showInvoiceableOnly && !selectedInvoiceOrderIds.length ? 'ring-2 ring-primary-300 dark:ring-primary-700' : ''"
+              type="button"
+              :aria-pressed="showInvoiceableOnly"
+              @click="handleInvoiceAction"
+            >
               <Icon name="document" size="sm" />
               <span>{{ t('invoices.apply') }}</span>
             </button>
@@ -148,6 +154,7 @@ const actionLoading = ref(false)
 const orders = ref<PaymentOrder[]>([])
 const refundEligibleProviders = ref<Set<string>>(new Set())
 const currentFilter = ref('')
+const showInvoiceableOnly = ref(false)
 const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
@@ -215,6 +222,23 @@ function openInvoiceApply() {
   invoiceApplyOpen.value = true
 }
 
+function clearInvoiceSelection() {
+  selectedInvoiceOrderIds.value = []
+  selectedInvoiceOrdersById.value = new Map()
+}
+
+function handleInvoiceAction() {
+  if (selectedInvoiceOrderIds.value.length) {
+    openInvoiceApply()
+    return
+  }
+  showInvoiceableOnly.value = !showInvoiceableOnly.value
+  currentFilter.value = showInvoiceableOnly.value ? 'COMPLETED' : ''
+  pagination.page = 1
+  clearInvoiceSelection()
+  void fetchOrders()
+}
+
 function handleInvoiceSaved() {
   invoiceApplyOpen.value = false
   selectedInvoiceOrderIds.value = []
@@ -225,6 +249,11 @@ function handleInvoiceSaved() {
 
 function handlePageChange(page: number) { pagination.page = page; fetchOrders() }
 function handlePageSizeChange(size: number) { pagination.page_size = size; pagination.page = 1; fetchOrders() }
+function handleStatusFilterChange() {
+  showInvoiceableOnly.value = false
+  clearInvoiceSelection()
+  handlePageChange(1)
+}
 
 function handleCancel(orderId: number) { cancelTargetId.value = orderId }
 function openOrderDetail(order: PaymentOrder) { selectedOrder.value = order }

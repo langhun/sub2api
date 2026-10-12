@@ -34,6 +34,19 @@ async function openOrders() {
 }
 
 describe('order status filtering', () => {
+  it('uses the invoice action to show completed orders when nothing is selected', async () => {
+    const wrapper = await openOrders()
+    const invoiceButton = wrapper.findAll('button').find(button => button.text() === 'invoices.apply')
+
+    expect(invoiceButton).toBeDefined()
+    await invoiceButton!.trigger('click')
+    await flushPromises()
+
+    expect(api.getMyOrders).toHaveBeenLastCalledWith({ page: 1, page_size: 20, status: 'COMPLETED' })
+    expect(wrapper.getComponent(Select).props('modelValue')).toBe('COMPLETED')
+    expect(invoiceButton!.attributes('aria-pressed')).toBe('true')
+  })
+
   it('loads the first page with the selected status', async () => {
     const wrapper = await openOrders()
     const select = wrapper.getComponent(Select)
