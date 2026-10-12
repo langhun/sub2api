@@ -733,6 +733,23 @@ func (e *UpstreamFailoverError) ShouldReportAccountScheduleFailure() bool {
 	return !e.IsCredentialFailure() || e.Scope == GatewayFailureScopeAccount
 }
 
+// ShouldClearStickyAccountBinding reports failures tied to the selected
+// account/site whose session binding must not pin later requests to it.
+func (e *UpstreamFailoverError) ShouldClearStickyAccountBinding() bool {
+	if e == nil || !e.ShouldRetryNextAccount() || e.Scope == GatewayFailureScopeRequest || e.Scope == GatewayFailureScopeProvider {
+		return false
+	}
+	switch e.Reason {
+	case SmartRoutingAccountUnavailableReason,
+		SmartRoutingAttemptBudgetExceededReason,
+		SmartRoutingTurnAttemptBudgetExceededReason,
+		SmartRoutingSiteAttemptBudgetExceededReason:
+		return false
+	default:
+		return true
+	}
+}
+
 // sseStreamErrorEventError 表示上游 SSE 流体内出现 event:error 帧。
 // RawData 是该事件 data: 行的原始 JSON 字符串
 // （Anthropic 标准结构 {"type":"error","error":{"type":"...","message":"..."}}）。
@@ -982,6 +999,17 @@ func (s *GatewayService) BindStickySession(ctx context.Context, groupID *int64, 
 func (s *GatewayService) ClearSmartRoutingStickySession(ctx context.Context, groupID *int64, sessionHash string) {
 	state := SmartRoutingStateFromContext(ctx)
 	if s == nil || state == nil || !state.SmartRoutingActive || strings.TrimSpace(sessionHash) == "" || s.cache == nil {
+		return
+	}
+	_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
+}
+
+// ClearGatewayStickySession removes a failed account binding for both normal
+// single-group requests and smart-routed requests. A failed account is already
+// excluded for the current request; clearing the binding also prevents the
+// next request from being pinned back to the same unavailable upstream.
+func (s *GatewayService) ClearGatewayStickySession(ctx context.Context, groupID *int64, sessionHash string) {
+	if s == nil || strings.TrimSpace(sessionHash) == "" || s.cache == nil {
 		return
 	}
 	_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)

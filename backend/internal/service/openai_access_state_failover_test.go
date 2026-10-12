@@ -320,6 +320,11 @@ func TestOpenAIStream403FailoverRequiresStructuredAccountCredentialSignal(t *tes
 			payload: `{"type":"error","error":{"type":"authentication_error","status_code":403,"message":"credential rejected"}}`,
 			want:    true,
 		},
+		{
+			name:    "insufficient quota is an account failover signal",
+			payload: `{"type":"response.failed","response":{"error":{"type":"insufficient_quota","code":"insufficient_quota","message":"用户额度不足"}}}`,
+			want:    true,
+		},
 	}
 
 	for _, tt := range tests {

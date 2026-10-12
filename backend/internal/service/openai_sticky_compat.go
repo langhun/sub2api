@@ -230,3 +230,14 @@ func (s *OpenAIGatewayService) ClearSmartRoutingStickySession(ctx context.Contex
 	}
 	_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 }
+
+// ClearGatewayStickySession removes a failed account binding for normal
+// single-group requests as well as smart-routed requests. This is intentionally
+// separate from ClearSmartRoutingStickySession so the latter keeps its legacy
+// state guard for callers that only want to clear routed sessions.
+func (s *OpenAIGatewayService) ClearGatewayStickySession(ctx context.Context, groupID *int64, sessionHash string) {
+	if s == nil || strings.TrimSpace(sessionHash) == "" {
+		return
+	}
+	_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+}

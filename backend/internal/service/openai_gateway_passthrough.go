@@ -1394,6 +1394,9 @@ func openAIStreamFailedEventSemanticStatus(payload []byte, message string) int {
 	if isOpenAIContextWindowError(message, payload) {
 		return http.StatusBadRequest
 	}
+	if isOpenAIAccountQuotaExhaustedError(http.StatusForbidden, message, payload) {
+		return http.StatusForbidden
+	}
 
 	code := openAIStreamFailedEventErrorCode(payload)
 	errType := strings.ToLower(strings.TrimSpace(gjson.GetBytes(payload, "response.error.type").String()))
@@ -1557,6 +1560,9 @@ func openAIStreamFailedEventShouldFailover(payload []byte, message string) bool 
 	if isOpenAIUpstreamAccessStateError(message, payload) {
 		return true
 	}
+	if isOpenAIAccountQuotaExhaustedError(http.StatusForbidden, message, payload) {
+		return true
+	}
 	semanticStatus := openAIStreamFailureStatus(payload, message)
 	if semanticStatus == http.StatusForbidden {
 		return openAIStream403AccountFailure(payload, message)
@@ -1607,6 +1613,9 @@ func openAIStreamErrorEventShouldFailover(payload []byte, message string) bool {
 		return false
 	}
 	if isOpenAIUpstreamAccessStateError(message, payload) {
+		return true
+	}
+	if isOpenAIAccountQuotaExhaustedError(http.StatusForbidden, message, payload) {
 		return true
 	}
 	switch openAIStreamFailedEventSemanticStatus(payload, message) {

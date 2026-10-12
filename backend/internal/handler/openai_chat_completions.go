@@ -398,6 +398,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						return
 					}
 					if c.Writer.Size() != writerSizeBeforeForward {
+						if failoverErr.ShouldClearStickyAccountBinding() {
+							h.gatewayService.ClearGatewayStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
+						}
 						service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 						h.gatewayService.ObserveOpenAIAccountHealthFailure(c.Request.Context(), account, err)
 						h.handleFailoverExhausted(c, failoverErr, true)
@@ -436,7 +439,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					service.FinalizeSmartRoutingPoolFailure(c.Request.Context(), account, failoverErr)
 					failedAccountIDs[account.ID] = struct{}{}
-					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
+					h.gatewayService.ClearGatewayStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
 					accountSwitchLimit := effectiveAccountSwitchLimit(c.Request.Context(), maxAccountSwitches)
 					if switchCount >= accountSwitchLimit {

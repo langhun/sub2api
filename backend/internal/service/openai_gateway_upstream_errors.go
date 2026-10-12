@@ -316,6 +316,7 @@ func IsOpenAICompatibleModelNotFound400(respBody []byte) bool {
 const OpenAIRequestBodyTooLargeClientMessage = "Request payload is too large"
 
 const openAIRequestBodyTooLargeReason = GatewayFailureReason("openai_request_body_too_large")
+const openAIAccountQuotaExhaustedReason = GatewayFailureReason("openai_upstream_quota_exhausted")
 
 func isOpenAIRequestBodyTooLargeError(statusCode int, upstreamMsg string, upstreamBody []byte) bool {
 	return statusCode == http.StatusRequestEntityTooLarge && !isOpenAIContextWindowError(upstreamMsg, upstreamBody)
@@ -335,6 +336,19 @@ func newOpenAIUpstreamFailoverError(
 		ResponseHeaders:        responseHeaders.Clone(),
 		RetryableOnSameAccount: retryableOnSameAccount || requestScopedCapacity,
 		RequestScopedTransient: requestScopedCapacity,
+	}
+	// A pool-mode website cannot recover from a deterministic account-level
+	// quota/balance failure by sending the same request to that website again.
+	// Keep the error failover-eligible, but force the handler to release this
+	// account immediately so the next attempt can use another upstream in the
+	// same group. Transient 429/5xx errors continue to use the normal bounded
+	// same-account retry policy.
+	if isOpenAIAccountQuotaExhaustedError(statusCode, upstreamMsg, responseBody) {
+		failoverErr.RetryableOnSameAccount = false
+		failoverErr.RequestScopedTransient = false
+		failoverErr.Scope = GatewayFailureScopeAccount
+		failoverErr.Reason = openAIAccountQuotaExhaustedReason
+		failoverErr.NextAccountAction = NextAccountRetry
 	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
 		failoverErr.RetryableOnSameAccount = false
@@ -361,6 +375,80 @@ func newOpenAIUpstreamFailoverError(
 		failoverErr.ClientMessage = openAICapacityShedClientMessage(upstreamMsg, responseBody)
 	}
 	return failoverErr
+}
+
+// isOpenAIAccountQuotaExhaustedError identifies deterministic account/site
+// failures that must not be retried against the same pool website. Providers
+// and OpenAI-compatible relay sites use both structured codes and free-form
+// messages, including Chinese messages such as "用户额度不足".
+func isOpenAIAccountQuotaExhaustedError(statusCode int, upstreamMsg string, upstreamBody []byte) bool {
+	if statusCode != http.StatusPaymentRequired && statusCode != http.StatusForbidden && statusCode != http.StatusTooManyRequests {
+		return false
+	}
+
+	containsMarker := func(value string) bool {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			return false
+		}
+		for _, marker := range []string{
+			"insufficient_quota",
+			"insufficient quota",
+			"quota exceeded",
+			"quota exhausted",
+			"exceeded your current quota",
+			"current quota has been exceeded",
+			"insufficient_balance",
+			"insufficient balance",
+			"balance exhausted",
+			"payment required",
+			"credit exhausted",
+			"credit balance",
+			"billing hard limit",
+			"usage limit reached",
+			"额度不足",
+			"配额不足",
+			"余额不足",
+			"额度已用尽",
+			"余额已用尽",
+		} {
+			if strings.Contains(value, marker) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if containsMarker(upstreamMsg) {
+		return true
+	}
+	containsNegativeBalance := func(value string) bool {
+		value = strings.ToLower(strings.TrimSpace(value))
+		return (strings.Contains(value, "剩余额度") || strings.Contains(value, "账户余额")) &&
+			(strings.Contains(value, "-") || strings.Contains(value, "不足") || strings.Contains(value, "用尽"))
+	}
+	if containsNegativeBalance(upstreamMsg) {
+		return true
+	}
+	if len(upstreamBody) == 0 {
+		return false
+	}
+	for _, path := range []string{
+		"error.code",
+		"response.error.code",
+		"error.type",
+		"response.error.type",
+		"error.message",
+		"response.error.message",
+		"message",
+		"detail",
+	} {
+		value := gjson.GetBytes(upstreamBody, path).String()
+		if containsMarker(value) || containsNegativeBalance(value) {
+			return true
+		}
+	}
+	return !gjson.ValidBytes(upstreamBody) && containsMarker(string(upstreamBody))
 }
 
 func (s *OpenAIGatewayService) newOpenAIAccountFailoverError(
@@ -393,6 +481,14 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 		upstreamMsg,
 		retryableOnSameAccount || oauth429Retry,
 	)
+	if account != nil && account.Platform == PlatformOpenAI && account.IsPoolMode() &&
+		failoverErr.RetryableOnSameAccount && !failoverErr.RequestScopedTransient &&
+		failoverErr.SameAccountRetryDeadline.IsZero() && failoverErr.SameAccountRetryMax == 0 {
+		// API-key pool mode represents one website, not one selectable hidden
+		// member. Allow one fast retry for an intermittent member failure, then
+		// let the handler select a different website in the same group.
+		failoverErr.SameAccountRetryMax = 1
+	}
 	if oauth429Retry {
 		failoverErr.SameAccountRetryDeadline = s.openAIOAuth429RetryDeadline(account)
 		failoverErr.SameAccountRetryDelay = openAIOAuth429SameAccountRetryDelay(responseHeaders, failoverErr.SameAccountRetryDeadline)

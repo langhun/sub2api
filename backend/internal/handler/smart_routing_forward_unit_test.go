@@ -160,7 +160,16 @@ func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) 
 		status, body = 503, `{"error":{"type":"server_error","message":"unavailable"}}`
 		if u.failureStatus > 0 {
 			status = u.failureStatus
-			body = `{"error":{"type":"insufficient_quota","message":"upstream account balance exhausted"}}`
+			switch status {
+			case http.StatusUnauthorized:
+				body = `{"error":{"code":"invalid_api_key","message":"credential rejected"}}`
+			case http.StatusForbidden, http.StatusPaymentRequired:
+				body = `{"error":{"type":"insufficient_quota","message":"upstream account balance exhausted"}}`
+			case http.StatusTooManyRequests:
+				body = `{"error":{"code":"rate_limit_exceeded","message":"upstream rate limit exceeded"}}`
+			default:
+				body = `{"error":{"type":"server_error","message":"upstream unavailable"}}`
+			}
 		}
 		if u.partial {
 			status = 200
@@ -168,6 +177,56 @@ func (u *routingForwardUpstream) Do(_ *http.Request, _ string, id int64, _ int) 
 		}
 	}
 	return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": {"text/event-stream"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+}
+
+func TestOpenAIResponsesNonSmartPoolQuotaFailureSwitchesWithinGroup(t *testing.T) {
+	upstream := &routingForwardUpstream{failureStatus: http.StatusForbidden}
+	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	group := &service.Group{ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard}
+	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
+		{ID: 1, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true, "pool_mode_retry_status_codes": []any{float64(http.StatusServiceUnavailable)}}},
+		{ID: 2, Priority: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-two", "pool_mode": true}},
+	}}}
+	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
+	t.Cleanup(billing.Stop)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())
+	key, exists := c.Get(string(middleware.ContextKeyAPIKey))
+	require.True(t, exists)
+	apiKey := key.(*service.APIKey)
+	apiKey.Group = group
+	// Deliberately do not attach SmartRoutingRequestState or a resolver.
+	h.Responses(c)
+
+	require.Equal(t, []int64{1, 2}, upstream.calls, "quota exhaustion must skip the failed website and select another account in the same group")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "resp_routed")
+}
+
+func TestOpenAIResponsesNonSmartPoolPersistentTransientSwitchesAfterOneRetry(t *testing.T) {
+	upstream := &routingForwardUpstream{failureStatus: http.StatusServiceUnavailable}
+	h := newOpenAIResponsesFailoverTestHandler(t, upstream)
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	group := &service.Group{ID: 3131, Platform: service.PlatformOpenAI, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeStandard}
+	accounts := routingForwardAccounts{openAIImagesFailoverAccountRepo{accounts: []service.Account{
+		{ID: 1, Priority: 0, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-one", "pool_mode": true}},
+		{ID: 2, Priority: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, GroupIDs: []int64{3131}, Credentials: map[string]any{"api_key": "test-two", "pool_mode": true}},
+	}}}
+	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
+	t.Cleanup(billing.Stop)
+	h.gatewayService = service.NewOpenAIGatewayService(accounts, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, billing, upstream, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())
+	key, exists := c.Get(string(middleware.ContextKeyAPIKey))
+	require.True(t, exists)
+	apiKey := key.(*service.APIKey)
+	apiKey.Group = group
+	h.Responses(c)
+
+	require.Equal(t, []int64{1, 2}, upstream.calls, "a non-retryable 503 must immediately move to another account in the same group")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
 
 func TestSmartRoutingPoolRecoveryStaysOnWebsiteWithoutCooldown(t *testing.T) {
@@ -319,9 +378,6 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 			if tc.wantFailedSiteCalls > 1 {
 				wantAttempts++ // terminal website-health notification; not SQL telemetry
 			}
-			if tc.status == 403 {
-				wantAttempts++ // deterministic balance failure still records a health-only terminal event
-			}
 			require.Len(t, resolver.attempts, wantAttempts, "local admission rejection is not an upstream failure")
 			require.Equal(t, tc.status, resolver.attempts[0].StatusCode)
 			if tc.wantFailedSiteCalls > 1 {
@@ -330,10 +386,6 @@ func TestSmartRoutingPoolRetriesWebsiteBeforeQuarantine(t *testing.T) {
 				}
 				require.True(t, resolver.attempts[tc.wantFailedSiteCalls].HealthFinal)
 				require.True(t, resolver.attempts[tc.wantFailedSiteCalls].HealthOnly)
-			} else if tc.status == 403 {
-				require.False(t, resolver.attempts[0].HealthFinal, "the first 403 remains attempt telemetry")
-				require.True(t, resolver.attempts[1].HealthFinal)
-				require.True(t, resolver.attempts[1].HealthOnly)
 			} else {
 				require.True(t, resolver.attempts[0].HealthFinal, "non-retryable website failures quarantine immediately")
 			}

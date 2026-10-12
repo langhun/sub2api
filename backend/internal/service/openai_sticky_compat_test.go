@@ -142,6 +142,25 @@ func TestClearSmartRoutingStickySessionIgnoresEmptyHash(t *testing.T) {
 	require.Empty(t, cache.calls)
 }
 
+func TestClearGatewayStickySessionDeletesLegacySingleGroupBinding(t *testing.T) {
+	groupID := int64(22)
+	cache := &recordingStickyDeleteCache{}
+	svc := &OpenAIGatewayService{
+		cache: cache,
+		cfg: &config.Config{Gateway: config.GatewayConfig{OpenAIWS: config.GatewayOpenAIWSConfig{
+			SessionHashReadOldFallback: true,
+		}}},
+	}
+	ctx := withOpenAILegacySessionHash(context.Background(), "legacy-hash")
+
+	svc.ClearGatewayStickySession(ctx, &groupID, "new-hash")
+
+	require.Equal(t, []stickyDeleteCall{
+		{groupID: groupID, sessionKey: "openai:new-hash"},
+		{groupID: groupID, sessionKey: "openai:legacy-hash"},
+	}, cache.calls)
+}
+
 func TestSnapshotOpenAICompatibilityFallbackMetrics(t *testing.T) {
 	before := SnapshotOpenAICompatibilityFallbackMetrics()
 
