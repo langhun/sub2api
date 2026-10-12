@@ -31,7 +31,7 @@
         :selected-keys="selectedInvoiceOrderIds"
         :selection-disabled="isInvoiceSelectionDisabled"
         :selection-label="t('invoices.selectOrder')"
-        @update:selected-keys="selectedInvoiceOrderIds = $event.map(Number)"
+        @update:selected-keys="updateSelectedInvoiceOrderIds"
       >
         <template #actions="{ row }">
           <div class="flex flex-wrap items-center justify-end gap-2">
@@ -153,11 +153,12 @@ const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
 const selectedOrder = ref<PaymentOrder | null>(null)
 const selectedInvoiceOrderIds = ref<number[]>([])
+const selectedInvoiceOrdersById = ref(new Map<number, PaymentOrder>())
 const invoiceApplyOpen = ref(false)
 const invoiceRecordsOpen = ref(false)
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 
-const selectedInvoiceOrders = computed(() => orders.value.filter(order => selectedInvoiceOrderIds.value.includes(order.id) && order.status === 'COMPLETED'))
+const selectedInvoiceOrders = computed(() => [...selectedInvoiceOrdersById.value.values()].filter(order => order.status === 'COMPLETED'))
 
 const statusFilters = computed(() => [
   { value: '', label: t('common.all') },
@@ -176,7 +177,6 @@ async function fetchOrders() {
       status: currentFilter.value || undefined,
     })
     orders.value = res.data.items || []
-    selectedInvoiceOrderIds.value = selectedInvoiceOrderIds.value.filter(id => orders.value.some(order => order.id === id && order.status === 'COMPLETED'))
     pagination.total = res.data.total || 0
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
@@ -187,11 +187,24 @@ async function fetchOrders() {
 
 function isInvoiceSelectionDisabled(order: PaymentOrder) { return order.status !== 'COMPLETED' }
 
+function updateSelectedInvoiceOrderIds(keys: Array<string | number>) {
+  const ids = keys.map(Number)
+  const next = new Map(selectedInvoiceOrdersById.value)
+  for (const id of next.keys()) {
+    if (!ids.includes(id)) next.delete(id)
+  }
+  for (const order of orders.value) {
+    if (ids.includes(order.id) && order.status === 'COMPLETED') next.set(order.id, order)
+  }
+  selectedInvoiceOrderIds.value = ids
+  selectedInvoiceOrdersById.value = next
+}
+
 function toggleInvoiceOrder(order: PaymentOrder) {
   if (isInvoiceSelectionDisabled(order)) return
-  selectedInvoiceOrderIds.value = selectedInvoiceOrderIds.value.includes(order.id)
+  updateSelectedInvoiceOrderIds(selectedInvoiceOrderIds.value.includes(order.id)
     ? selectedInvoiceOrderIds.value.filter(id => id !== order.id)
-    : [...selectedInvoiceOrderIds.value, order.id]
+    : [...selectedInvoiceOrderIds.value, order.id])
 }
 
 function openInvoiceApply() {
@@ -205,6 +218,7 @@ function openInvoiceApply() {
 function handleInvoiceSaved() {
   invoiceApplyOpen.value = false
   selectedInvoiceOrderIds.value = []
+  selectedInvoiceOrdersById.value = new Map()
   invoiceRecordsOpen.value = true
   void fetchOrders()
 }

@@ -107,6 +107,29 @@ describe('DataTable', () => {
     expect(wrapper.find('tbody tr[data-index] td').classes()).toContain('text-xs')
   })
 
+  it('excludes disabled rows from selection and select-all', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name' }],
+        data: [
+          { id: 1, name: 'Completed', completed: true },
+          { id: 2, name: 'Pending', completed: false },
+        ],
+        selectable: true,
+        selectedKeys: [],
+        selectionDisabled: (row: { completed: boolean }) => !row.completed,
+      },
+    })
+
+    const checkboxes = wrapper.findAll('tbody input[type="checkbox"][data-test="select-row"]')
+    expect(checkboxes[0].attributes('disabled')).toBeUndefined()
+    expect(checkboxes[1].attributes('disabled')).toBeDefined()
+
+    await wrapper.get('thead input[type="checkbox"]').setValue(true)
+
+    expect(wrapper.emitted('update:selectedKeys')?.at(-1)?.[0]).toEqual([1])
+  })
+
   it('renders every row with no virtual padding spacer for small datasets (virtualization off)', async () => {
     const data = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
     const wrapper = mount(DataTable, {

@@ -725,8 +725,9 @@ const tableColumnCount = computed(() => props.columns.length + (props.selectable
 const selectedKeySet = computed(() => new Set(props.selectedKeys))
 const selectableVisibleRowKeys = computed(() =>
   (sortedData.value ?? [])
-    .filter((row) => !isRowSelectionDisabled(row))
-    .map((row, index) => resolveRowKey(row, index))
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => !isRowSelectionDisabled(row))
+    .map(({ row, index }) => resolveRowKey(row, index))
 )
 const selectableRowCount = computed(() => selectableVisibleRowKeys.value.length)
 const allVisibleSelected = computed(() =>
