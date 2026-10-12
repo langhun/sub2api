@@ -72,6 +72,9 @@ export interface InvoiceApplicationInput {
 }
 
 export const invoiceAPI = {
+  listEligibleOrderNos(orderNos: string[]) {
+    return apiClient.post<{ orderNos: string[] }>('/custom/invoices/eligible-orders', { orderNos })
+  },
   validateOrders(data: { orderNos: string[]; needPayTax: boolean }) {
     return apiClient.post<InvoiceValidation>('/custom/invoices/validate', {
       ...data,

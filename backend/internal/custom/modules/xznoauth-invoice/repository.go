@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Repository struct{ db *sql.DB }
@@ -30,6 +32,34 @@ func (r *Repository) Owned(ctx context.Context, userID, remoteID int64) (bool, e
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM custom_invoice_applications WHERE local_user_id=$1 AND remote_application_id=$2)`, userID, remoteID).Scan(&exists)
 	return exists, err
+}
+
+// OwnedCompletedOrderNos returns the submitted order numbers that belong to
+// the local user and are already completed. The invoice service remains the
+// source of truth for eligibility; this query only prevents cross-user or
+// unpaid order probes from reaching it.
+func (r *Repository) OwnedCompletedOrderNos(ctx context.Context, userID int64, orderNos []string) (map[string]struct{}, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("invoice database is unavailable")
+	}
+	if len(orderNos) == 0 {
+		return map[string]struct{}{}, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT out_trade_no FROM payment_orders
+WHERE user_id=$1 AND status='COMPLETED' AND out_trade_no = ANY($2)`, userID, pq.Array(orderNos))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]struct{}, len(orderNos))
+	for rows.Next() {
+		var orderNo string
+		if err := rows.Scan(&orderNo); err != nil {
+			return nil, err
+		}
+		out[orderNo] = struct{}{}
+	}
+	return out, rows.Err()
 }
 
 func (r *Repository) ListOwnedIDs(ctx context.Context, userID int64) (map[int64]struct{}, error) {

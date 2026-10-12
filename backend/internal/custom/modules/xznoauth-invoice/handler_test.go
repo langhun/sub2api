@@ -1,6 +1,7 @@
 package xznoauthinvoice
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,6 +21,38 @@ func TestValidateOrderNos(t *testing.T) {
 		if _, err := validateOrderNos(input); err == nil {
 			t.Fatalf("validateOrderNos(%q) should fail", input)
 		}
+	}
+}
+
+func TestInvoiceEligibilityHelpers(t *testing.T) {
+	for _, code := range []string{
+		"INVOICE_ORDER_NOT_ELIGIBLE",
+		"INVOICE_ORDER_ALREADY_CLAIMED",
+		"INVOICE_DUPLICATE_ORDER",
+		"INVOICE_INVALID_ORDERS",
+	} {
+		if !isInvoiceEligibilityMiss(&RemoteError{Code: code}) {
+			t.Errorf("%s should be treated as an ineligible order", code)
+		}
+	}
+	for _, err := range []error{
+		&RemoteError{Code: "INVOICE_ORDER_MERCHANT_MISMATCH"},
+		&RemoteError{Code: "IDENTITY_VERIFICATION_REQUIRED"},
+		errors.New("network failure"),
+	} {
+		if isInvoiceEligibilityMiss(err) {
+			t.Errorf("%v should not be treated as an ineligible order", err)
+		}
+	}
+
+	order := Order{OrderNo: "ORDER-1", ExternalNo: "EXTERNAL-1", TransactionID: "TX-1"}
+	for _, identifier := range []string{"ORDER-1", "EXTERNAL-1", "TX-1"} {
+		if !invoiceOrderMatches(order, identifier) {
+			t.Errorf("order identifier %q should match", identifier)
+		}
+	}
+	if invoiceOrderMatches(order, "OTHER") {
+		t.Fatal("unrelated order identifier unexpectedly matched")
 	}
 }
 

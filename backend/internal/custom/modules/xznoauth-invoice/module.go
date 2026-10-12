@@ -21,6 +21,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	}
 	invoices := r.Group("/custom/invoices")
 	invoices.POST("/validate", m.Handler.Validate)
+	invoices.POST("/eligible-orders", m.Handler.EligibleOrders)
 	invoices.POST("", m.Handler.Create)
 	invoices.GET("", m.Handler.List)
 	invoices.POST("/tax-payments/status", m.Handler.TaxStatus)

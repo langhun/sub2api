@@ -9,6 +9,16 @@ import { invoiceAPI } from '../api'
 describe('XZNOAuth invoice facade API contract', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('filters invoice orders through the server-side merchant check', async () => {
+    apiClient.post.mockResolvedValue({ data: { orderNos: ['ORDER-2'] } })
+
+    await invoiceAPI.listEligibleOrderNos(['ORDER-1', 'ORDER-2'])
+
+    expect(apiClient.post).toHaveBeenCalledWith('/custom/invoices/eligible-orders', {
+      orderNos: ['ORDER-1', 'ORDER-2'],
+    })
+  })
+
   it('validates without creating tax payment orders', async () => {
     apiClient.post.mockResolvedValue({ data: {} })
 

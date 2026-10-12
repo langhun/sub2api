@@ -41,7 +41,7 @@
       >
         <template #actions="{ row }">
           <div class="flex flex-wrap items-center justify-end gap-2">
-            <button v-if="row.status === 'COMPLETED'" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/20" @click="toggleInvoiceOrder(row)">
+            <button v-if="canSelectInvoiceOrder(row)" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/20" @click="toggleInvoiceOrder(row)">
               <Icon name="document" size="sm" />
               <span>{{ selectedInvoiceOrderIds.includes(row.id) ? t('invoices.selected') : t('invoices.selectForInvoice') }}</span>
             </button>
@@ -133,6 +133,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
+import { invoiceAPI } from '@/custom/modules/xznoauth-invoice/api'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import type { PaymentOrder } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -155,6 +156,7 @@ const orders = ref<PaymentOrder[]>([])
 const refundEligibleProviders = ref<Set<string>>(new Set())
 const currentFilter = ref('')
 const showInvoiceableOnly = ref(false)
+const invoiceableOrderNos = ref(new Set<string>())
 const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
@@ -183,16 +185,30 @@ async function fetchOrders() {
       page_size: pagination.page_size,
       status: currentFilter.value || undefined,
     })
-    orders.value = res.data.items || []
+    const fetchedOrders = res.data.items || []
+    orders.value = fetchedOrders
     pagination.total = res.data.total || 0
+    invoiceableOrderNos.value = new Set()
+    if (showInvoiceableOnly.value && fetchedOrders.length) {
+      const orderNos = fetchedOrders.map(order => order.out_trade_no).filter(Boolean)
+      const eligibility = await invoiceAPI.listEligibleOrderNos(orderNos)
+      invoiceableOrderNos.value = new Set(eligibility.data.orderNos || [])
+      orders.value = fetchedOrders.filter(order => invoiceableOrderNos.value.has(order.out_trade_no))
+    }
   } catch (err: unknown) {
+    orders.value = []
+    invoiceableOrderNos.value = new Set()
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally {
     loading.value = false
   }
 }
 
-function isInvoiceSelectionDisabled(order: PaymentOrder) { return order.status !== 'COMPLETED' }
+function canSelectInvoiceOrder(order: PaymentOrder) {
+  return order.status === 'COMPLETED' && showInvoiceableOnly.value && invoiceableOrderNos.value.has(order.out_trade_no)
+}
+
+function isInvoiceSelectionDisabled(order: PaymentOrder) { return !canSelectInvoiceOrder(order) }
 
 function updateSelectedInvoiceOrderIds(keys: Array<string | number>) {
   const ids = keys.map(Number)
@@ -201,14 +217,14 @@ function updateSelectedInvoiceOrderIds(keys: Array<string | number>) {
     if (!ids.includes(id)) next.delete(id)
   }
   for (const order of orders.value) {
-    if (ids.includes(order.id) && order.status === 'COMPLETED') next.set(order.id, order)
+    if (ids.includes(order.id) && canSelectInvoiceOrder(order)) next.set(order.id, order)
   }
   selectedInvoiceOrderIds.value = ids
   selectedInvoiceOrdersById.value = next
 }
 
 function toggleInvoiceOrder(order: PaymentOrder) {
-  if (isInvoiceSelectionDisabled(order)) return
+  if (!canSelectInvoiceOrder(order)) return
   updateSelectedInvoiceOrderIds(selectedInvoiceOrderIds.value.includes(order.id)
     ? selectedInvoiceOrderIds.value.filter(id => id !== order.id)
     : [...selectedInvoiceOrderIds.value, order.id])
@@ -236,6 +252,7 @@ function handleInvoiceAction() {
   currentFilter.value = showInvoiceableOnly.value ? 'COMPLETED' : ''
   pagination.page = 1
   clearInvoiceSelection()
+  if (!showInvoiceableOnly.value) invoiceableOrderNos.value = new Set()
   void fetchOrders()
 }
 

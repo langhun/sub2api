@@ -3,9 +3,13 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import UserOrdersView from '../UserOrdersView.vue'
 import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import OrderTable from '@/components/payment/OrderTable.vue'
+import type { PaymentOrder } from '@/types/payment'
 
 const api = vi.hoisted(() => ({ getMyOrders: vi.fn(), getRefundEligibleProviders: vi.fn() }))
+const invoice = vi.hoisted(() => ({ listEligibleOrderNos: vi.fn() }))
 vi.mock('@/api/payment', () => ({ paymentAPI: api }))
+vi.mock('@/custom/modules/xznoauth-invoice/api', () => ({ invoiceAPI: invoice }))
 vi.mock('@/stores', () => ({ useAppStore: () => ({ showError: vi.fn() }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('vue-i18n', async (importOriginal) => ({
@@ -18,6 +22,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   api.getMyOrders.mockResolvedValue({ data: { items: [], total: 100 } })
   api.getRefundEligibleProviders.mockResolvedValue({ data: { provider_instance_ids: [] } })
+  invoice.listEligibleOrderNos.mockResolvedValue({ data: { orderNos: [] } })
 })
 
 async function openOrders() {
@@ -45,6 +50,25 @@ describe('order status filtering', () => {
     expect(api.getMyOrders).toHaveBeenLastCalledWith({ page: 1, page_size: 20, status: 'COMPLETED' })
     expect(wrapper.getComponent(Select).props('modelValue')).toBe('COMPLETED')
     expect(invoiceButton!.attributes('aria-pressed')).toBe('true')
+  })
+
+  it('shows only merchant-verified completed orders in the invoice picker', async () => {
+    const orders = [
+      { id: 1, out_trade_no: 'OLD-ORDER', status: 'COMPLETED' },
+      { id: 2, out_trade_no: 'NEW-ORDER', status: 'COMPLETED' },
+    ] as PaymentOrder[]
+    api.getMyOrders.mockResolvedValue({ data: { items: orders, total: orders.length } })
+    invoice.listEligibleOrderNos.mockResolvedValue({ data: { orderNos: ['NEW-ORDER'] } })
+
+    const wrapper = await openOrders()
+    const invoiceButton = wrapper.findAll('button').find(button => button.text() === 'invoices.apply')
+    await invoiceButton!.trigger('click')
+    await flushPromises()
+
+    expect(invoice.listEligibleOrderNos).toHaveBeenLastCalledWith(['OLD-ORDER', 'NEW-ORDER'])
+    expect(wrapper.getComponent(OrderTable).props('orders')).toEqual([orders[1]])
+    expect(wrapper.getComponent(OrderTable).props('selectionDisabled')?.(orders[0])).toBe(true)
+    expect(wrapper.getComponent(OrderTable).props('selectionDisabled')?.(orders[1])).toBe(false)
   })
 
   it('loads the first page with the selected status', async () => {

@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -18,6 +19,10 @@ import (
 type Handler struct {
 	client *Client
 	store  *Repository
+}
+
+type eligibleOrdersRequest struct {
+	OrderNos []string `json:"orderNos"`
 }
 
 func NewHandler(client *Client, store *Repository) *Handler {
@@ -45,6 +50,10 @@ func (h *Handler) Validate(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
+	userID, ok := h.currentUser(c)
+	if !ok {
+		return
+	}
 	var req validateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "at least one order number is required")
@@ -57,12 +66,115 @@ func (h *Handler) Validate(c *gin.Context) {
 		return
 	}
 	req.OrderNos = orderNos
+	if !h.requireOwnedCompletedOrders(c, userID, orderNos) {
+		return
+	}
 	out, err := h.client.Validate(c.Request.Context(), req)
 	if err != nil {
 		h.remoteError(c, err)
 		return
 	}
 	response.Success(c, out)
+}
+
+// EligibleOrders filters the caller's completed orders through the merchant
+// validation service. This deliberately validates one order at a time because
+// XZNOAuth rejects a mixed-merchant batch; historical orders from the previous
+// payment merchant therefore stay out of the invoice picker.
+func (h *Handler) EligibleOrders(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	userID, ok := h.currentUser(c)
+	if !ok {
+		return
+	}
+	var req eligibleOrdersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "at least one order number is required")
+		return
+	}
+	orderNos, err := validateOrderNos(req.OrderNos)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	owned, err := h.store.OwnedCompletedOrderNos(c.Request.Context(), userID, orderNos)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to load payment orders")
+		return
+	}
+	if len(owned) == 0 {
+		response.Success(c, gin.H{"orderNos": []string{}})
+		return
+	}
+	if _, err := h.client.tokenFor(c.Request.Context()); err != nil {
+		h.remoteError(c, err)
+		return
+	}
+
+	eligible := make([]string, len(orderNos))
+	orderIndexes := make(map[string]int, len(orderNos))
+	for i, orderNo := range orderNos {
+		orderIndexes[orderNo] = i
+	}
+	var mu sync.Mutex
+	var firstErr error
+	jobs := make(chan string)
+	var workers sync.WaitGroup
+	worker := func() {
+		defer workers.Done()
+		for orderNo := range jobs {
+			if _, exists := owned[orderNo]; !exists {
+				continue
+			}
+			validated, validateErr := h.client.Validate(c.Request.Context(), validateRequest{
+				OrderNos:          []string{orderNo},
+				NeedPayTax:        false,
+				CreateTaxPayments: false,
+			})
+			if validateErr != nil {
+				if isInvoiceEligibilityMiss(validateErr) {
+					continue
+				}
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = validateErr
+				}
+				mu.Unlock()
+				continue
+			}
+			if len(validated.Orders) != 1 || !invoiceOrderMatches(validated.Orders[0], orderNo) {
+				continue
+			}
+			eligible[orderIndexes[orderNo]] = orderNo
+		}
+	}
+	workerCount := 4
+	if len(orderNos) < workerCount {
+		workerCount = len(orderNos)
+	}
+	for i := 0; i < workerCount; i++ {
+		workers.Add(1)
+		go worker()
+	}
+	for _, orderNo := range orderNos {
+		jobs <- orderNo
+	}
+	close(jobs)
+	workers.Wait()
+	if firstErr != nil {
+		h.remoteError(c, firstErr)
+		return
+	}
+
+	filtered := eligible[:0]
+	for _, orderNo := range eligible {
+		if orderNo != "" {
+			filtered = append(filtered, orderNo)
+		}
+	}
+	response.Success(c, gin.H{"orderNos": filtered})
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -84,6 +196,9 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	req.OrderNos = orderNos
+	if !h.requireOwnedCompletedOrders(c, userID, orderNos) {
+		return
+	}
 	req.TaxOrderNos = nil
 	req.Title = strings.TrimSpace(req.Title)
 	req.TaxpayerID = strings.TrimSpace(req.TaxpayerID)
@@ -118,6 +233,19 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	response.Created(c, out)
+}
+
+func (h *Handler) requireOwnedCompletedOrders(c *gin.Context, userID int64, orderNos []string) bool {
+	owned, err := h.store.OwnedCompletedOrderNos(c.Request.Context(), userID, orderNos)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to load payment orders")
+		return false
+	}
+	if len(owned) != len(orderNos) {
+		response.BadRequest(c, "one or more orders cannot be used for this invoice application")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -343,6 +471,23 @@ func safeRemoteMessage(code string) string {
 	default:
 		return "Invoice service rejected the request"
 	}
+}
+
+func isInvoiceEligibilityMiss(err error) bool {
+	var remote *RemoteError
+	if !errors.As(err, &remote) {
+		return false
+	}
+	switch remote.Code {
+	case "INVOICE_ORDER_NOT_ELIGIBLE", "INVOICE_ORDER_ALREADY_CLAIMED", "INVOICE_DUPLICATE_ORDER", "INVOICE_INVALID_ORDERS":
+		return true
+	default:
+		return false
+	}
+}
+
+func invoiceOrderMatches(order Order, requested string) bool {
+	return order.OrderNo == requested || order.ExternalNo == requested || order.TransactionID == requested
 }
 
 func validateOrderNos(values []string) ([]string, error) {
