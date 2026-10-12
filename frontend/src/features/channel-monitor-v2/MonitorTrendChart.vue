@@ -85,6 +85,7 @@ import {
   type ZoomState,
 } from '@/features/channel-monitor-v2/monitorZoom'
 import { useTheme } from '@/custom/modules/apple-theme/useTheme'
+import { customChannelMonitorV2MetricDisplay } from '@/custom/registry'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 const { t, locale } = useI18n()
@@ -123,8 +124,15 @@ const chartData = computed(() => {
     }).format(new Date(p.bucket_start))
   )
   const errorRates = smoothTrend(points.map((p) => (p.metrics.error_rate || 0) * 100))
-  const cacheRates = smoothTrend(points.map((p) => (p.metrics.cache_rate || 0) * 100))
-  const ttftP50 = smoothTrend(points.map((p) => p.metrics.ttft?.p50_ms ?? null))
+  const cacheRates = smoothTrend(points.map((p) => (
+    customChannelMonitorV2MetricDisplay.hasCacheSample(p.metrics)
+      ? (p.metrics.cache_rate || 0) * 100
+      : null
+  )))
+  const latencyP50 = smoothTrend(points.map((p) => {
+    const selected = customChannelMonitorV2MetricDisplay.latencyMetricForDisplay(p.metrics)
+    return selected.metric.p50_ms ?? null
+  }))
   return {
     labels,
     datasets: [
@@ -157,11 +165,11 @@ const chartData = computed(() => {
         borderWidth: 2,
       },
       {
-        label: t('channelMonitorV2.chart.ttftDataset'),
-        data: ttftP50,
+        label: t('channelMonitorV2ActiveProbes.display.latencyDataset'),
+        data: latencyP50,
         borderColor: '#0ea5e9',
         backgroundColor: 'rgba(14, 165, 233, 0.08)',
-        yAxisID: 'yTtft',
+        yAxisID: 'yLatency',
         tension: 0.4,
         cubicInterpolationMode: 'monotone' as const,
         fill: false,
@@ -228,7 +236,7 @@ const chartOptions = computed(() => {
           label(ctx: { dataset: { label?: string }; parsed: { y: number | null } }) {
             const label = ctx.dataset.label || ''
             const y = ctx.parsed.y
-            if (y == null) return `${label}: -`
+            if (y == null) return `${label}: ${t('channelMonitorV2ActiveProbes.display.unavailable')}`
             if (label === t('channelMonitorV2.chart.errorDataset') || label === t('channelMonitorV2.chart.cacheDataset')) {
               return `${label}: ${formatMonitorPercent(y / 100)}`
             }
@@ -255,7 +263,7 @@ const chartOptions = computed(() => {
         grid: { color: grid, borderDash: [4, 4] },
         title: { display: true, text: t('channelMonitorV2.chart.percentAxis'), color: text, font: { size: 11 } },
       },
-      yTtft: {
+      yLatency: {
         type: 'linear' as const,
         position: 'right' as const,
         min: 0,
@@ -265,7 +273,7 @@ const chartOptions = computed(() => {
           callback: (v: string | number) => formatMonitorMs(Number(v)),
         },
         grid: { display: false },
-        title: { display: true, text: t('channelMonitorV2.metrics.ttftP50'), color: '#0ea5e9', font: { size: 11 } },
+        title: { display: true, text: t('channelMonitorV2ActiveProbes.display.latencyAxis'), color: '#0ea5e9', font: { size: 11 } },
       },
     },
   }

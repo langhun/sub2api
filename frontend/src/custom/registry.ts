@@ -37,6 +37,10 @@ import {
   channelMonitorV2SettingsExtensions,
   channelMonitorV2SourceExtensions,
 } from './modules/channel-monitor-v2-active-probes/extensions'
+import {
+  hasCacheSample,
+  latencyMetricForDisplay,
+} from './modules/channel-monitor-v2-active-probes/metricDisplay'
 import './payments'
 export {
   customPaymentDefinition,
@@ -189,6 +193,13 @@ export const customChannelMonitorV2SettingsExtensions: readonly CustomChannelMon
 export const customChannelMonitorV2SourceExtensions: readonly CustomChannelMonitorV2Extension[] = [
   ...channelMonitorV2SourceExtensions,
 ]
+
+// Generic metric presentation mount. The V2 page owns layout and filtering;
+// this Overlay only supplies the active-probe-aware fallback presentation.
+export const customChannelMonitorV2MetricDisplay = {
+  hasCacheSample,
+  latencyMetricForDisplay,
+} as const
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,

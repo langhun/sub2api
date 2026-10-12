@@ -256,7 +256,7 @@ func (m *Module) loadFacts(ctx context.Context, filter service.ChannelMonitorV2F
 	rows, err := m.db.QueryContext(ctx, `
 		SELECT monitor_id, platform, model, status, latency_ms, interval_seconds, checked_at
 		FROM custom_channel_monitor_v2_active_probe_results
-		WHERE checked_at < $2
+		WHERE checked_at <= $2
 		  AND (checked_at >= $1 OR checked_at >= NOW() - make_interval(secs => interval_seconds * 3))
 		ORDER BY checked_at ASC`, filter.Start.UTC(), filter.End.UTC())
 	if err != nil {

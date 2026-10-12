@@ -196,7 +196,7 @@
         </div>
       </section>
 
-      <!-- Overview KPI: success · TTFT · tokens/s(optional) · cache · (+ RPM when throughput visible) -->
+      <!-- Overview KPI: success · latency · tokens/s(optional) · cache · (+ RPM when throughput visible) -->
       <section
         v-if="snapshot"
         class="grid grid-cols-2 gap-3 sm:grid-cols-3"
@@ -210,11 +210,11 @@
           :state="snapshot.health.error_rate"
         />
         <MetricCell
-          :label="t('channelMonitorV2.metrics.ttftP50')"
-          :value="formatMs(snapshot.metrics.ttft.p50_ms)"
-          :detail="latencyKpiSecondary(snapshot.metrics.ttft)"
-          :title="latencyDetail(snapshot.metrics.ttft)"
-          :state="ttftCellState(snapshot.health.ttft, snapshot.metrics.ttft)"
+          :label="latencyLabel(snapshot.metrics)"
+          :value="latencyValue(snapshot.metrics)"
+          :detail="latencyKpiSecondary(snapshot.metrics)"
+          :title="latencyTitle(snapshot.metrics)"
+          :state="latencyCellState(snapshot.health.ttft, snapshot.health.overall, snapshot.metrics)"
         />
         <MetricCell
           v-if="showThroughput"
@@ -226,7 +226,7 @@
         <MetricCell
           :label="t('channelMonitorV2.metrics.cacheRate')"
           :value="formatCacheRate(snapshot.metrics)"
-          :detail="t('channelMonitorV2.metrics.cacheDetail')"
+          :detail="cacheDetail(snapshot.metrics)"
           :state="snapshot.metrics.cache_rate_denominator > 0 ? (snapshot.health.cache || snapshot.health.overall) : 'unknown'"
         />
         <MetricCell
@@ -296,7 +296,7 @@
                 <tr>
                   <th>{{ t('channelMonitorV2.table.platformModel') }}</th>
                   <th>{{ t('channelMonitorV2.metrics.successRate') }}</th>
-                  <th>{{ t('channelMonitorV2.metrics.ttftP50') }}</th>
+                  <th>{{ t('channelMonitorV2ActiveProbes.display.latencyHeader') }}</th>
                   <th v-if="showThroughput">{{ t('channelMonitorV2.metrics.tps') }}</th>
                   <th>{{ t('channelMonitorV2.metrics.cacheRate') }}</th>
                   <th v-if="showThroughput">{{ t('channelMonitorV2.metrics.rpm') }}</th>
@@ -332,8 +332,8 @@
                     <small class="text-xs text-gray-400">{{ t('channelMonitorV2.metrics.errorRateValue', { value: formatPercent(row.metrics.error_rate) }) }}</small>
                   </td>
                   <td>
-                    <span class="block">{{ formatMs(row.metrics.ttft.p50_ms) }}</span>
-                    <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics.ttft) }}</small>
+                    <span class="block">{{ latencyValue(row.metrics) }}</span>
+                    <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics) }}</small>
                   </td>
                   <td v-if="showThroughput" :title="exactTps(row.metrics.tpm)">{{ formatTps(row.metrics.tpm) }}</td>
                   <td>{{ formatCacheRate(row.metrics) }}</td>
@@ -401,7 +401,7 @@
                   <th class="w-16">{{ t('channelMonitorV2.table.rank') }}</th>
                   <th>{{ t('channelMonitorV2.table.user') }}</th>
                   <th>{{ t('channelMonitorV2.metrics.successRate') }}</th>
-                  <th>{{ t('channelMonitorV2.metrics.ttftP50') }}</th>
+                  <th>{{ t('channelMonitorV2ActiveProbes.display.latencyHeader') }}</th>
                   <th v-if="showThroughput">{{ t('channelMonitorV2.metrics.tps') }}</th>
                   <th>{{ t('channelMonitorV2.metrics.cacheRate') }}</th>
                   <th v-if="showThroughput">{{ t('channelMonitorV2.metrics.rpm') }}</th>
@@ -433,8 +433,8 @@
                     <small class="text-xs text-gray-400">{{ t('channelMonitorV2.metrics.errorRateValue', { value: formatPercent(row.metrics.error_rate) }) }}</small>
                   </td>
                   <td>
-                    <span class="block">{{ formatMs(row.metrics.ttft.p50_ms) }}</span>
-                    <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics.ttft) }}</small>
+                    <span class="block">{{ latencyValue(row.metrics) }}</span>
+                    <small class="text-xs text-gray-400">{{ latencyDetail(row.metrics) }}</small>
                   </td>
                   <td v-if="showThroughput" :title="exactTps(row.metrics.tpm)">{{ formatTps(row.metrics.tpm) }}</td>
                   <td>{{ formatCacheRate(row.metrics) }}</td>
@@ -485,7 +485,10 @@ import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
 import * as api from '@/api/channelMonitorV2'
-import { customChannelMonitorV2SourceExtensions } from '@/custom/registry'
+import {
+  customChannelMonitorV2MetricDisplay,
+  customChannelMonitorV2SourceExtensions,
+} from '@/custom/registry'
 import type {
   HealthState,
   MonitorDimensions,
@@ -494,6 +497,7 @@ import type {
   MonitorHealth,
   MonitorMatrixGroupBy,
   MonitorMatrixResponse,
+  MonitorMetric,
   MonitorModelRow,
   MonitorRange,
   MonitorSnapshot,
@@ -863,30 +867,62 @@ function exactTps(tpm: number | null | undefined) {
 function formatPercent(value: number) {
   return formatMonitorPercent(value)
 }
-function formatCacheRate(metric: { cache_rate: number; cache_rate_denominator: number }) {
-  return metric.cache_rate_denominator > 0 ? formatPercent(metric.cache_rate) : '-'
+function formatCacheRate(metric: MonitorMetric) {
+  return customChannelMonitorV2MetricDisplay.hasCacheSample(metric)
+    ? formatPercent(metric.cache_rate)
+    : t('channelMonitorV2ActiveProbes.display.cacheUnavailable')
 }
-function formatMs(value: number | null) {
+function formatMs(value: number | null | undefined) {
   return formatMonitorMs(value)
 }
-function ttftCellState(state: HealthState | undefined, metric: { p50_ms: number | null; sample_count?: number }) {
-  return ttftDisplayState(state, metric)
+
+function latencySelection(metric: MonitorMetric) {
+  return customChannelMonitorV2MetricDisplay.latencyMetricForDisplay(metric)
 }
-function latencyDetail(metric: {
-  p50_ms: number | null
-  p90_ms?: number | null
-  p95_ms: number | null
-  avg_ms?: number | null
-}) {
-  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
+function latencyLabel(metric: MonitorMetric) {
+  return latencySelection(metric).kind === 'duration'
+    ? t('channelMonitorV2ActiveProbes.display.responseLatency')
+    : t('channelMonitorV2ActiveProbes.display.latencyHeader')
 }
-/** KPI secondary: AVG · P90 under the P50 primary value. */
-function latencyKpiSecondary(metric: {
-  p90_ms?: number | null
-  p95_ms: number | null
-  avg_ms?: number | null
-}) {
-  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms)
+function latencyValue(metric: MonitorMetric) {
+  const selected = latencySelection(metric)
+  return selected.kind === 'unavailable'
+    ? t('channelMonitorV2ActiveProbes.display.unavailable')
+    : formatMs(selected.metric.p50_ms)
+}
+function latencyDetail(metric: MonitorMetric) {
+  const selected = latencySelection(metric)
+  if (selected.kind === 'unavailable') return t('channelMonitorV2ActiveProbes.display.unavailable')
+  return formatLatencyPrivacy(
+    selected.metric.p50_ms,
+    selected.metric.p90_ms,
+    selected.metric.avg_ms,
+    selected.metric.p95_ms,
+  )
+}
+function latencyKpiSecondary(metric: MonitorMetric) {
+  const selected = latencySelection(metric)
+  if (selected.kind === 'unavailable') return t('channelMonitorV2ActiveProbes.display.unavailable')
+  return formatLatencyKpiSecondary(selected.metric.avg_ms, selected.metric.p90_ms, selected.metric.p95_ms)
+}
+function latencyTitle(metric: MonitorMetric) {
+  const selected = latencySelection(metric)
+  return selected.kind === 'duration'
+    ? t('channelMonitorV2ActiveProbes.display.latencyDetail')
+    : latencyDetail(metric)
+}
+function cacheDetail(metric: MonitorMetric) {
+  if (customChannelMonitorV2MetricDisplay.hasCacheSample(metric)) {
+    return t('channelMonitorV2.metrics.cacheDetail')
+  }
+  return isAdmin.value
+    ? t('channelMonitorV2ActiveProbes.display.cacheDetail')
+    : t('channelMonitorV2ActiveProbes.display.cacheDetailUser')
+}
+function latencyCellState(state: HealthState | undefined, overall: HealthState | undefined, metric: MonitorMetric) {
+  const selected = latencySelection(metric)
+  if (selected.kind === 'duration') return overall || 'unknown'
+  return ttftDisplayState(state, selected.metric)
 }
 function formatTime(value: string) {
   return new Intl.DateTimeFormat(locale.value || undefined, {

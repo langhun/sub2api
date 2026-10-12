@@ -328,15 +328,6 @@ async function handleRunNow(row: ChannelMonitor) {
   if (runningId.value != null) return
   runningId.value = row.id
   try {
-    // Re-read the mode before calling the shared endpoint. In V2 the custom
-    // active-probe Overlay may explicitly admit probe/quota_probe targets; the
-    // backend remains the final authority and returns a precise error when the
-    // target or Overlay is not eligible. Keep this refresh inside the same
-    // error boundary so a transient settings request cannot become a
-    // misleading unhandled "failed" click.
-    if (typeof appStore.fetchPublicSettings === 'function') {
-      await appStore.fetchPublicSettings(true)
-    }
     const res = await adminAPI.channelMonitor.runNow(row.id)
     runResults.value = res.results || []
     showRunResult.value = true

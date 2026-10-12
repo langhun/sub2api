@@ -10,6 +10,10 @@ const i18nT = (key: string, params?: Record<string, unknown>) => {
     'channelMonitorV2.metrics.ttft': '首 Token',
     'channelMonitorV2.metrics.tps': '每秒 Token',
     'channelMonitorV2.metrics.cacheRate': '缓存率',
+    'channelMonitorV2ActiveProbes.display.latencyHeader': '延迟 P50',
+    'channelMonitorV2ActiveProbes.display.latencyValue': '延迟 {value}',
+    'channelMonitorV2ActiveProbes.display.unavailable': '未采样',
+    'channelMonitorV2ActiveProbes.display.cacheUnavailable': '—',
     'channelMonitorV2.matrix.scoreLine': '评分 {score}',
     'channelMonitorV2.metrics.successRateValue': '成功率 {value}',
     'channelMonitorV2.metrics.errorRateValue': '错误率 {value}',
@@ -127,7 +131,7 @@ describe('RelayPulseMatrix', () => {
     // Summary columns: success · ttft · tokens/s · cache
     const header = wrapper.find('.matrix-header').text()
     expect(header).toContain('成功率')
-    expect(header).toContain('首 Token')
+    expect(header).toContain('延迟 P50')
     expect(header).toContain('每秒 Token')
     expect(header).toContain('缓存率')
     // Multi-band class from score 52 → score5
@@ -181,7 +185,7 @@ describe('RelayPulseMatrix axis range', () => {
 })
 
 describe('RelayPulseMatrix cache sampling', () => {
-  it('shows an em dash when a bucket and row have no cache samples', async () => {
+  it('shows an explicit unsampled state when a bucket and row have no cache samples', async () => {
     const unknownCacheHealth: MonitorHealth = {
       ...health,
       overall: 'healthy',

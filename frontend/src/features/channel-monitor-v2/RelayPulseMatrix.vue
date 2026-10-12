@@ -42,7 +42,7 @@
           >
             <span>{{ t('channelMonitorV2.matrix.dimension') }}</span>
             <span>{{ t('channelMonitorV2.metrics.successRate') }}</span>
-            <span>{{ t('channelMonitorV2.metrics.ttft') }}</span>
+            <span>{{ t('channelMonitorV2ActiveProbes.display.latencyHeader') }}</span>
             <span v-if="showThroughput">{{ t('channelMonitorV2.metrics.tps') }}</span>
             <span>{{ t('channelMonitorV2.metrics.cacheRate') }}</span>
             <span class="pulse-axis flex justify-between gap-3">
@@ -65,9 +65,9 @@
             </strong>
             <strong
               class="summary-value text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300"
-              :title="latencyPrivacy(entry.row.metrics.ttft)"
+              :title="latencyPrivacy(entry.row.metrics)"
             >
-              {{ formatMs(entry.row.metrics.ttft.p50_ms) }}
+              {{ latencyValue(entry.row.metrics) }}
             </strong>
             <strong
               v-if="showThroughput"
@@ -105,12 +105,12 @@
                     <span class="pulse-tooltip-line pulse-tooltip-title">{{ formatBucketRange(slot.start) }}</span>
                     <span class="pulse-tooltip-line">{{ t('channelMonitorV2.matrix.scoreLine', { score: formatScore(slot.bucket.health) }) }}</span>
                     <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.successRateValue', { value: successRate(slot.bucket.metrics) }) }}</span>
-                    <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.ttftValue', { value: latencyPrivacy(slot.bucket.metrics.ttft) }) }}</span>
+                    <span class="pulse-tooltip-line">{{ latencyTooltipValue(slot.bucket.metrics) }}</span>
                     <span v-if="showThroughput" class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.tpsValue', { value: formatTps(slot.bucket.metrics.tpm) }) }}</span>
                     <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.cacheRateValue', { value: formatCacheRate(slot.bucket.metrics) }) }}</span>
                     <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.errorRateValue', { value: formatPercent(slot.bucket.metrics.error_rate) }) }}</span>
                     <span v-if="showThroughput" class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.rpmValue', { value: formatRate(slot.bucket.metrics.rpm) }) }}</span>
-                    <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.durationValue', { value: latencyPrivacy(slot.bucket.metrics.duration) }) }}</span>
+                    <span class="pulse-tooltip-line">{{ t('channelMonitorV2.metrics.durationValue', { value: durationPrivacy(slot.bucket.metrics.duration) }) }}</span>
                   </template>
                   <template v-else>
                     <span class="pulse-tooltip-line pulse-tooltip-title">{{ formatBucketRange(slot.start) }}</span>
@@ -196,6 +196,7 @@ import {
   sliceByZoom,
   type ZoomState,
 } from '@/features/channel-monitor-v2/monitorZoom'
+import { customChannelMonitorV2MetricDisplay } from '@/custom/registry'
 
 type HealthMode = 'overall' | 'success' | 'ttft' | 'cache'
 const { t, locale } = useI18n()
@@ -383,7 +384,7 @@ function bucketTooltipLines(bucket: MonitorMatrixBucket): string[] {
     formatBucketRange(bucket.bucket_start),
     t('channelMonitorV2.matrix.scoreLine', { score: formatScore(bucket.health) }),
     t('channelMonitorV2.metrics.successRateValue', { value: successRate(metrics) }),
-    t('channelMonitorV2.metrics.ttftValue', { value: latencyPrivacy(metrics.ttft) }),
+    latencyTooltipValue(metrics),
   ]
   if (props.showThroughput) {
     lines.push(t('channelMonitorV2.metrics.tpsValue', { value: formatTps(metrics.tpm) }))
@@ -395,7 +396,7 @@ function bucketTooltipLines(bucket: MonitorMatrixBucket): string[] {
   if (props.showThroughput) {
     lines.push(t('channelMonitorV2.metrics.rpmValue', { value: formatRate(metrics.rpm) }))
   }
-  lines.push(t('channelMonitorV2.metrics.durationValue', { value: latencyPrivacy(metrics.duration) }))
+  lines.push(t('channelMonitorV2.metrics.durationValue', { value: durationPrivacy(metrics.duration) }))
   return lines
 }
 function emptyTooltipLines(start: string): string[] {
@@ -430,8 +431,22 @@ function positionTooltip(event: MouseEvent | FocusEvent) {
   floatingTooltip.y = rect.top - 10
 }
 
-function latencyPrivacy(metric: LatencyMetric) {
+function latencyPrivacy(metric: MonitorMetric) {
+  const selected = customChannelMonitorV2MetricDisplay.latencyMetricForDisplay(metric)
+  if (selected.kind === 'unavailable') return t('channelMonitorV2ActiveProbes.display.unavailable')
+  return formatLatencyPrivacy(selected.metric.p50_ms, selected.metric.p90_ms, selected.metric.avg_ms, selected.metric.p95_ms)
+}
+
+function durationPrivacy(metric: LatencyMetric) {
   return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
+}
+
+function latencyTooltipValue(metric: MonitorMetric) {
+  const selected = customChannelMonitorV2MetricDisplay.latencyMetricForDisplay(metric)
+  const value = latencyPrivacy(metric)
+  if (selected.kind === 'ttft') return t('channelMonitorV2.metrics.ttftValue', { value })
+  if (selected.kind === 'duration') return t('channelMonitorV2ActiveProbes.display.responseLatencyValue', { value })
+  return t('channelMonitorV2ActiveProbes.display.latencyValue', { value })
 }
 
 function formatPercent(value: number) {
@@ -439,7 +454,9 @@ function formatPercent(value: number) {
 }
 
 function formatCacheRate(metrics: MonitorMetric) {
-  if (metrics.cache_rate_denominator <= 0) return '—'
+  if (!customChannelMonitorV2MetricDisplay.hasCacheSample(metrics)) {
+    return t('channelMonitorV2ActiveProbes.display.cacheUnavailable')
+  }
   return formatPercent(metrics.cache_rate)
 }
 
@@ -456,8 +473,11 @@ function exactTps(tpm: number | null | undefined) {
   return Intl.NumberFormat(locale.value || undefined, { maximumFractionDigits: 3 }).format(tps)
 }
 
-function formatMs(value: number | null) {
-  return formatMonitorMs(value)
+function latencyValue(metric: MonitorMetric) {
+  const selected = customChannelMonitorV2MetricDisplay.latencyMetricForDisplay(metric)
+  return selected.kind === 'unavailable'
+    ? t('channelMonitorV2ActiveProbes.display.unavailable')
+    : formatMonitorMs(selected.metric.p50_ms)
 }
 
 function formatAxisTime(value: string) {
