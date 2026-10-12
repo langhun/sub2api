@@ -2,9 +2,13 @@ package xznoauthinvoice
 
 import (
 	"errors"
+	"log"
 	"net/http"
+	"net/mail"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -42,16 +46,17 @@ func (h *Handler) Validate(c *gin.Context) {
 		return
 	}
 	var req validateRequest
-	if err := c.ShouldBindJSON(&req); err != nil || len(req.OrderNos) == 0 {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "at least one order number is required")
 		return
 	}
 	req.CreateTaxPayments = false
-	if hasDuplicateStrings(req.OrderNos) {
-		response.BadRequest(c, "duplicate order numbers are not allowed")
+	orderNos, err := validateOrderNos(req.OrderNos)
+	if err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
-	req.OrderNos = normalizeStrings(req.OrderNos)
+	req.OrderNos = orderNos
 	out, err := h.client.Validate(c.Request.Context(), req)
 	if err != nil {
 		h.remoteError(c, err)
@@ -73,19 +78,39 @@ func (h *Handler) Create(c *gin.Context) {
 		response.BadRequest(c, "invalid invoice application")
 		return
 	}
-	if hasDuplicateStrings(req.OrderNos) {
-		response.BadRequest(c, "duplicate order numbers are not allowed")
+	orderNos, err := validateOrderNos(req.OrderNos)
+	if err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
-	req.OrderNos = normalizeStrings(req.OrderNos)
+	req.OrderNos = orderNos
 	req.TaxOrderNos = nil
-	if len(req.OrderNos) == 0 || strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.TaxpayerID) == "" || strings.TrimSpace(req.RecipientEmail) == "" {
+	req.Title = strings.TrimSpace(req.Title)
+	req.TaxpayerID = strings.TrimSpace(req.TaxpayerID)
+	req.RecipientEmail = strings.TrimSpace(req.RecipientEmail)
+	req.BuyerAddress = strings.TrimSpace(req.BuyerAddress)
+	req.BuyerPhone = strings.TrimSpace(req.BuyerPhone)
+	req.BuyerBank = strings.TrimSpace(req.BuyerBank)
+	req.BuyerBankAccount = normalizeBankAccount(req.BuyerBankAccount)
+	if req.BuyerType != "individual" && req.BuyerType != "company" {
+		response.BadRequest(c, "buyer type must be individual or company")
+		return
+	}
+	if req.Title == "" || req.TaxpayerID == "" || req.RecipientEmail == "" {
 		response.BadRequest(c, "order numbers, title, taxpayer ID and recipient email are required")
+		return
+	}
+	if err := validateBuyerDetails(req); err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
 	out, err := h.client.Create(c.Request.Context(), req)
 	if err != nil {
 		h.remoteError(c, err)
+		return
+	}
+	if out.ID <= 0 || (out.Status != "pending" && out.Status != "awaiting_tax_payment") {
+		response.Error(c, http.StatusBadGateway, "invoice service returned an invalid application")
 		return
 	}
 	if err := h.store.SaveOwnership(c.Request.Context(), userID, out.ID, out.Status); err != nil {
@@ -157,6 +182,10 @@ func (h *Handler) Checkout(c *gin.Context) {
 		h.remoteError(c, err)
 		return
 	}
+	if out.Application.ID != id {
+		response.Error(c, http.StatusBadGateway, "invoice service returned a mismatched application")
+		return
+	}
 	if err := h.store.SaveOwnership(c.Request.Context(), userID, out.Application.ID, out.Application.Status); err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to update invoice ownership")
 		return
@@ -177,17 +206,25 @@ func (h *Handler) TaxStatus(c *gin.Context) {
 		return
 	}
 	var req struct {
-		ApplicationID int64  `json:"applicationId"`
+		ApplicationID int64  `json:"applicationId,omitempty"` // backward-compatible facade field
 		TaxOrderNo    string `json:"taxOrderNo"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.ApplicationID <= 0 || strings.TrimSpace(req.TaxOrderNo) == "" {
-		response.BadRequest(c, "application ID and tax order number are required")
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.TaxOrderNo) == "" {
+		response.BadRequest(c, "tax order number is required")
 		return
 	}
-	if !h.requireOwned(c, userID, req.ApplicationID) {
-		return
+	taxOrderNo := strings.TrimSpace(req.TaxOrderNo)
+	applicationID := req.ApplicationID
+	var err error
+	var ownsTaxOrder bool
+	if applicationID > 0 {
+		if !h.requireOwned(c, userID, applicationID) {
+			return
+		}
+		ownsTaxOrder, err = h.store.OwnsTaxOrder(c.Request.Context(), userID, applicationID, taxOrderNo)
+	} else {
+		applicationID, ownsTaxOrder, err = h.store.OwnedTaxOrderApplication(c.Request.Context(), userID, taxOrderNo)
 	}
-	ownsTaxOrder, err := h.store.OwnsTaxOrder(c.Request.Context(), userID, req.ApplicationID, strings.TrimSpace(req.TaxOrderNo))
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to verify invoice tax payment ownership")
 		return
@@ -196,7 +233,7 @@ func (h *Handler) TaxStatus(c *gin.Context) {
 		response.NotFound(c, "invoice tax payment not found")
 		return
 	}
-	paid, err := h.client.TaxStatus(c.Request.Context(), strings.TrimSpace(req.TaxOrderNo))
+	paid, err := h.client.TaxStatus(c.Request.Context(), taxOrderNo)
 	if err != nil {
 		h.remoteError(c, err)
 		return
@@ -221,7 +258,10 @@ func (h *Handler) Cancel(c *gin.Context) {
 		h.remoteError(c, err)
 		return
 	}
-	_ = h.store.UpdateStatus(c.Request.Context(), userID, id, out.Status)
+	if err := h.store.UpdateStatus(c.Request.Context(), userID, id, out.Status); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to update invoice ownership")
+		return
+	}
 	response.Success(c, out)
 }
 
@@ -271,6 +311,7 @@ func (h *Handler) requireOwned(c *gin.Context, userID, remoteID int64) bool {
 func (h *Handler) remoteError(c *gin.Context, err error) {
 	var remote *RemoteError
 	if errors.As(err, &remote) {
+		log.Printf("[xznoauth-invoice] upstream rejected request status=%d code=%q request_id=%q", remote.Status, remote.Code, remote.RequestID)
 		meta := map[string]string{}
 		if remote.RequestID != "" {
 			meta["request_id"] = remote.RequestID
@@ -304,34 +345,66 @@ func safeRemoteMessage(code string) string {
 	}
 }
 
-func normalizeStrings(values []string) []string {
+func validateOrderNos(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, errors.New("at least one order number is required")
+	}
 	out := make([]string, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
-			continue
+			return nil, errors.New("order numbers cannot be empty")
 		}
-		if _, ok := seen[value]; ok {
-			continue
+		if utf8.RuneCountInString(value) > 128 {
+			return nil, errors.New("order numbers cannot exceed 128 characters")
+		}
+		if _, exists := seen[value]; exists {
+			return nil, errors.New("duplicate order numbers are not allowed")
 		}
 		seen[value] = struct{}{}
 		out = append(out, value)
 	}
-	return out
+	return out, nil
 }
 
-func hasDuplicateStrings(values []string) bool {
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
+func normalizeBankAccount(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || r == '-' {
+			return -1
 		}
-		if _, ok := seen[value]; ok {
-			return true
-		}
-		seen[value] = struct{}{}
+		return r
+	}, strings.TrimSpace(value))
+}
+
+func validateBuyerDetails(req BuyerInput) error {
+	if _, err := mail.ParseAddress(req.RecipientEmail); err != nil || strings.ContainsAny(req.RecipientEmail, "<> \t\r\n") {
+		return errors.New("recipient email is invalid")
 	}
-	return false
+	if req.BuyerPhone != "" {
+		digits := 0
+		for _, r := range req.BuyerPhone {
+			if r >= '0' && r <= '9' {
+				digits++
+				continue
+			}
+			if r != '+' && r != '(' && r != ')' && r != '-' && !unicode.IsSpace(r) {
+				return errors.New("buyer phone is invalid")
+			}
+		}
+		if digits < 6 || utf8.RuneCountInString(req.BuyerPhone) > 32 {
+			return errors.New("buyer phone is invalid")
+		}
+	}
+	if account := req.BuyerBankAccount; account != "" {
+		if len(account) < 8 || len(account) > 32 {
+			return errors.New("buyer bank account must contain 8 to 32 digits")
+		}
+		for _, r := range account {
+			if r < '0' || r > '9' {
+				return errors.New("buyer bank account must contain 8 to 32 digits")
+			}
+		}
+	}
+	return nil
 }

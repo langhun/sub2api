@@ -260,12 +260,15 @@ func (c *Client) PDF(ctx context.Context, id int64) ([]byte, error) {
 		}
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 		_ = resp.Body.Close()
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 && bytes.HasPrefix(data, []byte("%PDF-")) {
 			return data, nil
 		}
 		var envelope apiEnvelope
 		_ = json.Unmarshal(data, &envelope)
 		code := strings.Trim(string(envelope.Code), `"`)
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 && code == "" {
+			code = "INVOICE_INVALID_PDF_RESPONSE"
+		}
 		if code == "" {
 			code = strconv.Itoa(resp.StatusCode)
 		}

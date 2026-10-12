@@ -260,6 +260,23 @@ describe('API Client', () => {
       )
     })
 
+    it('将 Blob 中的 JSON 下载错误解析为结构化错误', async () => {
+      apiClient.defaults.adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 404,
+          data: new Blob([JSON.stringify({ code: 404, reason: 'INVOICE_PDF_NOT_READY', message: 'PDF is not ready' })], { type: 'application/json' }),
+        },
+        config: { url: '/custom/invoices/42/pdf' },
+        message: 'Request failed with status code 404',
+      })
+
+      await expect(apiClient.get('/custom/invoices/42/pdf', { responseType: 'blob' })).rejects.toMatchObject({
+        status: 404,
+        reason: 'INVOICE_PDF_NOT_READY',
+        message: 'PDF is not ready',
+      })
+    })
+
     it('部署与运营合规未确认时广播事件且保留登录态', async () => {
       localStorage.setItem('auth_token', 'admin-token')
       const listener = vi.fn()

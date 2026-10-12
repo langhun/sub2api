@@ -107,6 +107,22 @@ WHERE local_user_id=$1 AND remote_application_id=$2 AND tax_order_no=$3)`,
 	return exists, err
 }
 
+// OwnedTaxOrderApplication resolves a tax order to the local application that
+// owns it. The browser facade can therefore accept the merchant contract's
+// taxOrderNo-only status request without trusting an application ID from the client.
+func (r *Repository) OwnedTaxOrderApplication(ctx context.Context, userID int64, taxOrderNo string) (int64, bool, error) {
+	if r == nil || r.db == nil {
+		return 0, false, errors.New("invoice database is unavailable")
+	}
+	var remoteID int64
+	err := r.db.QueryRowContext(ctx, `SELECT remote_application_id FROM custom_invoice_tax_orders
+WHERE local_user_id=$1 AND tax_order_no=$2 LIMIT 1`, userID, taxOrderNo).Scan(&remoteID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	return remoteID, err == nil, err
+}
+
 func (r *Repository) UpdateStatus(ctx context.Context, userID, remoteID int64, status string) error {
 	if r == nil || r.db == nil {
 		return errors.New("invoice database is unavailable")

@@ -21,7 +21,7 @@
     </div>
 
     <BaseDialog :show="!!checkout" :title="t('invoices.paymentTitle')" width="normal" :z-index="60" @close="closeCheckout">
-      <div v-if="checkout" class="space-y-4"><p class="text-sm text-gray-600 dark:text-gray-300">{{ t('invoices.paymentHint') }}</p><div v-for="(channel, key) in checkout.taxPayments" :key="key" class="flex items-center justify-between gap-3"><span class="capitalize">{{ key }}</span><button class="btn btn-primary" type="button" @click="pay(channel)">{{ t('invoices.pay') }}</button></div></div>
+      <div v-if="checkout" class="space-y-4"><p class="text-sm text-gray-600 dark:text-gray-300">{{ paymentPending ? t('invoices.paymentPending') : t('invoices.paymentHint') }}</p><div class="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-800"><div><span class="text-gray-500">{{ t('invoices.taxPaid') }}</span><strong class="ml-2">{{ checkout.taxPaidAmount }} {{ checkout.application.currency || '' }}</strong></div><div><span class="text-gray-500">{{ t('invoices.taxDue') }}</span><strong class="ml-2">{{ checkout.taxDueAmount }} {{ checkout.application.currency || '' }}</strong></div></div><template v-if="!paymentPending"><div v-for="(channel, key) in checkout.taxPayments" :key="key" class="flex items-center justify-between gap-3"><span class="capitalize">{{ key }}</span><button class="btn btn-primary" type="button" @click="pay(channel)">{{ t('invoices.pay') }}</button></div></template></div>
     </BaseDialog>
     <BaseDialog :show="!!previewUrl" :title="t('invoices.preview')" width="wide" :z-index="60" @close="closePreview"><iframe v-if="previewUrl" :src="previewUrl" class="h-[70vh] w-full border-0" :title="t('invoices.preview')" /></BaseDialog>
   </BaseDialog>
@@ -49,9 +49,12 @@ const cancelId = ref<number | null>(null)
 const downloadId = ref<number | null>(null)
 const previewId = ref<number | null>(null)
 const checkout = ref<TaxCheckout | null>(null)
+const paymentPending = ref(false)
 const previewUrl = ref<string | null>(null)
 const page = reactive({ number: 1, size: 20, total: 0 })
+let pollRun = 0
 let pollTimer: number | undefined
+let pollResume: (() => void) | undefined
 
 async function load() {
   loading.value = true
@@ -68,11 +71,12 @@ async function load() {
 function changePage(value: number) { page.number = value; void load() }
 function changeSize(value: number) { page.number = 1; page.size = value; void load() }
 function formatDate(value?: string) { return value ? new Date(value).toLocaleString() : '-' }
-async function continuePayment(item: InvoiceApplication) { checkoutId.value = item.id; try { checkout.value = (await invoiceAPI.getTaxPayments(item.id)).data } catch (actionError) { appStore.showError(extractI18nErrorMessage(actionError, t, 'invoices', t('invoices.loadFailed'))) } finally { checkoutId.value = null } }
-async function cancel(item: InvoiceApplication) { if (!window.confirm(t('invoices.cancelConfirm'))) return; cancelId.value = item.id; try { await invoiceAPI.cancelInvoice(item.id); await load() } catch (actionError) { appStore.showError(extractI18nErrorMessage(actionError, t, 'invoices', t('invoices.loadFailed'))) } finally { cancelId.value = null } }
+async function continuePayment(item: InvoiceApplication) { checkoutId.value = item.id; checkout.value = null; paymentPending.value = false; try { const result = (await invoiceAPI.getTaxPayments(item.id)).data; if (result.application.status !== 'awaiting_tax_payment') { await load(); return } checkout.value = result; paymentPending.value = Number(result.taxDueAmount || 0) <= 0 } catch (actionError) { appStore.showError(extractI18nErrorMessage(actionError, t, 'invoices', t('invoices.loadFailed'))) } finally { checkoutId.value = null } }
+async function cancel(item: InvoiceApplication) { if (!window.confirm(t('invoices.cancelConfirm'))) return; cancelId.value = item.id; try { await invoiceAPI.cancelInvoice(item.id); await load() } catch (actionError) { await load(); appStore.showError(extractI18nErrorMessage(actionError, t, 'invoices', t('invoices.loadFailed'))) } finally { cancelId.value = null } }
 function pay(channel: TaxPayment) { window.open(channel.payUrl, '_blank', 'noopener,noreferrer'); if (checkout.value) void pollPayment(checkout.value.application.id, channel.taxOrderNo) }
-async function pollPayment(applicationId: number, taxOrderNo: string) { for (let attempt = 0; attempt < 8; attempt += 1) { await new Promise<void>(resolve => { pollTimer = window.setTimeout(resolve, Math.min(15000, 2000 + attempt * 1500)) }); try { if ((await invoiceAPI.checkTaxPayment({ applicationId, taxOrderNo })).data.paid) { appStore.showSuccess(t('invoices.paymentComplete')); checkout.value = null; await load(); return } } catch { return } } }
-function closeCheckout() { checkout.value = null; if (pollTimer) window.clearTimeout(pollTimer) }
+async function pollPayment(applicationId: number, taxOrderNo: string) { closePolling(); const run = ++pollRun; for (let attempt = 0; attempt < 8; attempt += 1) { await new Promise<void>(resolve => { const resume = () => { pollTimer = undefined; pollResume = undefined; resolve() }; pollResume = resume; pollTimer = window.setTimeout(resume, Math.min(15000, 2000 + attempt * 1500)) }); if (run !== pollRun) return; try { if ((await invoiceAPI.checkTaxPayment({ taxOrderNo })).data.paid) { if (run !== pollRun) return; const refreshed = (await invoiceAPI.getTaxPayments(applicationId)).data; if (run !== pollRun) return; if (['pending', 'approved', 'completed'].includes(refreshed.application.status)) { appStore.showSuccess(t('invoices.paymentComplete')); checkout.value = null; paymentPending.value = false } else if (refreshed.application.status !== 'awaiting_tax_payment') { checkout.value = null; paymentPending.value = false } else { checkout.value = refreshed; paymentPending.value = Number(refreshed.taxDueAmount || 0) <= 0; appStore.showSuccess(paymentPending.value ? t('invoices.paymentPending') : t('invoices.paymentPartial')) } await load(); return } } catch (pollError) { appStore.showError(extractI18nErrorMessage(pollError, t, 'invoices', t('invoices.loadFailed'))); return } } }
+function closePolling() { pollRun += 1; if (pollTimer) { window.clearTimeout(pollTimer); pollTimer = undefined } pollResume?.(); pollResume = undefined }
+function closeCheckout() { closePolling(); checkout.value = null; paymentPending.value = false }
 function closePreview() { if (previewUrl.value) URL.revokeObjectURL(previewUrl.value); previewUrl.value = null }
 async function preview(item: InvoiceApplication) { previewId.value = item.id; try { closePreview(); previewUrl.value = URL.createObjectURL((await invoiceAPI.downloadInvoicePDF(item.id)).data) } catch (previewError) { appStore.showError(extractI18nErrorMessage(previewError, t, 'invoices', t('invoices.loadFailed'))) } finally { previewId.value = null } }
 async function download(item: InvoiceApplication) { downloadId.value = item.id; let url: string | null = null; try { url = URL.createObjectURL((await invoiceAPI.downloadInvoicePDF(item.id)).data); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `invoice-${item.id}.pdf`; anchor.click() } catch (downloadError) { appStore.showError(extractI18nErrorMessage(downloadError, t, 'invoices', t('invoices.loadFailed'))) } finally { if (url) window.setTimeout(() => URL.revokeObjectURL(url as string), 1000); downloadId.value = null } }

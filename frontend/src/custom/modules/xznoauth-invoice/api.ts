@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client'
 export interface InvoiceOrder {
   orderNo: string
   externalNo?: string
+  transactionId?: string
   productName?: string
   amount: string
   currency: string
@@ -83,11 +84,13 @@ export const invoiceAPI = {
   getTaxPayments(id: number) {
     return apiClient.post<TaxCheckout>(`/custom/invoices/${id}/tax-payments`)
   },
-  checkTaxPayment(input: { applicationId: number; taxOrderNo: string }) {
+  checkTaxPayment(input: { taxOrderNo: string }) {
     return apiClient.post<{ paid: boolean }>('/custom/invoices/tax-payments/status', input)
   },
   listInvoices(params: { page: number; pageSize: number }) {
-    return apiClient.get<InvoicePage>('/custom/invoices', { params })
+    return apiClient.get<InvoicePage>('/custom/invoices', {
+      params: { page: params.page, page_size: params.pageSize },
+    })
   },
   cancelInvoice(id: number) {
     return apiClient.post<InvoiceApplication>(`/custom/invoices/${id}/cancel`)

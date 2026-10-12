@@ -115,8 +115,26 @@ apiClient.interceptors.response.use(
       const { status, data } = error.response
       const url = String(error.config?.url || '')
 
+      // Download endpoints can return the normal JSON error envelope as a Blob.
+      let responseData: unknown = data
+      if (typeof Blob !== 'undefined' && data instanceof Blob) {
+        try {
+          const blob = data.slice(0, 1 << 20)
+          const text = typeof blob.text === 'function'
+            ? await blob.text()
+            : await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(String(reader.result || ''))
+              reader.onerror = () => reject(reader.error)
+              reader.readAsText(blob)
+            })
+          responseData = JSON.parse(text)
+        } catch {
+          responseData = {}
+        }
+      }
       // Validate `data` shape to avoid HTML error pages breaking our error handling.
-      const apiData = (typeof data === 'object' && data !== null ? data : {}) as Record<string, any>
+      const apiData = (typeof responseData === 'object' && responseData !== null ? responseData : {}) as Record<string, any>
 
       // Ops monitoring disabled: treat as feature-flagged 404, and proactively redirect away
       // from ops pages to avoid broken UI states.
