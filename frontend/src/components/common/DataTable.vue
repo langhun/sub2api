@@ -34,13 +34,14 @@
     <template v-else>
       <div v-if="selectable" class="flex items-center justify-end gap-2 px-1">
         <label class="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
-          <input
-            type="checkbox"
-            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
-            :checked="allVisibleSelected"
-            :indeterminate="someVisibleSelected"
-            data-test="select-all-mobile"
-            @change="toggleAllVisible(($event.target as HTMLInputElement).checked)"
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
+              :checked="allVisibleSelected"
+              :indeterminate="someVisibleSelected"
+              :disabled="!selectableRowCount"
+              data-test="select-all-mobile"
+              @change="toggleAllVisible(($event.target as HTMLInputElement).checked)"
           />
           <span>{{ t('common.selectAll') }}</span>
         </label>
@@ -62,6 +63,7 @@
               type="checkbox"
               class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
               :checked="isRowSelected(row, index)"
+              :disabled="isRowSelectionDisabled(row)"
               :aria-label="getRowSelectionLabel(row, index)"
               data-test="select-row"
               @click.stop
@@ -113,6 +115,7 @@
               class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
               :checked="allVisibleSelected"
               :indeterminate="someVisibleSelected"
+              :disabled="!selectableRowCount"
               :aria-label="t('common.selectAll')"
               data-test="select-all"
               @change="toggleAllVisible(($event.target as HTMLInputElement).checked)"
@@ -228,6 +231,7 @@
                 type="checkbox"
                 class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
                 :checked="isRowSelected(item.row, item.index)"
+                :disabled="isRowSelectionDisabled(item.row)"
                 :aria-label="getRowSelectionLabel(item.row, item.index)"
                 data-test="select-row"
                 @click.stop
@@ -478,6 +482,8 @@ interface Props {
   selectedKeys?: Array<string | number>
   /** Accessible label for a row selection checkbox. */
   selectionLabel?: string | ((row: any) => string)
+  /** Return true when a row must not be selected. */
+  selectionDisabled?: (row: any) => boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -717,17 +723,22 @@ const sortedData = computed(() => {
 
 const tableColumnCount = computed(() => props.columns.length + (props.selectable ? 1 : 0))
 const selectedKeySet = computed(() => new Set(props.selectedKeys))
-const visibleRowKeys = computed(() =>
-  (sortedData.value ?? []).map((row, index) => resolveRowKey(row, index))
+const selectableVisibleRowKeys = computed(() =>
+  (sortedData.value ?? [])
+    .filter((row) => !isRowSelectionDisabled(row))
+    .map((row, index) => resolveRowKey(row, index))
 )
+const selectableRowCount = computed(() => selectableVisibleRowKeys.value.length)
 const allVisibleSelected = computed(() =>
-  visibleRowKeys.value.length > 0
-  && visibleRowKeys.value.every((key) => selectedKeySet.value.has(key))
+  selectableVisibleRowKeys.value.length > 0
+  && selectableVisibleRowKeys.value.every((key) => selectedKeySet.value.has(key))
 )
 const someVisibleSelected = computed(() => {
   if (allVisibleSelected.value) return false
-  return visibleRowKeys.value.some((key) => selectedKeySet.value.has(key))
+  return selectableVisibleRowKeys.value.some((key) => selectedKeySet.value.has(key))
 })
+
+const isRowSelectionDisabled = (row: any) => props.selectionDisabled?.(row) ?? false
 
 const emitSelection = (next: Set<string | number>) => {
   const keys = Array.from(next)
@@ -745,6 +756,7 @@ const getRowSelectionLabel = (row: any, index: number) => {
 }
 
 const toggleRowSelection = (row: any, index: number, checked: boolean) => {
+  if (isRowSelectionDisabled(row)) return
   const next = new Set(props.selectedKeys)
   const key = resolveRowKey(row, index)
   if (checked) next.add(key)
@@ -754,7 +766,7 @@ const toggleRowSelection = (row: any, index: number, checked: boolean) => {
 
 const toggleAllVisible = (checked: boolean) => {
   const next = new Set(props.selectedKeys)
-  for (const key of visibleRowKeys.value) {
+  for (const key of selectableVisibleRowKeys.value) {
     if (checked) next.add(key)
     else next.delete(key)
   }

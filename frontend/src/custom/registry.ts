@@ -38,8 +38,6 @@ import {
   channelMonitorV2SourceExtensions,
 } from './modules/channel-monitor-v2-active-probes/extensions'
 import './payments'
-import { xznoauthInvoiceRoutes } from './modules/xznoauth-invoice/routes'
-import { xznoauthInvoiceNavigation } from './modules/xznoauth-invoice/navigation'
 export {
   customPaymentDefinition,
   customPaymentDefinitions,
@@ -167,7 +165,6 @@ export const customRoutes: readonly RouteRecordRaw[] = [
   ...activityRoutes,
   ...gameHallRoutes,
   ...supportTicketRoutes,
-  ...xznoauthInvoiceRoutes,
 ]
 
 export const customNavigation: readonly CustomNavigationItem[] = [
@@ -175,7 +172,6 @@ export const customNavigation: readonly CustomNavigationItem[] = [
   ...docsNavigation,
   ...gameHallNavigation,
   ...supportTicketNavigation,
-  ...xznoauthInvoiceNavigation,
 ]
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [

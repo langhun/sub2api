@@ -6,6 +6,14 @@
         <div class="flex flex-wrap items-center gap-3">
           <Select v-model="currentFilter" :options="statusFilters" class="w-36" @change="handlePageChange(1)" />
           <div class="flex flex-1 items-center justify-end gap-2">
+            <button class="btn btn-secondary" type="button" @click="invoiceRecordsOpen = true">
+              <Icon name="document" size="sm" />
+              <span>{{ t('invoices.recordsTitle') }}</span>
+            </button>
+            <button class="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50" type="button" :disabled="!selectedInvoiceOrderIds.length" @click="openInvoiceApply">
+              <Icon name="document" size="sm" />
+              <span>{{ t('invoices.apply') }}</span>
+            </button>
             <button @click="fetchOrders" :disabled="loading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
@@ -15,9 +23,22 @@
       </div>
 
       <!-- Table -->
-      <OrderTable :orders="orders" :loading="loading" :show-order-id="false">
+      <OrderTable
+        :orders="orders"
+        :loading="loading"
+        :show-order-id="false"
+        :selectable="true"
+        :selected-keys="selectedInvoiceOrderIds"
+        :selection-disabled="isInvoiceSelectionDisabled"
+        :selection-label="t('invoices.selectOrder')"
+        @update:selected-keys="selectedInvoiceOrderIds = $event.map(Number)"
+      >
         <template #actions="{ row }">
           <div class="flex flex-wrap items-center justify-end gap-2">
+            <button v-if="row.status === 'COMPLETED'" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/20" @click="toggleInvoiceOrder(row)">
+              <Icon name="document" size="sm" />
+              <span>{{ selectedInvoiceOrderIds.includes(row.id) ? t('invoices.selected') : t('invoices.selectForInvoice') }}</span>
+            </button>
             <button @click="openOrderDetail(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-600">
               <Icon name="eye" size="sm" />
               <span>{{ t('common.view') }}</span>
@@ -94,6 +115,9 @@
         />
       </div>
     </BaseDialog>
+
+    <InvoiceApplyDialog :show="invoiceApplyOpen" :orders="selectedInvoiceOrders" @close="invoiceApplyOpen = false" @saved="handleInvoiceSaved" />
+    <InvoiceRecordsDialog :show="invoiceRecordsOpen" @close="invoiceRecordsOpen = false" />
   </AppLayout>
 </template>
 
@@ -112,6 +136,8 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 import { customPaymentOrderDetailExtensions } from '@/custom/registry'
+import InvoiceApplyDialog from '@/custom/modules/xznoauth-invoice/InvoiceApplyDialog.vue'
+import InvoiceRecordsDialog from '@/custom/modules/xznoauth-invoice/InvoiceRecordsDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -126,7 +152,12 @@ const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
 const selectedOrder = ref<PaymentOrder | null>(null)
+const selectedInvoiceOrderIds = ref<number[]>([])
+const invoiceApplyOpen = ref(false)
+const invoiceRecordsOpen = ref(false)
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
+
+const selectedInvoiceOrders = computed(() => orders.value.filter(order => selectedInvoiceOrderIds.value.includes(order.id) && order.status === 'COMPLETED'))
 
 const statusFilters = computed(() => [
   { value: '', label: t('common.all') },
@@ -145,12 +176,37 @@ async function fetchOrders() {
       status: currentFilter.value || undefined,
     })
     orders.value = res.data.items || []
+    selectedInvoiceOrderIds.value = selectedInvoiceOrderIds.value.filter(id => orders.value.some(order => order.id === id && order.status === 'COMPLETED'))
     pagination.total = res.data.total || 0
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally {
     loading.value = false
   }
+}
+
+function isInvoiceSelectionDisabled(order: PaymentOrder) { return order.status !== 'COMPLETED' }
+
+function toggleInvoiceOrder(order: PaymentOrder) {
+  if (isInvoiceSelectionDisabled(order)) return
+  selectedInvoiceOrderIds.value = selectedInvoiceOrderIds.value.includes(order.id)
+    ? selectedInvoiceOrderIds.value.filter(id => id !== order.id)
+    : [...selectedInvoiceOrderIds.value, order.id]
+}
+
+function openInvoiceApply() {
+  if (!selectedInvoiceOrders.value.length) {
+    appStore.showError(t('invoices.errors.selectCompleted'))
+    return
+  }
+  invoiceApplyOpen.value = true
+}
+
+function handleInvoiceSaved() {
+  invoiceApplyOpen.value = false
+  selectedInvoiceOrderIds.value = []
+  invoiceRecordsOpen.value = true
+  void fetchOrders()
 }
 
 function handlePageChange(page: number) { pagination.page = page; fetchOrders() }

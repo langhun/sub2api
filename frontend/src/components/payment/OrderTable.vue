@@ -1,5 +1,15 @@
 <template>
-  <DataTable :columns="columns" :data="orders" :loading="loading">
+  <DataTable
+    :columns="columns"
+    :data="orders"
+    :loading="loading"
+    :selectable="selectable"
+    :selected-keys="selectedKeys"
+    :selection-label="selectionLabel"
+    :selection-disabled="selectionDisabled"
+    @update:selected-keys="emit('update:selectedKeys', $event)"
+    @selection-change="emit('selectionChange', $event)"
+  >
     <template #cell-id="{ value }">
       <span class="font-mono text-sm">#{{ value }}</span>
     </template>
@@ -58,9 +68,20 @@ const props = withDefaults(defineProps<{
   showUser?: boolean
   /** Keep internal order IDs available to admin views, but allow user views to hide them. */
   showOrderId?: boolean
+  selectable?: boolean
+  selectedKeys?: Array<string | number>
+  selectionLabel?: string | ((row: PaymentOrder) => string)
+  selectionDisabled?: (row: PaymentOrder) => boolean
 }>(), {
   showOrderId: true,
+  selectable: false,
+  selectedKeys: () => [],
 })
+
+const emit = defineEmits<{
+  'update:selectedKeys': [keys: Array<string | number>]
+  selectionChange: [keys: Array<string | number>]
+}>()
 
 function formatDate(dateStr: string) { return new Date(dateStr).toLocaleString() }
 
